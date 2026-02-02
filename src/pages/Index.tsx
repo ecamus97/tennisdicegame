@@ -6,8 +6,9 @@ import CalendarView from "@/components/CalendarView";
 import CurrentWeekView from "@/components/CurrentWeekView";
 import PlayerDetailDialog from "@/components/PlayerDetailDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Calendar, Play, Dice1, RotateCcw, ChevronRight } from "lucide-react";
+import { Trophy, Calendar, Play, Dice1, RotateCcw, ChevronRight, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +31,7 @@ const Index = () => {
     addTournamentResult,
     resetGame,
     updateFictionalRanking,
+    saveGame,
   } = useGameState();
   
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(
@@ -47,6 +49,31 @@ const Index = () => {
   const handleTournamentSelect = (tournament: Tournament) => {
     setSelectedTournament(tournament);
     setActiveTab("current");
+  };
+
+  const handleTournamentComplete = (
+    tournamentId: string,
+    results: { playerId: number; points: number; round: string }[],
+    winnerId: number,
+    runnerUpId: number
+  ) => {
+    addTournamentResult(tournamentId, results, winnerId, runnerUpId);
+    toast.success("Tournament results saved! Points have been awarded.");
+  };
+
+  const handleSaveGame = () => {
+    saveGame();
+    toast.success("Game progress saved!");
+  };
+
+  const handleAdvanceWeek = () => {
+    advanceWeek();
+    // Auto-select next week's tournament
+    const nextTournament = tournaments.find(t => t.week === (currentWeek >= 52 ? 1 : currentWeek + 1));
+    if (nextTournament) {
+      setSelectedTournament(nextTournament);
+    }
+    toast.info(`Advanced to Week ${currentWeek >= 52 ? 1 : currentWeek + 1}`);
   };
 
   return (
@@ -83,8 +110,17 @@ const Index = () => {
               <div className="flex items-center gap-2">
                 <Button 
                   size="sm" 
+                  variant="secondary" 
+                  onClick={handleSaveGame}
+                  className="gap-1"
+                >
+                  <Save className="w-4 h-4" />
+                  <span className="hidden sm:inline">Save</span>
+                </Button>
+                <Button 
+                  size="sm" 
                   variant="outline" 
-                  onClick={advanceWeek}
+                  onClick={handleAdvanceWeek}
                   className="gap-1"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -144,6 +180,8 @@ const Index = () => {
                   <CurrentWeekView
                     tournament={selectedTournament}
                     players={players}
+                    onTournamentComplete={handleTournamentComplete}
+                    isCompleted={completedTournaments.includes(selectedTournament.id)}
                   />
                 ) : (
                   <div className="glass-card p-12 text-center">
