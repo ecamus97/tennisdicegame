@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { tournaments, Tournament } from "@/data/players";
+import { tournaments, Tournament, Player } from "@/data/players";
 import { useGameState } from "@/hooks/useGameState";
 import RankingsView from "@/components/RankingsView";
 import CalendarView from "@/components/CalendarView";
 import CurrentWeekView from "@/components/CurrentWeekView";
+import PlayerDetailDialog from "@/components/PlayerDetailDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Calendar, Play, Dice1, RotateCcw, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,13 +28,21 @@ const Index = () => {
     completedTournaments,
     advanceWeek,
     addTournamentResult,
-    resetGame 
+    resetGame,
+    updateFictionalRanking,
   } = useGameState();
   
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(
     tournaments.find(t => t.week === 1) || null
   );
   const [activeTab, setActiveTab] = useState("current");
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [playerDialogOpen, setPlayerDialogOpen] = useState(false);
+
+  const handlePlayerSelect = (player: Player) => {
+    setSelectedPlayer(player);
+    setPlayerDialogOpen(true);
+  };
 
   const handleTournamentSelect = (tournament: Tournament) => {
     setSelectedTournament(tournament);
@@ -150,7 +159,7 @@ const Index = () => {
               </TabsContent>
 
               <TabsContent value="rankings" className="mt-0">
-                <RankingsView players={players} />
+                <RankingsView players={players} onPlayerSelect={handlePlayerSelect} />
               </TabsContent>
 
               <TabsContent value="calendar" className="mt-0">
@@ -284,6 +293,14 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      {/* Player Detail Dialog */}
+      <PlayerDetailDialog
+        player={selectedPlayer}
+        open={playerDialogOpen}
+        onOpenChange={setPlayerDialogOpen}
+        onUpdateFictionalRanking={updateFictionalRanking}
+      />
     </div>
   );
 };

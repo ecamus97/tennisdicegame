@@ -54,26 +54,78 @@ export const useGameState = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
-  // Advance to next week - updates rankings
+  // Generate random injury (1-4 weeks)
+  const generateRandomInjury = (player: Player): Player => {
+    // 2% chance of injury when advancing week
+    if (Math.random() < 0.02 && !player.injured) {
+      return {
+        ...player,
+        injured: true,
+        injuryWeeksRemaining: Math.floor(Math.random() * 4) + 1, // 1-4 weeks
+      };
+    }
+    return player;
+  };
+
+  // Update injury recovery
+  const updateInjuryRecovery = (player: Player): Player => {
+    if (player.injured && player.injuryWeeksRemaining > 0) {
+      const weeksRemaining = player.injuryWeeksRemaining - 1;
+      return {
+        ...player,
+        injured: weeksRemaining > 0,
+        injuryWeeksRemaining: weeksRemaining,
+      };
+    }
+    return player;
+  };
+
+  // Injure a specific player
+  const injurePlayer = useCallback((playerId: number, weeks: number) => {
+    setState(prev => ({
+      ...prev,
+      players: prev.players.map(p =>
+        p.id === playerId ? { ...p, injured: true, injuryWeeksRemaining: weeks } : p
+      ),
+    }));
+  }, []);
+
+  // Heal a specific player
+  const healPlayer = useCallback((playerId: number) => {
+    setState(prev => ({
+      ...prev,
+      players: prev.players.map(p =>
+        p.id === playerId ? { ...p, injured: false, injuryWeeksRemaining: 0 } : p
+      ),
+    }));
+  }, []);
+
+  // Advance to next week - updates rankings and injuries
   const advanceWeek = useCallback(() => {
     setState(prev => {
       const newWeek = prev.currentWeek >= 52 ? 1 : prev.currentWeek + 1;
       const newSeason = prev.currentWeek >= 52 ? prev.currentSeason + 1 : prev.currentSeason;
       
-      // When advancing week, update official rankings
+      // When advancing week, update official rankings and handle injuries
       const updatedPlayers = prev.players.map(player => {
+        // First update injury recovery
+        let updatedPlayer = updateInjuryRecovery(player);
+        
+        // Chance for new injury
+        updatedPlayer = generateRandomInjury(updatedPlayer);
+        
         // Deduct points from previous year for this week
-        const pointsToDeduct = player.previousYearPoints[newWeek - 1] || 0;
+        const pointsToDeduct = updatedPlayer.previousYearPoints[newWeek - 1] || 0;
         
         // Calculate new official points
-        const newOfficialPoints = Math.max(0, player.points - pointsToDeduct);
+        const newOfficialPoints = Math.max(0, updatedPlayer.points - pointsToDeduct);
         
         return {
-          ...player,
+          ...updatedPlayer,
           points: newOfficialPoints,
           // If we're starting a new season, reset previous year points
           ...(newWeek === 1 && newSeason > prev.currentSeason ? {
-            previousYearPoints: distributePointsToWeeks(player.livePoints),
+            previousYearPoints: distributePointsToWeeks(updatedPlayer.livePoints),
             livePoints: 0,
           } : {}),
         };
@@ -201,6 +253,8 @@ export const useGameState = () => {
     resetGame,
     getPlayersByLiveRanking,
     getPlayersByOfficialRanking,
+    injurePlayer,
+    healPlayer,
   };
 };
 
