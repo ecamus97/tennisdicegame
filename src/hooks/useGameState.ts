@@ -235,6 +235,11 @@ export const useGameState = () => {
     });
   }, []);
 
+  // Manual save game
+  const saveGame = useCallback(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
+
   // Get players sorted by live ranking
   const getPlayersByLiveRanking = useCallback(() => {
     return [...state.players].sort((a, b) => b.livePoints - a.livePoints);
@@ -251,6 +256,7 @@ export const useGameState = () => {
     addTournamentResult,
     updateFictionalRanking,
     resetGame,
+    saveGame,
     getPlayersByLiveRanking,
     getPlayersByOfficialRanking,
     injurePlayer,

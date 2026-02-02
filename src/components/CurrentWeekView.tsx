@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from "react";
-import { Player, Tournament, initialPlayers } from "@/data/players";
+import React, { useState, useMemo, useEffect } from "react";
+import { Player, Tournament } from "@/data/players";
 import { playMatch, MatchResult } from "@/lib/matchEngine";
 import PlayerCard from "./PlayerCard";
 import MatchSimulator from "./MatchSimulator";
 import { Button } from "@/components/ui/button";
-import { Play, Zap, ChevronRight, Trophy } from "lucide-react";
+import { Play, Zap, ChevronRight, Trophy, CheckCircle } from "lucide-react";
 
 interface Match {
   id: string;
@@ -14,10 +14,22 @@ interface Match {
   round: string;
 }
 
+interface PlayerResult {
+  playerId: number;
+  points: number;
+  round: string;
+}
+
 interface CurrentWeekViewProps {
   tournament: Tournament;
   players: Player[];
-  onTournamentComplete?: (results: { winner: Player; points: number }[]) => void;
+  onTournamentComplete?: (
+    tournamentId: string,
+    results: PlayerResult[],
+    winnerId: number,
+    runnerUpId: number
+  ) => void;
+  isCompleted?: boolean;
 }
 
 // Helper function - defined outside component to avoid hoisting issues
@@ -36,11 +48,13 @@ const getRoundName = (totalPlayers: number, roundNumber: number): string => {
 const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({ 
   tournament, 
   players,
-  onTournamentComplete 
+  onTournamentComplete,
+  isCompleted = false
 }) => {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [draw, setDraw] = useState<Match[][]>([]);
   const [currentRound, setCurrentRound] = useState(0);
+  const [resultsSubmitted, setResultsSubmitted] = useState(isCompleted);
 
   // Generate initial draw
   useMemo(() => {
@@ -189,6 +203,80 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     draw[draw.length - 1][0].result;
 
   const winner = isTournamentComplete ? draw[draw.length - 1][0].result?.winner : null;
+  const runnerUp = isTournamentComplete ? draw[draw.length - 1][0].result?.loser : null;
+
+  // Calculate points for all participants when tournament is complete
+  const calculateTournamentResults = (): PlayerResult[] => {
+    if (!isTournamentComplete) return [];
+    
+    const results: Map<number, PlayerResult> = new Map();
+    
+    // Go through all rounds and assign points
+    draw.forEach((round, roundIndex) => {
+      round.forEach(match => {
+        if (match.result) {
+          const loser = match.result.loser;
+          const roundName = match.round;
+          
+          // Assign points based on round reached
+          let points = 0;
+          switch (roundName) {
+            case "Final":
+              points = tournament.points.finalist;
+              break;
+            case "Semifinal":
+              points = tournament.points.sf;
+              break;
+            case "Quarterfinal":
+              points = tournament.points.qf;
+              break;
+            case "R16":
+              points = tournament.points.r16;
+              break;
+            case "R32":
+              points = tournament.points.r32;
+              break;
+            case "R64":
+              points = tournament.points.r64;
+              break;
+            case "R128":
+              points = tournament.points.r128;
+              break;
+            default:
+              points = 10;
+          }
+          
+          // Don't overwrite if already has higher points (from later round)
+          if (!results.has(loser.id) || results.get(loser.id)!.points < points) {
+            results.set(loser.id, {
+              playerId: loser.id,
+              points,
+              round: roundName,
+            });
+          }
+        }
+      });
+    });
+    
+    // Add winner points
+    if (winner) {
+      results.set(winner.id, {
+        playerId: winner.id,
+        points: tournament.points.winner,
+        round: "Winner",
+      });
+    }
+    
+    return Array.from(results.values());
+  };
+
+  const handleSubmitResults = () => {
+    if (!isTournamentComplete || !winner || !runnerUp || resultsSubmitted) return;
+    
+    const results = calculateTournamentResults();
+    onTournamentComplete?.(tournament.id, results, winner.id, runnerUp.id);
+    setResultsSubmitted(true);
+  };
 
   return (
     <div className="space-y-4">
@@ -228,6 +316,21 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
           <p className="text-sm text-primary mt-2">
             +{tournament.points.winner} points
           </p>
+          
+          {!resultsSubmitted ? (
+            <Button 
+              className="mt-4 gap-2" 
+              onClick={handleSubmitResults}
+            >
+              <CheckCircle className="w-4 h-4" />
+              Confirm Results & Award Points
+            </Button>
+          ) : (
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              Points awarded - Advance to next week
+            </div>
+          )}
         </div>
       )}
 
