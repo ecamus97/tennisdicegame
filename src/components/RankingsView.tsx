@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { initialPlayers, Player } from "@/data/players";
+import React, { useState, useMemo } from "react";
+import { Player } from "@/data/players";
 import PlayerCard from "./PlayerCard";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Trophy, TrendingUp } from "lucide-react";
 
 interface RankingsViewProps {
@@ -14,14 +14,17 @@ const RankingsView: React.FC<RankingsViewProps> = ({ players, onPlayerSelect }) 
   const [searchTerm, setSearchTerm] = useState("");
   const [rankingType, setRankingType] = useState<"official" | "live">("official");
 
-  const filteredPlayers = players
-    .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => {
-      if (rankingType === "official") {
-        return a.officialRanking - b.officialRanking;
-      }
-      return b.points - a.points;
-    });
+  const filteredPlayers = useMemo(() => {
+    return players
+      .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .sort((a, b) => {
+        if (rankingType === "official") {
+          return a.officialRanking - b.officialRanking;
+        }
+        // Live ranking: sort by livePoints (current year points only)
+        return b.livePoints - a.livePoints;
+      });
+  }, [players, searchTerm, rankingType]);
 
   return (
     <div className="space-y-4">
@@ -61,7 +64,7 @@ const RankingsView: React.FC<RankingsViewProps> = ({ players, onPlayerSelect }) 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         <div className="glass-card p-3 text-center">
-          <div className="text-2xl font-display font-bold text-primary">150</div>
+          <div className="text-2xl font-display font-bold text-primary">{players.length}</div>
           <div className="text-xs text-muted-foreground">Players</div>
         </div>
         <div className="glass-card p-3 text-center">
@@ -72,9 +75,14 @@ const RankingsView: React.FC<RankingsViewProps> = ({ players, onPlayerSelect }) 
         </div>
         <div className="glass-card p-3 text-center">
           <div className="text-2xl font-display font-bold text-foreground">
-            {players[0]?.points.toLocaleString()}
+            {rankingType === "official" 
+              ? (filteredPlayers[0]?.points || 0).toLocaleString()
+              : (filteredPlayers[0]?.livePoints || 0).toLocaleString()
+            }
           </div>
-          <div className="text-xs text-muted-foreground">#1 Points</div>
+          <div className="text-xs text-muted-foreground">
+            #1 {rankingType === "official" ? "Official" : "Live"} Pts
+          </div>
         </div>
       </div>
 
@@ -91,6 +99,8 @@ const RankingsView: React.FC<RankingsViewProps> = ({ players, onPlayerSelect }) 
               showPoints
               compact
               onClick={() => onPlayerSelect?.(player)}
+              rankingType={rankingType}
+              displayRank={index + 1}
             />
           </div>
         ))}

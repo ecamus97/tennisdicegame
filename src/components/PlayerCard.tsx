@@ -8,6 +8,8 @@ interface PlayerCardProps {
   compact?: boolean;
   isWinner?: boolean;
   onClick?: () => void;
+  rankingType?: "official" | "live";
+  displayRank?: number;
 }
 
 const PlayerCard: React.FC<PlayerCardProps> = ({
@@ -17,7 +19,12 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   compact = false,
   isWinner = false,
   onClick,
+  rankingType = "official",
+  displayRank,
 }) => {
+  const rank = displayRank ?? player.officialRanking;
+  const points = rankingType === "live" ? player.livePoints : player.points;
+
   const getRankingBadge = (rank: number) => {
     if (rank === 1) return "bg-medal-gold text-primary-foreground";
     if (rank === 2) return "bg-medal-silver text-primary-foreground";
@@ -37,8 +44,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         onClick={onClick}
       >
         {showRanking && (
-          <span className={`${getRankingBadge(player.officialRanking)} px-2 py-0.5 rounded text-xs font-bold min-w-[2rem] text-center`}>
-            {player.officialRanking}
+          <span className={`${getRankingBadge(rank)} px-2 py-0.5 rounded text-xs font-bold min-w-[2rem] text-center`}>
+            {rank}
           </span>
         )}
         <span className="text-xs font-medium text-muted-foreground">{player.countryCode}</span>
@@ -49,7 +56,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
           <span className="text-destructive text-xs">🤕</span>
         )}
         {showPoints && (
-          <span className="ml-auto text-xs text-muted-foreground">{player.points.toLocaleString()} pts</span>
+          <span className="ml-auto text-xs text-muted-foreground">{points.toLocaleString()} pts</span>
         )}
       </div>
     );
@@ -66,8 +73,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
     >
       <div className="flex items-start gap-3">
         {showRanking && (
-          <div className={`${getRankingBadge(player.officialRanking)} px-3 py-1 rounded-lg text-sm font-bold`}>
-            #{player.officialRanking}
+          <div className={`${getRankingBadge(rank)} px-3 py-1 rounded-lg text-sm font-bold`}>
+            #{rank}
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -79,9 +86,12 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             {player.name}
           </h3>
           {showPoints && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {player.points.toLocaleString()} points
-            </p>
+            <div className="text-sm text-muted-foreground mt-1">
+              <span>{points.toLocaleString()} pts</span>
+              {rankingType === "official" && player.livePoints > 0 && (
+                <span className="ml-2 text-primary">({player.livePoints.toLocaleString()} this year)</span>
+              )}
+            </div>
           )}
         </div>
       </div>
