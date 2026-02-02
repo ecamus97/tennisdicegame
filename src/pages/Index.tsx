@@ -1,14 +1,35 @@
 import React, { useState } from "react";
-import { initialPlayers, tournaments, Player, Tournament } from "@/data/players";
+import { tournaments, Tournament } from "@/data/players";
+import { useGameState } from "@/hooks/useGameState";
 import RankingsView from "@/components/RankingsView";
 import CalendarView from "@/components/CalendarView";
 import CurrentWeekView from "@/components/CurrentWeekView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Calendar, Play, Dice1 } from "lucide-react";
+import { Trophy, Calendar, Play, Dice1, RotateCcw, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const Index = () => {
-  const [players, setPlayers] = useState<Player[]>(initialPlayers);
-  const [currentWeek, setCurrentWeek] = useState(1);
+  const { 
+    players, 
+    currentWeek, 
+    currentSeason, 
+    completedTournaments,
+    advanceWeek,
+    addTournamentResult,
+    resetGame 
+  } = useGameState();
+  
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(
     tournaments.find(t => t.week === 1) || null
   );
@@ -38,17 +59,47 @@ const Index = () => {
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <div className="text-sm font-medium text-foreground">Season 2026</div>
+                <div className="text-sm font-medium text-foreground">Season {currentSeason}</div>
                 <div className="text-xs text-muted-foreground">Week {currentWeek}</div>
               </div>
               <div className="w-px h-8 bg-border" />
-              <div className="text-right">
+              <div className="text-right hidden sm:block">
                 <div className="text-sm font-medium text-primary">
                   {selectedTournament?.name || "No Tournament"}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {selectedTournament?.city}, {selectedTournament?.country}
+                  {selectedTournament ? `${selectedTournament.city}, ${selectedTournament.country}` : "Select from calendar"}
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={advanceWeek}
+                  className="gap-1"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                  <span className="hidden sm:inline">Next Week</span>
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="text-destructive">
+                      <RotateCcw className="w-4 h-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reset Game?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will reset all progress, rankings, and tournament history. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={resetGame}>Reset</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           </div>
@@ -115,7 +166,7 @@ const Index = () => {
               {/* Season Progress */}
               <div className="glass-card p-4">
                 <h3 className="font-display font-semibold text-foreground mb-3">
-                  Season Progress
+                  Season {currentSeason} Progress
                 </h3>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
@@ -132,16 +183,22 @@ const Index = () => {
                     <span>Australian Open</span>
                     <span>ATP Finals</span>
                   </div>
+                  <div className="text-xs text-muted-foreground pt-2 border-t border-border/50">
+                    Completed: {completedTournaments.length} tournaments
+                  </div>
                 </div>
               </div>
 
               {/* Top 5 Players */}
               <div className="glass-card p-4">
                 <h3 className="font-display font-semibold text-foreground mb-3">
-                  🏆 Top 5 Players
+                  🏆 Top 5 (Live Ranking)
                 </h3>
                 <div className="space-y-2">
-                  {players.slice(0, 5).map((player, index) => (
+                  {[...players]
+                    .sort((a, b) => b.livePoints - a.livePoints)
+                    .slice(0, 5)
+                    .map((player, index) => (
                     <div 
                       key={player.id}
                       className="flex items-center gap-2 p-2 rounded-lg bg-secondary/30"
@@ -161,7 +218,7 @@ const Index = () => {
                         </p>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {player.points.toLocaleString()}
+                        {player.livePoints.toLocaleString()}
                       </span>
                     </div>
                   ))}
