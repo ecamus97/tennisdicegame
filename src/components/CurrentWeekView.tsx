@@ -20,6 +20,19 @@ interface CurrentWeekViewProps {
   onTournamentComplete?: (results: { winner: Player; points: number }[]) => void;
 }
 
+// Helper function - defined outside component to avoid hoisting issues
+const getRoundName = (totalPlayers: number, roundNumber: number): string => {
+  const remaining = totalPlayers / Math.pow(2, roundNumber);
+  if (remaining === 1) return "Final";
+  if (remaining === 2) return "Semifinal";
+  if (remaining === 4) return "Quarterfinal";
+  if (remaining === 8) return "R16";
+  if (remaining === 16) return "R32";
+  if (remaining === 32) return "R64";
+  if (remaining === 64) return "R128";
+  return `Round ${roundNumber}`;
+};
+
 const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({ 
   tournament, 
   players,
@@ -104,18 +117,6 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
 
     setDraw([firstRoundMatches]);
   }, [tournament, players]);
-
-  const getRoundName = (totalPlayers: number, roundNumber: number): string => {
-    const remaining = totalPlayers / Math.pow(2, roundNumber);
-    if (remaining === 1) return "Final";
-    if (remaining === 2) return "Semifinal";
-    if (remaining === 4) return "Quarterfinal";
-    if (remaining === 8) return "R16";
-    if (remaining === 16) return "R32";
-    if (remaining === 32) return "R64";
-    if (remaining === 64) return "R128";
-    return `Round ${roundNumber}`;
-  };
 
   const handleMatchComplete = (matchId: string, result: MatchResult) => {
     setDraw(prev => {
