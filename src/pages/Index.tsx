@@ -1,12 +1,232 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import React, { useState } from "react";
+import { initialPlayers, tournaments, Player, Tournament } from "@/data/players";
+import RankingsView from "@/components/RankingsView";
+import CalendarView from "@/components/CalendarView";
+import CurrentWeekView from "@/components/CurrentWeekView";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Trophy, Calendar, Play, Dice1 } from "lucide-react";
 
 const Index = () => {
+  const [players, setPlayers] = useState<Player[]>(initialPlayers);
+  const [currentWeek, setCurrentWeek] = useState(1);
+  const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(
+    tournaments.find(t => t.week === 1) || null
+  );
+  const [activeTab, setActiveTab] = useState("current");
+
+  const handleTournamentSelect = (tournament: Tournament) => {
+    setSelectedTournament(tournament);
+    setActiveTab("current");
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border/50 bg-card/50 backdrop-blur-md sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <Dice1 className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="font-display text-xl font-bold text-foreground tracking-wide">
+                  TENNIS DICE TOUR
+                </h1>
+                <p className="text-xs text-muted-foreground">ATP Simulation Game</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <div className="text-sm font-medium text-foreground">Season 2026</div>
+                <div className="text-xs text-muted-foreground">Week {currentWeek}</div>
+              </div>
+              <div className="w-px h-8 bg-border" />
+              <div className="text-right">
+                <div className="text-sm font-medium text-primary">
+                  {selectedTournament?.name || "No Tournament"}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {selectedTournament?.city}, {selectedTournament?.country}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="current" className="gap-2">
+              <Play className="w-4 h-4" />
+              <span className="hidden sm:inline">Current Week</span>
+              <span className="sm:hidden">Play</span>
+            </TabsTrigger>
+            <TabsTrigger value="rankings" className="gap-2">
+              <Trophy className="w-4 h-4" />
+              <span className="hidden sm:inline">Rankings</span>
+              <span className="sm:hidden">Rank</span>
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="gap-2">
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Calendar</span>
+              <span className="sm:hidden">Cal</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Panel */}
+            <div className="lg:col-span-2">
+              <TabsContent value="current" className="mt-0">
+                {selectedTournament ? (
+                  <CurrentWeekView
+                    tournament={selectedTournament}
+                    players={players}
+                  />
+                ) : (
+                  <div className="glass-card p-12 text-center">
+                    <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="font-display text-lg font-semibold text-foreground mb-2">
+                      No Tournament Selected
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Select a tournament from the calendar to start playing
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="rankings" className="mt-0">
+                <RankingsView players={players} />
+              </TabsContent>
+
+              <TabsContent value="calendar" className="mt-0">
+                <CalendarView
+                  currentWeek={currentWeek}
+                  onTournamentSelect={handleTournamentSelect}
+                />
+              </TabsContent>
+            </div>
+
+            {/* Sidebar - Quick Stats */}
+            <div className="space-y-4">
+              {/* Season Progress */}
+              <div className="glass-card p-4">
+                <h3 className="font-display font-semibold text-foreground mb-3">
+                  Season Progress
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Week</span>
+                    <span className="text-foreground font-medium">{currentWeek} / 52</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-primary to-accent transition-all"
+                      style={{ width: `${(currentWeek / 52) * 100}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Australian Open</span>
+                    <span>ATP Finals</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Top 5 Players */}
+              <div className="glass-card p-4">
+                <h3 className="font-display font-semibold text-foreground mb-3">
+                  🏆 Top 5 Players
+                </h3>
+                <div className="space-y-2">
+                  {players.slice(0, 5).map((player, index) => (
+                    <div 
+                      key={player.id}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-secondary/30"
+                    >
+                      <span className={`
+                        w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
+                        ${index === 0 ? "bg-medal-gold text-primary-foreground" :
+                          index === 1 ? "bg-medal-silver text-primary-foreground" :
+                          index === 2 ? "bg-medal-bronze text-primary-foreground" :
+                          "bg-muted text-muted-foreground"}
+                      `}>
+                        {index + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {player.name}
+                        </p>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {player.points.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Upcoming Tournaments */}
+              <div className="glass-card p-4">
+                <h3 className="font-display font-semibold text-foreground mb-3">
+                  📅 Upcoming
+                </h3>
+                <div className="space-y-2">
+                  {tournaments
+                    .filter(t => t.week >= currentWeek)
+                    .slice(0, 4)
+                    .map(tournament => (
+                      <button
+                        key={tournament.id}
+                        className="w-full text-left p-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                        onClick={() => handleTournamentSelect(tournament)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground truncate">
+                            {tournament.name}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            W{tournament.week}
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {tournament.category}
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              </div>
+
+              {/* Game Rules */}
+              <div className="glass-card p-4">
+                <h3 className="font-display font-semibold text-foreground mb-3">
+                  🎲 Dice Rules
+                </h3>
+                <div className="space-y-2 text-xs text-muted-foreground">
+                  <p>• Server wins if roll ≥ receiver</p>
+                  <p>• Receiver breaks if roll {'>'} server</p>
+                  <p>• Ranking difference = advantage</p>
+                  <p className="text-primary">• 16+ diff: small advantage</p>
+                  <p className="text-primary">• 32+ diff: clear advantage</p>
+                  <p className="text-primary">• 64+ diff: dominant</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Tabs>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-border/50 bg-card/30 mt-12">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Tennis Dice Tour - ATP Simulation Game</span>
+            <span>Season 2026</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
