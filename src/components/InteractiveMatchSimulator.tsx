@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Player } from "@/data/players";
 import { 
   MatchResult, 
@@ -8,15 +8,17 @@ import {
   getAdvantageLevel, 
   AdvantageLevel 
 } from "@/lib/matchEngine";
+import { playGameWithAdvantage } from "@/lib/gameLogic";
 import Dice from "./Dice";
 import { Button } from "@/components/ui/button";
-import { Play, RotateCcw, Zap } from "lucide-react";
+import { Play, RotateCcw, Zap, Users } from "lucide-react";
 
 interface InteractiveMatchSimulatorProps {
   player1: Player;
   player2: Player;
   bestOf?: 3 | 5;
   onMatchComplete?: (result: MatchResult) => void;
+  initialServerId?: number; // Which player serves first (player1.id or player2.id)
 }
 
 interface MatchState {
@@ -31,104 +33,69 @@ interface MatchState {
   sets: SetScore[];
   games: GameResult[][];
   currentSetGames: GameResult[];
-  gameNumber: number;
+  // Track service game counts for advantage logic
+  player1ServiceGames: number; // Total service games by P1 in current set
+  player2ServiceGames: number; // Total service games by P2 in current set
   tbPointNumber: number;
-  // Track who served first in tiebreak
+  // Track who served first in tiebreak (for serve rotation)
   tiebreakFirstServer: boolean;
+  // Track who served last game of previous set (for next set's first server)
+  lastGameServerWasP1: boolean;
 }
-
-const initialMatchState: MatchState = {
-  player1Sets: 0,
-  player2Sets: 0,
-  player1Games: 0,
-  player2Games: 0,
-  player1TBPoints: 0,
-  player2TBPoints: 0,
-  isPlayer1Serving: true, // Player 1 always starts serving
-  isTiebreak: false,
-  sets: [],
-  games: [],
-  currentSetGames: [],
-  gameNumber: 1, // Start at game 1
-  tbPointNumber: 0,
-  tiebreakFirstServer: true,
-};
 
 const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
   player1,
   player2,
   bestOf = 3,
   onMatchComplete,
+  initialServerId,
 }) => {
-  const [matchState, setMatchState] = useState<MatchState>(initialMatchState);
+  // Determine who serves first
+  const player1ServesFirst = initialServerId ? initialServerId === player1.id : true;
+
+  const getInitialState = (): MatchState => ({
+    player1Sets: 0,
+    player2Sets: 0,
+    player1Games: 0,
+    player2Games: 0,
+    player1TBPoints: 0,
+    player2TBPoints: 0,
+    isPlayer1Serving: player1ServesFirst,
+    isTiebreak: false,
+    sets: [],
+    games: [],
+    currentSetGames: [],
+    player1ServiceGames: 0,
+    player2ServiceGames: 0,
+    tbPointNumber: 0,
+    tiebreakFirstServer: player1ServesFirst,
+    lastGameServerWasP1: player1ServesFirst,
+  });
+
+  const [matchState, setMatchState] = useState<MatchState>(getInitialState);
   const [currentRoll, setCurrentRoll] = useState<GameResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [matchComplete, setMatchComplete] = useState(false);
   const [result, setResult] = useState<MatchResult | null>(null);
   // Track previous server for display after game ends
-  const [lastServerWasP1, setLastServerWasP1] = useState(true);
+  const [lastServerWasP1, setLastServerWasP1] = useState(player1ServesFirst);
+
+  // Reset when players change
+  useEffect(() => {
+    setMatchState(getInitialState());
+    setCurrentRoll(null);
+    setMatchComplete(false);
+    setResult(null);
+    setLastServerWasP1(player1ServesFirst);
+  }, [player1.id, player2.id, initialServerId]);
 
   const setsToWin = bestOf === 3 ? 2 : 3;
   const rankingDiff = player2.fictionalRanking - player1.fictionalRanking;
   const advantageLevel = getAdvantageLevel(rankingDiff);
   const favoredPlayer = rankingDiff > 0 ? player1 : rankingDiff < 0 ? player2 : null;
-
-  const playGame = useCallback((
-    server: Player,
-    receiver: Player,
-    advLevel: AdvantageLevel,
-    isHigherRankedServing: boolean,
-    gameNum: number,
-    isTiebreak: boolean
-  ): GameResult => {
-    let serverRoll = rollDice();
-    let receiverRoll = rollDice();
-    let serverSecondRoll: number | undefined;
-    let receiverSecondRoll: number | undefined;
-    
-    // Apply advantage rules
-    if (!isTiebreak || advLevel === "clear" || advLevel === "dominant") {
-      if (isHigherRankedServing) {
-        switch (advLevel) {
-          case "small":
-            if (gameNum % 2 === 0 && serverRoll < receiverRoll) {
-              serverSecondRoll = rollDice();
-              if (serverSecondRoll >= receiverRoll) {
-                serverRoll = serverSecondRoll;
-              }
-            }
-            break;
-          case "clear":
-          case "dominant":
-            if (serverRoll < receiverRoll) {
-              serverSecondRoll = rollDice();
-              if (serverSecondRoll >= receiverRoll) {
-                serverRoll = serverSecondRoll;
-              }
-            }
-            break;
-        }
-      } else if (advLevel === "dominant" && !isTiebreak) {
-        if (gameNum % 2 === 0 && receiverRoll <= serverRoll) {
-          receiverSecondRoll = rollDice();
-          if (receiverSecondRoll > serverRoll) {
-            receiverRoll = receiverSecondRoll;
-          }
-        }
-      }
-    }
-    
-    const serverWon = serverRoll >= receiverRoll;
-    
-    return {
-      serverRoll,
-      receiverRoll,
-      serverSecondRoll,
-      receiverSecondRoll,
-      serverWon,
-      wasBreak: !serverWon,
-    };
-  }, []);
+  
+  // Determine which player is higher ranked (for advantage logic)
+  const isPlayer1HigherRanked = player1.fictionalRanking < player2.fictionalRanking;
 
   const rollForGame = async () => {
     setIsRolling(true);
@@ -149,19 +116,28 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
     
     setIsRolling(false);
 
-    const { isPlayer1Serving, isTiebreak, gameNumber, tbPointNumber } = matchState;
-    const server = isPlayer1Serving ? player1 : player2;
-    const receiver = isPlayer1Serving ? player2 : player1;
-    const isHigherRankedServing = (rankingDiff > 0 && isPlayer1Serving) || (rankingDiff < 0 && !isPlayer1Serving);
+    const { 
+      isPlayer1Serving, 
+      isTiebreak, 
+      player1ServiceGames, 
+      player2ServiceGames,
+      tbPointNumber 
+    } = matchState;
     
-    const gameResult = playGame(
-      server,
-      receiver,
+    // Determine if higher ranked player is serving
+    const isHigherRankedServing = isPlayer1HigherRanked ? isPlayer1Serving : !isPlayer1Serving;
+    
+    // Get service game counts for the higher and lower ranked players
+    const higherRankedServiceCount = isPlayer1HigherRanked ? player1ServiceGames : player2ServiceGames;
+    const lowerRankedServiceCount = isPlayer1HigherRanked ? player2ServiceGames : player1ServiceGames;
+    
+    const gameResult = playGameWithAdvantage({
       advantageLevel,
       isHigherRankedServing,
-      isTiebreak ? tbPointNumber : gameNumber,
-      isTiebreak
-    );
+      higherRankedServiceGameCount: isHigherRankedServing ? higherRankedServiceCount + 1 : higherRankedServiceCount,
+      lowerRankedServiceGameCount: !isHigherRankedServing ? lowerRankedServiceCount + 1 : lowerRankedServiceCount,
+      isTiebreak,
+    });
     
     setCurrentRoll(gameResult);
     
@@ -178,7 +154,18 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
   };
 
   const updateGameState = (prev: MatchState, gameResult: GameResult, isP1Serving: boolean): MatchState => {
-    let { player1Games, player2Games, player1Sets, player2Sets, isPlayer1Serving, sets, games, currentSetGames, gameNumber } = prev;
+    let { 
+      player1Games, player2Games, player1Sets, player2Sets, 
+      isPlayer1Serving, sets, games, currentSetGames,
+      player1ServiceGames, player2ServiceGames
+    } = prev;
+    
+    // Update service game count
+    if (isP1Serving) {
+      player1ServiceGames++;
+    } else {
+      player2ServiceGames++;
+    }
     
     // Update game score
     if (isP1Serving) {
@@ -190,9 +177,11 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
     }
     
     currentSetGames = [...currentSetGames, gameResult];
-    gameNumber++;
     
-    // Switch server for next game (always alternate in regular games)
+    // Store who served this game (for set transition)
+    const thisGameServerWasP1 = isP1Serving;
+    
+    // Switch server for next game
     const nextServer = !isPlayer1Serving;
     
     // Check for tiebreak
@@ -204,11 +193,13 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
         isPlayer1Serving: nextServer, // Who serves first point of tiebreak
         isTiebreak: true,
         currentSetGames,
-        gameNumber,
+        player1ServiceGames,
+        player2ServiceGames,
         player1TBPoints: 0,
         player2TBPoints: 0,
         tbPointNumber: 0,
         tiebreakFirstServer: nextServer,
+        lastGameServerWasP1: thisGameServerWasP1,
       };
     }
     
@@ -223,6 +214,10 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
       } else {
         player2Sets++;
       }
+      
+      // IMPORTANT: Next set, the receiver of the last game serves first
+      // Since this game just ended, the nextServer (who would have served) now serves first in new set
+      const nextSetFirstServer = nextServer;
       
       // Check for match win
       if (player1Sets >= setsToWin || player2Sets >= setsToWin) {
@@ -251,8 +246,10 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
           sets: newSets,
           games: newGames,
           currentSetGames: [],
-          isPlayer1Serving: nextServer,
-          gameNumber: 1,
+          isPlayer1Serving: nextSetFirstServer,
+          player1ServiceGames: 0,
+          player2ServiceGames: 0,
+          lastGameServerWasP1: thisGameServerWasP1,
         };
       }
       
@@ -265,8 +262,10 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
         sets: newSets,
         games: newGames,
         currentSetGames: [],
-        isPlayer1Serving: nextServer,
-        gameNumber: 1,
+        isPlayer1Serving: nextSetFirstServer,
+        player1ServiceGames: 0,
+        player2ServiceGames: 0,
+        lastGameServerWasP1: thisGameServerWasP1,
       };
     }
     
@@ -276,12 +275,17 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
       player2Games,
       isPlayer1Serving: nextServer,
       currentSetGames,
-      gameNumber,
+      player1ServiceGames,
+      player2ServiceGames,
+      lastGameServerWasP1: thisGameServerWasP1,
     };
   };
 
   const updateTiebreakState = (prev: MatchState, gameResult: GameResult, isP1Serving: boolean): MatchState => {
-    let { player1TBPoints, player2TBPoints, player1Sets, player2Sets, sets, games, currentSetGames, tbPointNumber, tiebreakFirstServer } = prev;
+    let { 
+      player1TBPoints, player2TBPoints, player1Sets, player2Sets, 
+      sets, games, currentSetGames, tbPointNumber, tiebreakFirstServer 
+    } = prev;
     
     // Update tiebreak score
     if (isP1Serving) {
@@ -296,12 +300,10 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
     const newPointNumber = tbPointNumber + 1;
     
     // Tiebreak serve rotation: 1-2-2-2-2...
-    // First server serves 1 point (point 1), then alternates every 2 points
     // Point 1: first server
     // Points 2-3: second server
     // Points 4-5: first server
-    // Points 6-7: second server
-    // etc.
+    // Points 6-7: second server, etc.
     let newIsPlayer1Serving: boolean;
     if (newPointNumber === 1) {
       // First point: first server continues
@@ -365,7 +367,8 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
           isTiebreak: false,
           isPlayer1Serving: nextSetServer,
           tbPointNumber: 0,
-          gameNumber: 1,
+          player1ServiceGames: 0,
+          player2ServiceGames: 0,
         };
       }
       
@@ -383,7 +386,8 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
         isTiebreak: false,
         isPlayer1Serving: nextSetServer,
         tbPointNumber: 0,
-        gameNumber: 1,
+        player1ServiceGames: 0,
+        player2ServiceGames: 0,
       };
     }
     
@@ -399,9 +403,8 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
 
   const simulateRestOfMatch = () => {
     // Continue from current state, simulating remaining games/sets
-    import("@/lib/matchEngine").then(({ playSet, rollDice, getAdvantageLevel }) => {
+    import("@/lib/matchEngine").then(({ playSet }) => {
       let currentState = { ...matchState };
-      const advLevel = getAdvantageLevel(player2.fictionalRanking - player1.fictionalRanking);
       const setsNeeded = setsToWin;
       
       // Simulate until match complete
@@ -415,7 +418,7 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
           // Check for tiebreak
           if (currentState.player1Games === 6 && currentState.player2Games === 6) {
             // Simulate tiebreak
-            let tbP1 = 0, tbP2 = 0;
+            let tbP1 = currentState.player1TBPoints, tbP2 = currentState.player2TBPoints;
             while (!((tbP1 >= 7 || tbP2 >= 7) && Math.abs(tbP1 - tbP2) >= 2)) {
               const p1Roll = rollDice();
               const p2Roll = rollDice();
@@ -438,7 +441,7 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
             });
             currentState.player1Games = 0;
             currentState.player2Games = 0;
-            currentState.isPlayer1Serving = !currentState.isPlayer1Serving;
+            currentState.isPlayer1Serving = !currentState.tiebreakFirstServer;
             break;
           }
           
@@ -472,6 +475,7 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
           });
           currentState.player1Games = 0;
           currentState.player2Games = 0;
+          // Next set first server is who would have served next (already toggled)
         }
       }
       
@@ -498,17 +502,14 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
   };
 
   const resetMatch = () => {
-    setMatchState(initialMatchState);
+    setMatchState(getInitialState());
     setCurrentRoll(null);
     setMatchComplete(false);
     setResult(null);
-    setLastServerWasP1(true);
+    setLastServerWasP1(player1ServesFirst);
   };
 
   const getCurrentServer = () => matchState.isPlayer1Serving ? player1 : player2;
-  
-  // For display purposes after a game, show who WAS serving
-  const getDisplayServer = () => lastServerWasP1 ? player1 : player2;
 
   return (
     <div className="glass-card p-6 space-y-4">
@@ -604,6 +605,9 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
             {currentRoll.serverSecondRoll && lastServerWasP1 && (
               <p className="text-xs text-primary">2nd: {currentRoll.serverSecondRoll}</p>
             )}
+            {currentRoll.receiverSecondRoll && !lastServerWasP1 && (
+              <p className="text-xs text-primary">2nd: {currentRoll.receiverSecondRoll}</p>
+            )}
           </div>
           <div className="text-xl font-display font-bold text-muted-foreground">VS</div>
           <div className="text-center">
@@ -614,8 +618,11 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
               variant="secondary" 
             />
             <p className="text-xs text-muted-foreground mt-1">{player2.name.split(" ").pop()}</p>
-            {currentRoll.receiverSecondRoll && !lastServerWasP1 && (
+            {currentRoll.receiverSecondRoll && lastServerWasP1 && (
               <p className="text-xs text-primary">2nd: {currentRoll.receiverSecondRoll}</p>
+            )}
+            {currentRoll.serverSecondRoll && !lastServerWasP1 && (
+              <p className="text-xs text-primary">2nd: {currentRoll.serverSecondRoll}</p>
             )}
           </div>
         </div>

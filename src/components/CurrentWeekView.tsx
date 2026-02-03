@@ -3,10 +3,10 @@ import { Player, Tournament } from "@/data/players";
 import { playMatch, MatchResult } from "@/lib/matchEngine";
 import { selectTournamentEntrants, getFieldDescription } from "@/lib/tournamentEntryLogic";
 import { StoredMatch, TournamentDraw } from "@/hooks/useGameState";
-import PlayerCard from "./PlayerCard";
+import TournamentBracket from "./TournamentBracket";
 import InteractiveMatchSimulator from "./InteractiveMatchSimulator";
 import { Button } from "@/components/ui/button";
-import { Play, Zap, ChevronRight, Trophy, CheckCircle, Users, Shuffle } from "lucide-react";
+import { Zap, Trophy, CheckCircle, Users, Shuffle } from "lucide-react";
 
 interface Match {
   id: string;
@@ -63,6 +63,11 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   const [resultsSubmitted, setResultsSubmitted] = useState(isCompleted);
   const [entrants, setEntrants] = useState<Player[]>([]);
   const [isDrawGenerated, setIsDrawGenerated] = useState(false);
+
+  // Seed IDs for bracket display (first N entrants by ranking are seeds)
+  const seedIds = useMemo(() => {
+    return entrants.slice(0, tournament.seeds).map(p => p.id);
+  }, [entrants, tournament.seeds]);
 
   // Helper to get player by ID
   const getPlayerById = useCallback((id: number): Player | undefined => {
@@ -506,96 +511,24 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
         </div>
       )}
 
-      {/* Current Round */}
+      {/* Simulate All button for current round */}
       {!isTournamentComplete && currentRoundMatches.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-display font-semibold text-foreground">
-              {currentRoundMatches[0]?.round}
-            </h3>
-            <Button size="sm" onClick={simulateRound} className="gap-1">
-              <Zap className="w-3 h-3" />
-              Simulate All
-            </Button>
-          </div>
-
-          <div className="space-y-2 max-h-[400px] overflow-y-auto">
-            {currentRoundMatches.map((match, index) => (
-              <div
-                key={match.id}
-                className={`
-                  glass-card p-3 cursor-pointer transition-all
-                  ${match.result ? "opacity-75" : "hover:border-primary/50"}
-                `}
-                onClick={() => !match.result && setSelectedMatch(match)}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 space-y-1">
-                    <PlayerCard 
-                      player={match.player1} 
-                      compact 
-                      isWinner={match.result?.winner.id === match.player1.id}
-                    />
-                    <PlayerCard 
-                      player={match.player2} 
-                      compact 
-                      isWinner={match.result?.winner.id === match.player2.id}
-                    />
-                  </div>
-                  {match.result ? (
-                    <div className="text-xs text-muted-foreground text-right">
-                      {match.result.sets.map((set, i) => (
-                        <div key={i}>
-                          {set.player1Games}-{set.player2Games}
-                          {set.tiebreak && <sup>({Math.min(set.tiebreak.player1Points, set.tiebreak.player2Points)})</sup>}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex items-center text-primary">
-                      <Play className="w-5 h-5" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="flex justify-end">
+          <Button size="sm" onClick={simulateRound} className="gap-1">
+            <Zap className="w-3 h-3" />
+            Simulate All {currentRoundMatches[0]?.round}
+          </Button>
         </div>
       )}
 
-      {/* Draw overview */}
-      {draw.length > 1 && (
-        <div className="glass-card p-4">
-          <h3 className="font-display font-semibold text-foreground mb-3">
-            Tournament Progress
-          </h3>
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
-            {draw.map((round, index) => {
-              const completed = round.every(m => m.result);
-              const isCurrent = index === currentRound;
-              
-              return (
-                <React.Fragment key={index}>
-                  <button
-                    className={`
-                      px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition-all
-                      ${isCurrent ? "bg-primary text-primary-foreground" : 
-                        completed ? "bg-secondary text-secondary-foreground" : 
-                        "bg-muted text-muted-foreground"}
-                    `}
-                    onClick={() => setCurrentRound(index)}
-                  >
-                    {round[0]?.round}
-                  </button>
-                  {index < draw.length - 1 && (
-                    <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Tournament Bracket */}
+      <TournamentBracket
+        draw={draw}
+        currentRound={currentRound}
+        seeds={seedIds}
+        onMatchClick={(match) => !match.result && setSelectedMatch(match)}
+        onRoundChange={setCurrentRound}
+      />
     </div>
   );
 };
