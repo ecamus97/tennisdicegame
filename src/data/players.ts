@@ -353,6 +353,7 @@ export interface Tournament {
   week: number;
   playerLimit: number;
   seeds: number;
+  isRoundRobin?: boolean; // For ATP Finals
   points: {
     winner: number;
     finalist: number;
@@ -362,6 +363,7 @@ export interface Tournament {
     r32: number;
     r64: number;
     r128: number;
+    groupWin?: number; // For ATP Finals: 200 per group win
   };
 }
 
@@ -441,8 +443,11 @@ export const tournaments: Tournament[] = [
   // Week 38: Paris Masters
   { id: "paris", name: "Paris Masters", city: "Paris", country: "France", category: "Masters 1000", surface: "Hard", week: 38, playerLimit: 64, seeds: 16, points: { winner: 1000, finalist: 650, sf: 400, qf: 200, r16: 100, r32: 50, r64: 10, r128: 0 } },
   
-  // Week 40: ATP Finals
-  { id: "atp-finals", name: "ATP Finals", city: "Turin", country: "Italy", category: "ATP Finals", surface: "Hard", week: 40, playerLimit: 8, seeds: 8, points: { winner: 1500, finalist: 1000, sf: 600, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0 } },
+  // Week 40: ATP Finals - Round Robin format
+  // Group A: rankings 1,4,5,8 | Group B: rankings 2,3,6,7
+  // 200 pts per group win, +400 for SF win, +500 for final win
+  // Max points: 3 group wins (600) + SF (400) + Final (500) = 1500
+  { id: "atp-finals", name: "ATP Finals", city: "Turin", country: "Italy", category: "ATP Finals", surface: "Hard", week: 40, playerLimit: 8, seeds: 8, isRoundRobin: true, points: { winner: 500, finalist: 0, sf: 400, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0, groupWin: 200 } },
 ];
 
 export const getCategoryColor = (category: TournamentCategory): string => {
