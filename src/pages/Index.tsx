@@ -27,11 +27,13 @@ const Index = () => {
     currentWeek, 
     currentSeason, 
     completedTournaments,
+    currentDraw,
     advanceWeek,
     addTournamentResult,
     resetGame,
     updateFictionalRanking,
     saveGame,
+    saveCurrentDraw,
   } = useGameState();
   
   // Find tournament for current week, may be null
@@ -190,6 +192,8 @@ const Index = () => {
                     players={players}
                     onTournamentComplete={handleTournamentComplete}
                     isCompleted={completedTournaments.includes(selectedTournament.id)}
+                    savedDraw={currentDraw}
+                    onSaveDraw={saveCurrentDraw}
                   />
                 ) : (
                   <div className="glass-card p-12 text-center">

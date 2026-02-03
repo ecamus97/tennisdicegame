@@ -1,11 +1,12 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Player, Tournament } from "@/data/players";
 import { playMatch, MatchResult } from "@/lib/matchEngine";
 import { selectTournamentEntrants, getFieldDescription } from "@/lib/tournamentEntryLogic";
+import { StoredMatch, TournamentDraw } from "@/hooks/useGameState";
 import PlayerCard from "./PlayerCard";
 import InteractiveMatchSimulator from "./InteractiveMatchSimulator";
 import { Button } from "@/components/ui/button";
-import { Play, Zap, ChevronRight, Trophy, CheckCircle, Users } from "lucide-react";
+import { Play, Zap, ChevronRight, Trophy, CheckCircle, Users, Shuffle } from "lucide-react";
 
 interface Match {
   id: string;
@@ -31,6 +32,8 @@ interface CurrentWeekViewProps {
     runnerUpId: number
   ) => void;
   isCompleted?: boolean;
+  savedDraw?: TournamentDraw | null;
+  onSaveDraw?: (draw: TournamentDraw) => void;
 }
 
 // Helper function - defined outside component to avoid hoisting issues
@@ -50,18 +53,93 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   tournament, 
   players,
   onTournamentComplete,
-  isCompleted = false
+  isCompleted = false,
+  savedDraw,
+  onSaveDraw,
 }) => {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [draw, setDraw] = useState<Match[][]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [resultsSubmitted, setResultsSubmitted] = useState(isCompleted);
   const [entrants, setEntrants] = useState<Player[]>([]);
+  const [isDrawGenerated, setIsDrawGenerated] = useState(false);
 
-  // Generate entrants and initial draw
+  // Helper to get player by ID
+  const getPlayerById = useCallback((id: number): Player | undefined => {
+    return players.find(p => p.id === id);
+  }, [players]);
+
+  // Convert stored matches to Match objects
+  const storedToMatch = useCallback((stored: StoredMatch): Match | null => {
+    const p1 = getPlayerById(stored.player1Id);
+    const p2 = getPlayerById(stored.player2Id);
+    if (!p1 || !p2) return null;
+    return {
+      id: stored.id,
+      player1: p1,
+      player2: p2,
+      result: stored.result,
+      round: stored.round,
+    };
+  }, [getPlayerById]);
+
+  // Convert Match to stored format
+  const matchToStored = (match: Match): StoredMatch => ({
+    id: match.id,
+    player1Id: match.player1.id,
+    player2Id: match.player2.id,
+    result: match.result,
+    round: match.round,
+  });
+
+  // Load saved draw if exists
   useEffect(() => {
-    if (draw.length > 0) return;
+    if (savedDraw && savedDraw.tournamentId === tournament.id && savedDraw.isGenerated) {
+      // Restore draw from saved state
+      const restoredDraw: Match[][] = [];
+      const entrantPlayers = savedDraw.entrantIds
+        .map(id => getPlayerById(id))
+        .filter((p): p is Player => p !== undefined);
+      
+      setEntrants(entrantPlayers);
+      
+      for (const round of savedDraw.rounds) {
+        const roundMatches: Match[] = [];
+        for (const stored of round) {
+          const match = storedToMatch(stored);
+          if (match) roundMatches.push(match);
+        }
+        if (roundMatches.length > 0) restoredDraw.push(roundMatches);
+      }
+      
+      setDraw(restoredDraw);
+      setCurrentRound(savedDraw.currentRound);
+      setIsDrawGenerated(true);
+    } else {
+      // Reset for new tournament
+      setDraw([]);
+      setCurrentRound(0);
+      setIsDrawGenerated(false);
+      setEntrants([]);
+    }
+  }, [tournament.id, savedDraw, storedToMatch, getPlayerById]);
 
+  // Persist draw changes
+  const persistDraw = useCallback((newDraw: Match[][], newCurrentRound: number, newEntrants: Player[]) => {
+    if (onSaveDraw && newDraw.length > 0) {
+      const storedDraw: TournamentDraw = {
+        tournamentId: tournament.id,
+        rounds: newDraw.map(round => round.map(matchToStored)),
+        currentRound: newCurrentRound,
+        isGenerated: true,
+        entrantIds: newEntrants.map(p => p.id),
+      };
+      onSaveDraw(storedDraw);
+    }
+  }, [tournament.id, onSaveDraw]);
+
+  // Generate draw
+  const generateDraw = () => {
     // Use tournament entry logic to select participants
     const tournamentEntrants = selectTournamentEntrants(
       players,
@@ -134,8 +212,14 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
       }
     }
 
-    setDraw([firstRoundMatches]);
-  }, [tournament, players, draw.length]);
+    const newDraw = [firstRoundMatches];
+    setDraw(newDraw);
+    setIsDrawGenerated(true);
+    setCurrentRound(0);
+    
+    // Persist immediately
+    persistDraw(newDraw, 0, tournamentEntrants);
+  };
 
   const handleMatchComplete = (matchId: string, result: MatchResult) => {
     setDraw(prev => {
@@ -173,7 +257,12 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
           if (nextRoundMatches.length > 0) {
             newDraw.push(nextRoundMatches);
             setCurrentRound(roundIndex + 1);
+            // Persist with new round
+            setTimeout(() => persistDraw(newDraw, roundIndex + 1, entrants), 0);
           }
+        } else {
+          // Just persist current changes
+          setTimeout(() => persistDraw(newDraw, currentRound, entrants), 0);
         }
       }
       
@@ -282,6 +371,56 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     onTournamentComplete?.(tournament.id, results, winner.id, runnerUp.id);
     setResultsSubmitted(true);
   };
+
+  // If draw not generated, show generate button
+  if (!isDrawGenerated) {
+    return (
+      <div className="space-y-4">
+        {/* Tournament Header */}
+        <div className="glass-card p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-display text-xl font-bold text-foreground">
+                {tournament.name}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {tournament.city}, {tournament.country}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {getFieldDescription(tournament.category)}
+              </p>
+            </div>
+            <div className="text-right flex items-center gap-4">
+              <div className={`tournament-badge ${
+                tournament.category === "Grand Slam" ? "tournament-badge-gs" :
+                tournament.category === "Masters 1000" ? "tournament-badge-m1000" :
+                "tournament-badge-500"
+              }`}>
+                {tournament.category}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Generate Draw Button */}
+        <div className="glass-card p-12 text-center">
+          <Shuffle className="w-12 h-12 text-primary mx-auto mb-4" />
+          <h3 className="font-display text-lg font-semibold text-foreground mb-2">
+            Generate Tournament Draw
+          </h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            {tournament.playerLimit} players will be selected based on rankings and tournament category.
+            <br />
+            Top {tournament.seeds} players will be seeded.
+          </p>
+          <Button onClick={generateDraw} size="lg" className="gap-2">
+            <Shuffle className="w-5 h-5" />
+            Generate Draw
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
