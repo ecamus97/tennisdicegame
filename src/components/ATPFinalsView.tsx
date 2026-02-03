@@ -140,10 +140,27 @@ const ATPFinalsView: React.FC<ATPFinalsViewProps> = ({
         return bRank - aRank;
       });
 
-      // Group A: 1, 4, 5, 8 (indices 0, 3, 4, 7)
-      // Group B: 2, 3, 6, 7 (indices 1, 2, 5, 6)
-      const groupA = [sorted[0], sorted[3], sorted[4], sorted[7]];
-      const groupB = [sorted[1], sorted[2], sorted[5], sorted[6]];
+      // Balanced group distribution with randomness:
+      // 1st goes to one group, 2nd to the other (random)
+      // 3rd goes to one group, 4th to the other (random)
+      // 5th goes to one group, 6th to the other (random)
+      // 7th goes to one group, 8th to the other (random)
+      const groupA: Player[] = [];
+      const groupB: Player[] = [];
+      
+      // For each pair, randomly assign one to A and one to B
+      for (let i = 0; i < 8; i += 2) {
+        const player1 = sorted[i];
+        const player2 = sorted[i + 1];
+        
+        if (Math.random() < 0.5) {
+          groupA.push(player1);
+          groupB.push(player2);
+        } else {
+          groupA.push(player2);
+          groupB.push(player1);
+        }
+      }
 
       const initialState: ATPFinalsState = {
         groupA,

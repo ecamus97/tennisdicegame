@@ -50,8 +50,14 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
   onMatchComplete,
   initialServerId,
 }) => {
-  // Determine who serves first
-  const player1ServesFirst = initialServerId ? initialServerId === player1.id : true;
+  // Determine who serves first - randomize if not specified
+  const [player1ServesFirst] = useState(() => {
+    if (initialServerId) {
+      return initialServerId === player1.id;
+    }
+    // Random: 50% chance for each player
+    return Math.random() < 0.5;
+  });
 
   const getInitialState = (): MatchState => ({
     player1Sets: 0,
