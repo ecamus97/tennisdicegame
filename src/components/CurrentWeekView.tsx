@@ -492,7 +492,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
               <>
                 Top 8 players by live ranking will qualify.
                 <br />
-                Group A: Rankings 1, 4, 5, 8 • Group B: Rankings 2, 3, 6, 7
+                Groups are balanced: each pair (1-2, 3-4, 5-6, 7-8) is split randomly between groups.
               </>
             ) : (
               <>
