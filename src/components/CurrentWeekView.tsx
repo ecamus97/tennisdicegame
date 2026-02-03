@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Player, Tournament } from "@/data/players";
 import { playMatch, MatchResult } from "@/lib/matchEngine";
+import { selectTournamentEntrants, getFieldDescription } from "@/lib/tournamentEntryLogic";
 import PlayerCard from "./PlayerCard";
-import MatchSimulator from "./MatchSimulator";
+import InteractiveMatchSimulator from "./InteractiveMatchSimulator";
 import { Button } from "@/components/ui/button";
-import { Play, Zap, ChevronRight, Trophy, CheckCircle } from "lucide-react";
+import { Play, Zap, ChevronRight, Trophy, CheckCircle, Users } from "lucide-react";
 
 interface Match {
   id: string;
@@ -55,19 +56,23 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   const [draw, setDraw] = useState<Match[][]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [resultsSubmitted, setResultsSubmitted] = useState(isCompleted);
+  const [entrants, setEntrants] = useState<Player[]>([]);
 
-  // Generate initial draw
-  useMemo(() => {
+  // Generate entrants and initial draw
+  useEffect(() => {
     if (draw.length > 0) return;
 
-    const entrants = [...players]
-      .filter(p => !p.injured)
-      .slice(0, tournament.playerLimit)
-      .sort((a, b) => a.officialRanking - b.officialRanking);
+    // Use tournament entry logic to select participants
+    const tournamentEntrants = selectTournamentEntrants(
+      players,
+      tournament.category,
+      tournament.playerLimit
+    );
+    setEntrants(tournamentEntrants);
 
     // Seed players
-    const seeds = entrants.slice(0, tournament.seeds);
-    const unseeded = entrants.slice(tournament.seeds);
+    const seeds = tournamentEntrants.slice(0, tournament.seeds);
+    const unseeded = tournamentEntrants.slice(tournament.seeds);
     
     // Shuffle unseeded players
     for (let i = unseeded.length - 1; i > 0; i--) {
@@ -130,7 +135,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     }
 
     setDraw([firstRoundMatches]);
-  }, [tournament, players]);
+  }, [tournament, players, draw.length]);
 
   const handleMatchComplete = (matchId: string, result: MatchResult) => {
     setDraw(prev => {
@@ -287,11 +292,18 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
             <h2 className="font-display text-xl font-bold text-foreground">
               {tournament.name}
             </h2>
-            <p className="text-sm text-muted-foreground">
-              {tournament.city}, {tournament.country}
-            </p>
+          <p className="text-sm text-muted-foreground">
+            {tournament.city}, {tournament.country}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {getFieldDescription(tournament.category)}
+          </p>
           </div>
-          <div className="text-right">
+          <div className="text-right flex items-center gap-4">
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Users className="w-4 h-4" />
+              <span>{entrants.length} players</span>
+            </div>
             <div className={`tournament-badge ${
               tournament.category === "Grand Slam" ? "tournament-badge-gs" :
               tournament.category === "Masters 1000" ? "tournament-badge-m1000" :
@@ -338,7 +350,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
       {selectedMatch && !selectedMatch.result && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-lg">
-            <MatchSimulator
+            <InteractiveMatchSimulator
               player1={selectedMatch.player1}
               player2={selectedMatch.player2}
               bestOf={tournament.category === "Grand Slam" ? 5 : 3}

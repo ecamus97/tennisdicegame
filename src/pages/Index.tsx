@@ -34,8 +34,11 @@ const Index = () => {
     saveGame,
   } = useGameState();
   
+  // Find tournament for current week, may be null
+  const getTournamentForWeek = (week: number) => tournaments.find(t => t.week === week) || null;
+  
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(
-    tournaments.find(t => t.week === 1) || null
+    getTournamentForWeek(currentWeek)
   );
   const [activeTab, setActiveTab] = useState("current");
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
@@ -68,12 +71,17 @@ const Index = () => {
 
   const handleAdvanceWeek = () => {
     advanceWeek();
-    // Auto-select next week's tournament
-    const nextTournament = tournaments.find(t => t.week === (currentWeek >= 52 ? 1 : currentWeek + 1));
+    // Calculate next week
+    const nextWeek = currentWeek >= 52 ? 1 : currentWeek + 1;
+    // Auto-select next week's tournament (may be null)
+    const nextTournament = getTournamentForWeek(nextWeek);
+    setSelectedTournament(nextTournament);
+    
     if (nextTournament) {
-      setSelectedTournament(nextTournament);
+      toast.info(`Advanced to Week ${nextWeek} - ${nextTournament.name}`);
+    } else {
+      toast.info(`Advanced to Week ${nextWeek} - No tournament this week`);
     }
-    toast.info(`Advanced to Week ${currentWeek >= 52 ? 1 : currentWeek + 1}`);
   };
 
   return (
@@ -187,11 +195,15 @@ const Index = () => {
                   <div className="glass-card p-12 text-center">
                     <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="font-display text-lg font-semibold text-foreground mb-2">
-                      No Tournament Selected
+                      No Tournament This Week
                     </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Select a tournament from the calendar to start playing
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Week {currentWeek} has no scheduled tournament. Use the button below to advance to the next week.
                     </p>
+                    <Button onClick={handleAdvanceWeek} className="gap-2">
+                      <ChevronRight className="w-4 h-4" />
+                      Advance to Next Week
+                    </Button>
                   </div>
                 )}
               </TabsContent>
