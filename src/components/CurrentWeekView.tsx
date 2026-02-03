@@ -5,6 +5,7 @@ import { selectTournamentEntrants, getFieldDescription } from "@/lib/tournamentE
 import { StoredMatch, TournamentDraw } from "@/hooks/useGameState";
 import TournamentBracket from "./TournamentBracket";
 import InteractiveMatchSimulator from "./InteractiveMatchSimulator";
+import ATPFinalsView, { ATPFinalsState } from "./ATPFinalsView";
 import { Button } from "@/components/ui/button";
 import { Zap, Trophy, CheckCircle, Users, Shuffle } from "lucide-react";
 
@@ -63,6 +64,12 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   const [resultsSubmitted, setResultsSubmitted] = useState(isCompleted);
   const [entrants, setEntrants] = useState<Player[]>([]);
   const [isDrawGenerated, setIsDrawGenerated] = useState(false);
+  
+  // ATP Finals specific state
+  const [atpFinalsState, setAtpFinalsState] = useState<ATPFinalsState | null>(null);
+  const [atpFinalsSelectedMatch, setAtpFinalsSelectedMatch] = useState<{ match: any; context: any } | null>(null);
+  
+  const isATPFinals = tournament.category === "ATP Finals";
 
   // Seed IDs for bracket display (first N entrants by ranking are seeds)
   const seedIds = useMemo(() => {
@@ -153,6 +160,14 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     );
     setEntrants(tournamentEntrants);
 
+    // For ATP Finals, use the special round-robin format
+    if (isATPFinals) {
+      setIsDrawGenerated(true);
+      // ATP Finals state will be initialized by the ATPFinalsView component
+      persistDraw([], 0, tournamentEntrants);
+      return;
+    }
+
     // Seed players
     const seeds = tournamentEntrants.slice(0, tournament.seeds);
     const unseeded = tournamentEntrants.slice(tournament.seeds);
@@ -224,6 +239,54 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     
     // Persist immediately
     persistDraw(newDraw, 0, tournamentEntrants);
+  };
+
+  // Handle ATP Finals match completion
+  const handleATPFinalsMatchComplete = (matchId: string, result: MatchResult) => {
+    if (!atpFinalsState || !atpFinalsSelectedMatch) return;
+    
+    const { context } = atpFinalsSelectedMatch;
+    
+    setAtpFinalsState(prev => {
+      if (!prev) return prev;
+      
+      if (context.phase === "groups" && context.group === "A") {
+        return {
+          ...prev,
+          groupAMatches: prev.groupAMatches.map(m => 
+            m.id === matchId ? { ...m, result } : m
+          ),
+        };
+      } else if (context.phase === "groups" && context.group === "B") {
+        return {
+          ...prev,
+          groupBMatches: prev.groupBMatches.map(m => 
+            m.id === matchId ? { ...m, result } : m
+          ),
+        };
+      } else if (context.phase === "semifinals") {
+        return {
+          ...prev,
+          semifinals: {
+            match1: prev.semifinals.match1?.id === matchId 
+              ? { ...prev.semifinals.match1, result } 
+              : prev.semifinals.match1,
+            match2: prev.semifinals.match2?.id === matchId 
+              ? { ...prev.semifinals.match2, result } 
+              : prev.semifinals.match2,
+          },
+        };
+      } else if (context.phase === "final" && prev.final) {
+        return {
+          ...prev,
+          final: { ...prev.final, result },
+        };
+      }
+      
+      return prev;
+    });
+    
+    setAtpFinalsSelectedMatch(null);
   };
 
   const handleMatchComplete = (matchId: string, result: MatchResult) => {
@@ -377,6 +440,16 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     setResultsSubmitted(true);
   };
 
+  // Handle ATP Finals completion
+  const handleATPFinalsComplete = (
+    results: { playerId: number; points: number; round: string }[],
+    winnerId: number,
+    runnerUpId: number
+  ) => {
+    onTournamentComplete?.(tournament.id, results, winnerId, runnerUpId);
+    setResultsSubmitted(true);
+  };
+
   // If draw not generated, show generate button
   if (!isDrawGenerated) {
     return (
@@ -399,6 +472,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
               <div className={`tournament-badge ${
                 tournament.category === "Grand Slam" ? "tournament-badge-gs" :
                 tournament.category === "Masters 1000" ? "tournament-badge-m1000" :
+                tournament.category === "ATP Finals" ? "tournament-badge-gs" :
                 "tournament-badge-500"
               }`}>
                 {tournament.category}
@@ -411,18 +485,65 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
         <div className="glass-card p-12 text-center">
           <Shuffle className="w-12 h-12 text-primary mx-auto mb-4" />
           <h3 className="font-display text-lg font-semibold text-foreground mb-2">
-            Generate Tournament Draw
+            {isATPFinals ? "Generate ATP Finals Groups" : "Generate Tournament Draw"}
           </h3>
           <p className="text-sm text-muted-foreground mb-6">
-            {tournament.playerLimit} players will be selected based on rankings and tournament category.
-            <br />
-            Top {tournament.seeds} players will be seeded.
+            {isATPFinals ? (
+              <>
+                Top 8 players by live ranking will qualify.
+                <br />
+                Group A: Rankings 1, 4, 5, 8 • Group B: Rankings 2, 3, 6, 7
+              </>
+            ) : (
+              <>
+                {tournament.playerLimit} players will be selected based on rankings and tournament category.
+                <br />
+                Top {tournament.seeds} players will be seeded.
+              </>
+            )}
           </p>
           <Button onClick={generateDraw} size="lg" className="gap-2">
             <Shuffle className="w-5 h-5" />
-            Generate Draw
+            {isATPFinals ? "Generate Groups" : "Generate Draw"}
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  // ATP Finals special view
+  if (isATPFinals) {
+    return (
+      <div className="space-y-4">
+        {/* ATP Finals Match Simulator Modal */}
+        {atpFinalsSelectedMatch && !atpFinalsSelectedMatch.match.result && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-lg">
+              <InteractiveMatchSimulator
+                player1={atpFinalsSelectedMatch.match.player1}
+                player2={atpFinalsSelectedMatch.match.player2}
+                bestOf={3}
+                onMatchComplete={(result) => handleATPFinalsMatchComplete(atpFinalsSelectedMatch.match.id, result)}
+              />
+              <Button 
+                variant="ghost" 
+                className="w-full mt-2"
+                onClick={() => setAtpFinalsSelectedMatch(null)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        <ATPFinalsView
+          tournament={tournament}
+          entrants={entrants}
+          state={atpFinalsState}
+          onStateChange={setAtpFinalsState}
+          onMatchClick={(match, context) => setAtpFinalsSelectedMatch({ match, context })}
+          onComplete={handleATPFinalsComplete}
+        />
       </div>
     );
   }
