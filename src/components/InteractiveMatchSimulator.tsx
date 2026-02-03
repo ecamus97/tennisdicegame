@@ -6,13 +6,11 @@ import {
   GameResult,
   rollDice, 
   getAdvantageLevel, 
-  getAdvantageDescription,
   AdvantageLevel 
 } from "@/lib/matchEngine";
 import Dice from "./Dice";
-import PlayerCard from "./PlayerCard";
 import { Button } from "@/components/ui/button";
-import { Play, RotateCcw, Zap, ChevronRight } from "lucide-react";
+import { Play, RotateCcw, Zap } from "lucide-react";
 
 interface InteractiveMatchSimulatorProps {
   player1: Player;
@@ -35,6 +33,8 @@ interface MatchState {
   currentSetGames: GameResult[];
   gameNumber: number;
   tbPointNumber: number;
+  // Track who served first in tiebreak
+  tiebreakFirstServer: boolean;
 }
 
 const initialMatchState: MatchState = {
@@ -44,13 +44,14 @@ const initialMatchState: MatchState = {
   player2Games: 0,
   player1TBPoints: 0,
   player2TBPoints: 0,
-  isPlayer1Serving: true,
+  isPlayer1Serving: true, // Player 1 always starts serving
   isTiebreak: false,
   sets: [],
   games: [],
   currentSetGames: [],
-  gameNumber: 0,
+  gameNumber: 1, // Start at game 1
   tbPointNumber: 0,
+  tiebreakFirstServer: true,
 };
 
 const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
@@ -64,6 +65,8 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
   const [isRolling, setIsRolling] = useState(false);
   const [matchComplete, setMatchComplete] = useState(false);
   const [result, setResult] = useState<MatchResult | null>(null);
+  // Track previous server for display after game ends
+  const [lastServerWasP1, setLastServerWasP1] = useState(true);
 
   const setsToWin = bestOf === 3 ? 2 : 3;
   const rankingDiff = player2.fictionalRanking - player1.fictionalRanking;
@@ -130,6 +133,9 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
   const rollForGame = async () => {
     setIsRolling(true);
     
+    // Store current server before roll
+    setLastServerWasP1(matchState.isPlayer1Serving);
+    
     // Animate dice
     for (let i = 0; i < 8; i++) {
       await new Promise(resolve => setTimeout(resolve, 60));
@@ -186,19 +192,23 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
     currentSetGames = [...currentSetGames, gameResult];
     gameNumber++;
     
+    // Switch server for next game (always alternate in regular games)
+    const nextServer = !isPlayer1Serving;
+    
     // Check for tiebreak
     if (player1Games === 6 && player2Games === 6) {
       return {
         ...prev,
         player1Games,
         player2Games,
-        isPlayer1Serving: !isPlayer1Serving,
+        isPlayer1Serving: nextServer, // Who serves first point of tiebreak
         isTiebreak: true,
         currentSetGames,
         gameNumber,
         player1TBPoints: 0,
         player2TBPoints: 0,
         tbPointNumber: 0,
+        tiebreakFirstServer: nextServer,
       };
     }
     
@@ -241,8 +251,8 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
           sets: newSets,
           games: newGames,
           currentSetGames: [],
-          isPlayer1Serving: !isPlayer1Serving,
-          gameNumber: 0,
+          isPlayer1Serving: nextServer,
+          gameNumber: 1,
         };
       }
       
@@ -255,8 +265,8 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
         sets: newSets,
         games: newGames,
         currentSetGames: [],
-        isPlayer1Serving: !isPlayer1Serving,
-        gameNumber: 0,
+        isPlayer1Serving: nextServer,
+        gameNumber: 1,
       };
     }
     
@@ -264,14 +274,14 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
       ...prev,
       player1Games,
       player2Games,
-      isPlayer1Serving: !isPlayer1Serving,
+      isPlayer1Serving: nextServer,
       currentSetGames,
       gameNumber,
     };
   };
 
   const updateTiebreakState = (prev: MatchState, gameResult: GameResult, isP1Serving: boolean): MatchState => {
-    let { player1TBPoints, player2TBPoints, player1Sets, player2Sets, isPlayer1Serving, sets, games, currentSetGames, tbPointNumber } = prev;
+    let { player1TBPoints, player2TBPoints, player1Sets, player2Sets, sets, games, currentSetGames, tbPointNumber, tiebreakFirstServer } = prev;
     
     // Update tiebreak score
     if (isP1Serving) {
@@ -283,12 +293,26 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
     }
     
     currentSetGames = [...currentSetGames, gameResult];
-    tbPointNumber++;
+    const newPointNumber = tbPointNumber + 1;
     
-    // Tiebreak serve rotation
-    let newIsPlayer1Serving = isPlayer1Serving;
-    if (tbPointNumber === 1 || (tbPointNumber > 1 && (tbPointNumber - 1) % 2 === 0)) {
-      newIsPlayer1Serving = !isPlayer1Serving;
+    // Tiebreak serve rotation: 1-2-2-2-2...
+    // First server serves 1 point (point 1), then alternates every 2 points
+    // Point 1: first server
+    // Points 2-3: second server
+    // Points 4-5: first server
+    // Points 6-7: second server
+    // etc.
+    let newIsPlayer1Serving: boolean;
+    if (newPointNumber === 1) {
+      // First point: first server continues
+      newIsPlayer1Serving = tiebreakFirstServer;
+    } else {
+      // After first point, alternate every 2 points
+      // Points 2,3 -> second server; 4,5 -> first server; 6,7 -> second; etc.
+      const adjustedPoint = newPointNumber - 1; // 1,2,3,4,5,6...
+      const segment = Math.floor((adjustedPoint - 1) / 2); // 0,0,1,1,2,2...
+      // Even segments: second server; Odd segments: first server
+      newIsPlayer1Serving = segment % 2 === 1 ? tiebreakFirstServer : !tiebreakFirstServer;
     }
     
     // Check for tiebreak win
@@ -305,6 +329,9 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
       
       if (p1Won) player1Sets++;
       else player2Sets++;
+      
+      // After tiebreak, the player who received first in tiebreak serves first in next set
+      const nextSetServer = !tiebreakFirstServer;
       
       // Check for match win
       if (player1Sets >= setsToWin || player2Sets >= setsToWin) {
@@ -336,9 +363,9 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
           games: newGames,
           currentSetGames: [],
           isTiebreak: false,
-          isPlayer1Serving: !prev.isPlayer1Serving,
+          isPlayer1Serving: nextSetServer,
           tbPointNumber: 0,
-          gameNumber: 0,
+          gameNumber: 1,
         };
       }
       
@@ -354,9 +381,9 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
         games: newGames,
         currentSetGames: [],
         isTiebreak: false,
-        isPlayer1Serving: !prev.isPlayer1Serving,
+        isPlayer1Serving: nextSetServer,
         tbPointNumber: 0,
-        gameNumber: 0,
+        gameNumber: 1,
       };
     }
     
@@ -366,22 +393,105 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
       player2TBPoints,
       isPlayer1Serving: newIsPlayer1Serving,
       currentSetGames,
-      tbPointNumber,
+      tbPointNumber: newPointNumber,
     };
   };
 
-  const simulateInstant = () => {
-    // Use the original playMatch function for instant simulation
-    import("@/lib/matchEngine").then(({ playMatch }) => {
-      const matchResult = playMatch(player1, player2, bestOf);
+  const simulateRestOfMatch = () => {
+    // Continue from current state, simulating remaining games/sets
+    import("@/lib/matchEngine").then(({ playSet, rollDice, getAdvantageLevel }) => {
+      let currentState = { ...matchState };
+      const advLevel = getAdvantageLevel(player2.fictionalRanking - player1.fictionalRanking);
+      const setsNeeded = setsToWin;
+      
+      // Simulate until match complete
+      while (currentState.player1Sets < setsNeeded && currentState.player2Sets < setsNeeded) {
+        // Finish current set if in progress
+        while (
+          !((currentState.player1Games >= 6 || currentState.player2Games >= 6) && 
+            Math.abs(currentState.player1Games - currentState.player2Games) >= 2) &&
+          !(currentState.player1Games === 7 || currentState.player2Games === 7)
+        ) {
+          // Check for tiebreak
+          if (currentState.player1Games === 6 && currentState.player2Games === 6) {
+            // Simulate tiebreak
+            let tbP1 = 0, tbP2 = 0;
+            while (!((tbP1 >= 7 || tbP2 >= 7) && Math.abs(tbP1 - tbP2) >= 2)) {
+              const p1Roll = rollDice();
+              const p2Roll = rollDice();
+              if (p1Roll >= p2Roll) tbP1++;
+              else tbP2++;
+            }
+            
+            if (tbP1 > tbP2) {
+              currentState.player1Games = 7;
+              currentState.player1Sets++;
+            } else {
+              currentState.player2Games = 7;
+              currentState.player2Sets++;
+            }
+            
+            currentState.sets.push({
+              player1Games: currentState.player1Games,
+              player2Games: currentState.player2Games,
+              tiebreak: { player1Points: tbP1, player2Points: tbP2 }
+            });
+            currentState.player1Games = 0;
+            currentState.player2Games = 0;
+            currentState.isPlayer1Serving = !currentState.isPlayer1Serving;
+            break;
+          }
+          
+          // Simulate regular game
+          const serverRoll = rollDice();
+          const receiverRoll = rollDice();
+          const serverWins = serverRoll >= receiverRoll;
+          
+          if (currentState.isPlayer1Serving) {
+            if (serverWins) currentState.player1Games++;
+            else currentState.player2Games++;
+          } else {
+            if (serverWins) currentState.player2Games++;
+            else currentState.player1Games++;
+          }
+          
+          currentState.isPlayer1Serving = !currentState.isPlayer1Serving;
+        }
+        
+        // Check if set just finished (not via tiebreak)
+        if ((currentState.player1Games >= 6 || currentState.player2Games >= 6) && 
+            Math.abs(currentState.player1Games - currentState.player2Games) >= 2) {
+          if (currentState.player1Games > currentState.player2Games) {
+            currentState.player1Sets++;
+          } else {
+            currentState.player2Sets++;
+          }
+          currentState.sets.push({
+            player1Games: currentState.player1Games,
+            player2Games: currentState.player2Games
+          });
+          currentState.player1Games = 0;
+          currentState.player2Games = 0;
+        }
+      }
+      
+      const winner = currentState.player1Sets > currentState.player2Sets ? player1 : player2;
+      const loser = currentState.player1Sets > currentState.player2Sets ? player2 : player1;
+      
+      const matchResult: MatchResult = {
+        winner,
+        loser,
+        sets: currentState.sets,
+        player1Sets: currentState.player1Sets,
+        player2Sets: currentState.player2Sets,
+        games: currentState.games,
+      };
+      
       setResult(matchResult);
       setMatchComplete(true);
       setMatchState({
-        ...initialMatchState,
-        player1Sets: matchResult.player1Sets,
-        player2Sets: matchResult.player2Sets,
-        sets: matchResult.sets,
-        games: matchResult.games,
+        ...currentState,
+        isTiebreak: false,
       });
       onMatchComplete?.(matchResult);
     });
@@ -392,9 +502,13 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
     setCurrentRoll(null);
     setMatchComplete(false);
     setResult(null);
+    setLastServerWasP1(true);
   };
 
   const getCurrentServer = () => matchState.isPlayer1Serving ? player1 : player2;
+  
+  // For display purposes after a game, show who WAS serving
+  const getDisplayServer = () => lastServerWasP1 ? player1 : player2;
 
   return (
     <div className="glass-card p-6 space-y-4">
@@ -481,26 +595,26 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
         <div className="flex items-center justify-center gap-6">
           <div className="text-center">
             <Dice 
-              value={matchState.isPlayer1Serving ? currentRoll.serverRoll : currentRoll.receiverRoll} 
+              value={lastServerWasP1 ? currentRoll.serverRoll : currentRoll.receiverRoll} 
               isRolling={isRolling} 
               size="lg" 
               variant="primary" 
             />
             <p className="text-xs text-muted-foreground mt-1">{player1.name.split(" ").pop()}</p>
-            {currentRoll.serverSecondRoll && matchState.isPlayer1Serving && (
+            {currentRoll.serverSecondRoll && lastServerWasP1 && (
               <p className="text-xs text-primary">2nd: {currentRoll.serverSecondRoll}</p>
             )}
           </div>
           <div className="text-xl font-display font-bold text-muted-foreground">VS</div>
           <div className="text-center">
             <Dice 
-              value={matchState.isPlayer1Serving ? currentRoll.receiverRoll : currentRoll.serverRoll} 
+              value={lastServerWasP1 ? currentRoll.receiverRoll : currentRoll.serverRoll} 
               isRolling={isRolling} 
               size="lg" 
               variant="secondary" 
             />
             <p className="text-xs text-muted-foreground mt-1">{player2.name.split(" ").pop()}</p>
-            {currentRoll.receiverSecondRoll && !matchState.isPlayer1Serving && (
+            {currentRoll.receiverSecondRoll && !lastServerWasP1 && (
               <p className="text-xs text-primary">2nd: {currentRoll.receiverSecondRoll}</p>
             )}
           </div>
@@ -513,7 +627,7 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
           currentRoll.wasBreak ? "text-destructive" : "text-primary"
         }`}>
           {currentRoll.wasBreak ? "BREAK! 🔥" : "Hold ✓"} • 
-          {matchState.isPlayer1Serving 
+          {lastServerWasP1 
             ? (currentRoll.serverWon ? ` ${player1.name.split(" ").pop()} wins game` : ` ${player2.name.split(" ").pop()} breaks`)
             : (currentRoll.serverWon ? ` ${player2.name.split(" ").pop()} wins game` : ` ${player1.name.split(" ").pop()} breaks`)
           }
@@ -550,7 +664,7 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
               {isRolling ? "Rolling..." : matchState.isTiebreak ? "Roll Point" : "Roll Game"}
             </Button>
             <Button
-              onClick={simulateInstant}
+              onClick={simulateRestOfMatch}
               disabled={isRolling}
               variant="secondary"
               className="gap-2"

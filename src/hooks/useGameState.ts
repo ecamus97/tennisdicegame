@@ -1,5 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Player, Tournament, initialPlayers, tournaments } from '@/data/players';
+import { MatchResult } from '@/lib/matchEngine';
+
+// Stored match in a draw
+export interface StoredMatch {
+  id: string;
+  player1Id: number;
+  player2Id: number;
+  result?: MatchResult;
+  round: string;
+}
+
+// Tournament draw that can be persisted
+export interface TournamentDraw {
+  tournamentId: string;
+  rounds: StoredMatch[][];
+  currentRound: number;
+  isGenerated: boolean;
+  entrantIds: number[];
+}
 
 export interface GameState {
   players: Player[];
@@ -7,6 +26,7 @@ export interface GameState {
   currentSeason: number;
   completedTournaments: string[];
   tournamentHistory: TournamentResult[];
+  currentDraw: TournamentDraw | null;
 }
 
 export interface TournamentResult {
@@ -43,6 +63,7 @@ const getInitialState = (): GameState => {
     currentSeason: 1,
     completedTournaments: [],
     tournamentHistory: [],
+    currentDraw: null,
   };
 };
 
@@ -144,6 +165,7 @@ export const useGameState = () => {
         currentWeek: newWeek,
         currentSeason: newSeason,
         players: rankedPlayers,
+        currentDraw: null, // Clear draw when advancing week
         // Reset completed tournaments at season start
         completedTournaments: newWeek === 1 ? [] : prev.completedTournaments,
       };
@@ -224,6 +246,22 @@ export const useGameState = () => {
     }));
   }, []);
 
+  // Save current draw
+  const saveCurrentDraw = useCallback((draw: TournamentDraw) => {
+    setState(prev => ({
+      ...prev,
+      currentDraw: draw,
+    }));
+  }, []);
+
+  // Clear current draw
+  const clearCurrentDraw = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      currentDraw: null,
+    }));
+  }, []);
+
   // Reset game state
   const resetGame = useCallback(() => {
     setState({
@@ -232,6 +270,7 @@ export const useGameState = () => {
       currentSeason: 1,
       completedTournaments: [],
       tournamentHistory: [],
+      currentDraw: null,
     });
   }, []);
 
@@ -257,6 +296,8 @@ export const useGameState = () => {
     updateFictionalRanking,
     resetGame,
     saveGame,
+    saveCurrentDraw,
+    clearCurrentDraw,
     getPlayersByLiveRanking,
     getPlayersByOfficialRanking,
     injurePlayer,
