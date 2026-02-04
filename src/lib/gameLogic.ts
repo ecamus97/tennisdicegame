@@ -98,10 +98,11 @@ export const playGameWithAdvantage = (options: PlayGameOptions): GameResult => {
     if (isHigherRankedServing && !isTiebreak) {
       // Check if this is an "every other" game (games 2, 4, 6, etc. by higher ranked)
       if (higherRankedServiceGameCount % 2 === 0 && serverRoll < receiverRoll) {
+        // Both players re-roll
         serverSecondRoll = rollDice();
-        if (serverSecondRoll >= receiverRoll) {
-          serverRoll = serverSecondRoll;
-        }
+        receiverSecondRoll = rollDice();
+        serverRoll = serverSecondRoll;
+        receiverRoll = receiverSecondRoll;
       }
     }
     // On opponent serve: no advantage
@@ -113,10 +114,11 @@ export const playGameWithAdvantage = (options: PlayGameOptions): GameResult => {
     // Tiebreak: advantage applies
     if (isHigherRankedServing) {
       if (serverRoll < receiverRoll) {
+        // Both players re-roll
         serverSecondRoll = rollDice();
-        if (serverSecondRoll >= receiverRoll) {
-          serverRoll = serverSecondRoll;
-        }
+        receiverSecondRoll = rollDice();
+        serverRoll = serverSecondRoll;
+        receiverRoll = receiverSecondRoll;
       }
     }
     // On opponent serve: no advantage (not receiving, higher ranked is server here)
@@ -127,10 +129,11 @@ export const playGameWithAdvantage = (options: PlayGameOptions): GameResult => {
     if (isHigherRankedServing) {
       // On own serve: always second attempt
       if (serverRoll < receiverRoll) {
+        // Both players re-roll
         serverSecondRoll = rollDice();
-        if (serverSecondRoll >= receiverRoll) {
-          serverRoll = serverSecondRoll;
-        }
+        receiverSecondRoll = rollDice();
+        serverRoll = serverSecondRoll;
+        receiverRoll = receiverSecondRoll;
       }
     } else {
       // Higher ranked is receiving (lower ranked is serving)
@@ -139,10 +142,11 @@ export const playGameWithAdvantage = (options: PlayGameOptions): GameResult => {
         // On opponent serve: every other game → second attempt to break
         // lowerRankedServiceGameCount is how many games the lower ranked has served
         if (lowerRankedServiceGameCount % 2 === 0 && receiverRoll <= serverRoll) {
+          // Both players re-roll
+          serverSecondRoll = rollDice();
           receiverSecondRoll = rollDice();
-          if (receiverSecondRoll > serverRoll) {
-            receiverRoll = receiverSecondRoll;
-          }
+          serverRoll = serverSecondRoll;
+          receiverRoll = receiverSecondRoll;
         }
       }
     }

@@ -65,7 +65,7 @@ export const playGame = (options: PlayGameOptions): GameResult => {
   let serverSecondRoll: number | undefined;
   let receiverSecondRoll: number | undefined;
   
-  // Apply advantage rules
+  // Apply advantage rules - when re-rolling, BOTH players re-roll
   if (!isTiebreak || advantageLevel === "clear" || advantageLevel === "dominant") {
     if (isHigherRankedServing) {
       // Server is higher ranked
@@ -73,20 +73,24 @@ export const playGame = (options: PlayGameOptions): GameResult => {
         case "small":
           // Second attempt every other serve game
           if (gameNumber % 2 === 0 && serverRoll < receiverRoll) {
+            // Both players re-roll
             serverSecondRoll = rollDice();
-            if (serverSecondRoll >= receiverRoll) {
-              serverRoll = serverSecondRoll;
-            }
+            receiverSecondRoll = rollDice();
+            // Use second rolls for the result
+            serverRoll = serverSecondRoll;
+            receiverRoll = receiverSecondRoll;
           }
           break;
         case "clear":
         case "dominant":
           // Always second attempt
           if (serverRoll < receiverRoll) {
+            // Both players re-roll
             serverSecondRoll = rollDice();
-            if (serverSecondRoll >= receiverRoll) {
-              serverRoll = serverSecondRoll;
-            }
+            receiverSecondRoll = rollDice();
+            // Use second rolls for the result
+            serverRoll = serverSecondRoll;
+            receiverRoll = receiverSecondRoll;
           }
           break;
       }
@@ -94,10 +98,12 @@ export const playGame = (options: PlayGameOptions): GameResult => {
       // Receiver is higher ranked (dominant)
       // Every other game, second attempt to break
       if (gameNumber % 2 === 0 && receiverRoll <= serverRoll) {
+        // Both players re-roll
+        serverSecondRoll = rollDice();
         receiverSecondRoll = rollDice();
-        if (receiverSecondRoll > serverRoll) {
-          receiverRoll = receiverSecondRoll;
-        }
+        // Use second rolls for the result
+        serverRoll = serverSecondRoll;
+        receiverRoll = receiverSecondRoll;
       }
     }
   }
