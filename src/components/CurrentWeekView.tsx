@@ -432,13 +432,19 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     return Array.from(results.values());
   };
 
-  const handleSubmitResults = () => {
-    if (!isTournamentComplete || !winner || !runnerUp || resultsSubmitted) return;
+  const handleSubmitResults = useCallback(() => {
+    if (!isTournamentComplete || !winner || !runnerUp) return;
+    if (resultsSubmitted) return;
     
     const results = calculateTournamentResults();
-    onTournamentComplete?.(tournament.id, results, winner.id, runnerUp.id);
+    if (results.length === 0) return;
+    
+    // Mark as submitted immediately to prevent double-submission
     setResultsSubmitted(true);
-  };
+    
+    // Then notify parent
+    onTournamentComplete?.(tournament.id, results, winner.id, runnerUp.id);
+  }, [isTournamentComplete, winner, runnerUp, resultsSubmitted, calculateTournamentResults, onTournamentComplete, tournament.id]);
 
   // Handle ATP Finals completion
   const handleATPFinalsComplete = (
