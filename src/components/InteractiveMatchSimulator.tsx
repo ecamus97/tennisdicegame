@@ -306,22 +306,13 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
     const newPointNumber = tbPointNumber + 1;
     
     // Tiebreak serve rotation: 1-2-2-2-2...
-    // Point 1: first server
+    // Point 1: first server (tiebreakFirstServer)
     // Points 2-3: second server
     // Points 4-5: first server
     // Points 6-7: second server, etc.
-    let newIsPlayer1Serving: boolean;
-    if (newPointNumber === 1) {
-      // First point: first server continues
-      newIsPlayer1Serving = tiebreakFirstServer;
-    } else {
-      // After first point, alternate every 2 points
-      // Points 2,3 -> second server; 4,5 -> first server; 6,7 -> second; etc.
-      const adjustedPoint = newPointNumber - 1; // 1,2,3,4,5,6...
-      const segment = Math.floor((adjustedPoint - 1) / 2); // 0,0,1,1,2,2...
-      // Even segments: second server; Odd segments: first server
-      newIsPlayer1Serving = segment % 2 === 1 ? tiebreakFirstServer : !tiebreakFirstServer;
-    }
+    // After n points played, determine who serves next:
+    const segment = Math.floor((newPointNumber - 1) / 2); // 0,0,1,1,2,2...
+    const newIsPlayer1Serving = segment % 2 === 0 ? !tiebreakFirstServer : tiebreakFirstServer;
     
     // Check for tiebreak win
     if ((player1TBPoints >= 7 || player2TBPoints >= 7) && Math.abs(player1TBPoints - player2TBPoints) >= 2) {
