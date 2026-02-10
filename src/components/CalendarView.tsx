@@ -1,15 +1,17 @@
 import React, { useState } from "react";
-import { tournaments, Tournament } from "@/data/players";
+import { tournaments, Tournament, getCategoryColor } from "@/data/players";
+import { TournamentResult } from "@/hooks/useGameState";
 import TournamentCard from "./TournamentCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, CheckCircle } from "lucide-react";
+import { Calendar, Clock, CheckCircle, Trophy } from "lucide-react";
 
 interface CalendarViewProps {
   currentWeek: number;
   onTournamentSelect?: (tournament: Tournament) => void;
+  tournamentHistory?: TournamentResult[];
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ currentWeek, onTournamentSelect }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ currentWeek, onTournamentSelect, tournamentHistory = [] }) => {
   const [view, setView] = useState<"upcoming" | "past" | "all">("upcoming");
 
   const upcomingTournaments = tournaments.filter(t => t.week >= currentWeek);
@@ -23,7 +25,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ currentWeek, onTournamentSe
     : tournaments;
 
   const groupByMonth = (tourns: Tournament[]) => {
-    // Approximate months based on week number (season starts mid-January)
     const getMonth = (week: number) => {
       if (week <= 4) return "January";
       if (week <= 8) return "February";
@@ -49,6 +50,19 @@ const CalendarView: React.FC<CalendarViewProps> = ({ currentWeek, onTournamentSe
   };
 
   const groupedTournaments = groupByMonth(displayedTournaments);
+
+  // Category dot color
+  const getCategoryDotColor = (category?: string) => {
+    switch (category) {
+      case "Grand Slam": return "bg-yellow-500";
+      case "Masters 1000": return "bg-primary";
+      case "ATP 500": return "bg-blue-400";
+      case "ATP 250": return "bg-muted-foreground";
+      case "ATP Finals": return "bg-yellow-500";
+      case "Davis Cup": return "bg-green-500";
+      default: return "bg-muted-foreground";
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -126,6 +140,41 @@ const CalendarView: React.FC<CalendarViewProps> = ({ currentWeek, onTournamentSe
           <div className="text-xs text-muted-foreground">ATP 250</div>
         </div>
       </div>
+
+      {/* Tournament Winners Table */}
+      {tournamentHistory.length > 0 && (
+        <div className="glass-card p-4">
+          <h3 className="font-display font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-primary" />
+            Palmarés
+          </h3>
+          <div className="space-y-1.5 max-h-[250px] overflow-y-auto pr-1">
+            {[...tournamentHistory].reverse().map((result, idx) => {
+              const t = tournaments.find(tr => tr.id === result.tournamentId);
+              return (
+                <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/20 hover:bg-secondary/30 transition-colors">
+                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${getCategoryDotColor(t?.category)}`} />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium truncate block">{result.winnerName}</span>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <span className="text-xs text-muted-foreground">{t?.name}</span>
+                  </div>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${
+                    t?.category === "Grand Slam" ? "bg-yellow-500/20 text-yellow-600" :
+                    t?.category === "Masters 1000" ? "bg-primary/20 text-primary" :
+                    t?.category === "ATP Finals" ? "bg-yellow-500/20 text-yellow-600" :
+                    t?.category === "Davis Cup" ? "bg-green-500/20 text-green-600" :
+                    "bg-secondary text-muted-foreground"
+                  }`}>
+                    {t?.category}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Tournament list */}
       <div className="space-y-6 max-h-[450px] overflow-y-auto pr-2">

@@ -6,8 +6,10 @@ import { StoredMatch, TournamentDraw } from "@/hooks/useGameState";
 import TournamentBracket from "./TournamentBracket";
 import InteractiveMatchSimulator from "./InteractiveMatchSimulator";
 import ATPFinalsView, { ATPFinalsState } from "./ATPFinalsView";
+import DavisCupView, { DavisCupState, updateDavisCupMatchResult } from "./DavisCupView";
 import { Button } from "@/components/ui/button";
-import { Zap, Trophy, CheckCircle, Users, Shuffle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Zap, Trophy, CheckCircle, Users, Shuffle, Search, X } from "lucide-react";
 
 interface Match {
   id: string;
@@ -68,8 +70,18 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   // ATP Finals specific state
   const [atpFinalsState, setAtpFinalsState] = useState<ATPFinalsState | null>(null);
   const [atpFinalsSelectedMatch, setAtpFinalsSelectedMatch] = useState<{ match: any; context: any } | null>(null);
+  const [forcedEntrants, setForcedEntrants] = useState<Player[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [davisCupState, setDavisCupState] = useState<DavisCupState | null>(null);
+  const [davisCupSelectedMatch, setDavisCupSelectedMatch] = useState<{
+    matchPlayer1: Player;
+    matchPlayer2: Player;
+    matchId: string;
+    seriesId: string;
+  } | null>(null);
   
   const isATPFinals = tournament.category === "ATP Finals";
+  const isDavisCup = tournament.category === "Davis Cup";
 
   // Seed IDs for bracket display (first N entrants by ranking are seeds)
   const seedIds = useMemo(() => {
@@ -152,18 +164,27 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
 
   // Generate draw
   const generateDraw = () => {
-    // Use tournament entry logic to select participants
-    const tournamentEntrants = selectTournamentEntrants(
-      players,
+    // For Davis Cup, skip entrant selection (handled by DavisCupView)
+    if (isDavisCup) {
+      setIsDrawGenerated(true);
+      return;
+    }
+
+    // Include forced entrants in the draw
+    const availableForAutoSelect = players.filter(p => !forcedEntrants.some(f => f.id === p.id));
+    const autoEntrants = selectTournamentEntrants(
+      availableForAutoSelect,
       tournament.category,
-      tournament.playerLimit
+      Math.max(0, tournament.playerLimit - forcedEntrants.length)
     );
+    const tournamentEntrants = [...forcedEntrants, ...autoEntrants]
+      .slice(0, tournament.playerLimit)
+      .sort((a, b) => a.officialRanking - b.officialRanking);
     setEntrants(tournamentEntrants);
 
     // For ATP Finals, use the special round-robin format
     if (isATPFinals) {
       setIsDrawGenerated(true);
-      // ATP Finals state will be initialized by the ATPFinalsView component
       persistDraw([], 0, tournamentEntrants);
       return;
     }
@@ -288,6 +309,19 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     
     setAtpFinalsSelectedMatch(null);
   };
+
+  // Handle Davis Cup match completion
+  const handleDavisCupMatchComplete = useCallback((result: MatchResult) => {
+    if (!davisCupSelectedMatch || !davisCupState) return;
+    const { matchId, seriesId, matchPlayer1 } = davisCupSelectedMatch;
+    const country1Won = result.winner.id === matchPlayer1.id;
+    
+    setDavisCupState(prev => {
+      if (!prev) return prev;
+      return updateDavisCupMatchResult(prev, seriesId, matchId, country1Won, result);
+    });
+    setDavisCupSelectedMatch(null);
+  }, [davisCupSelectedMatch, davisCupState]);
 
   const handleMatchComplete = (matchId: string, result: MatchResult) => {
     setDraw(prev => {
@@ -488,17 +522,23 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
         </div>
 
         {/* Generate Draw Button */}
-        <div className="glass-card p-12 text-center">
+        <div className="glass-card p-8 text-center">
           <Shuffle className="w-12 h-12 text-primary mx-auto mb-4" />
           <h3 className="font-display text-lg font-semibold text-foreground mb-2">
-            {isATPFinals ? "Generate ATP Finals Groups" : "Generate Tournament Draw"}
+            {isATPFinals ? "Generate ATP Finals Groups" : isDavisCup ? "Generate Davis Cup Draw" : "Generate Tournament Draw"}
           </h3>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-sm text-muted-foreground mb-4">
             {isATPFinals ? (
               <>
                 Top 8 players by live ranking will qualify.
                 <br />
                 Groups are balanced: each pair (1-2, 3-4, 5-6, 7-8) is split randomly between groups.
+              </>
+            ) : isDavisCup ? (
+              <>
+                Top 16 countries (with 2+ ranked players) will qualify.
+                <br />
+                4 groups of 4 countries, round-robin with 5-match series per matchup.
               </>
             ) : (
               <>
@@ -508,9 +548,69 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
               </>
             )}
           </p>
+
+          {/* Manual Player Entry (not for ATP Finals or Davis Cup) */}
+          {!isATPFinals && !isDavisCup && (
+            <div className="mt-4 mb-6 max-w-md mx-auto text-left space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Add a specific player..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              {searchQuery.length >= 2 && (
+                <div className="space-y-1">
+                  {players
+                    .filter(p =>
+                      p.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+                      !forcedEntrants.some(e => e.id === p.id) &&
+                      !p.injured
+                    )
+                    .slice(0, 5)
+                    .map(player => (
+                      <button
+                        key={player.id}
+                        className="w-full text-left p-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 flex items-center justify-between transition-colors"
+                        onClick={() => {
+                          setForcedEntrants(prev => [...prev, player]);
+                          setSearchQuery("");
+                        }}
+                      >
+                        <span className="text-sm">{player.name} ({player.countryCode})</span>
+                        <span className="text-xs text-muted-foreground">#{player.officialRanking}</span>
+                      </button>
+                    ))}
+                  {players.filter(p =>
+                    p.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+                    !forcedEntrants.some(e => e.id === p.id) &&
+                    !p.injured
+                  ).length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">No players found</p>
+                  )}
+                </div>
+              )}
+              {forcedEntrants.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">Manually added ({forcedEntrants.length}):</p>
+                  {forcedEntrants.map(p => (
+                    <div key={p.id} className="flex items-center justify-between p-2 bg-primary/10 rounded-lg">
+                      <span className="text-sm font-medium">{p.name} <span className="text-xs text-muted-foreground">#{p.officialRanking}</span></span>
+                      <button onClick={() => setForcedEntrants(prev => prev.filter(e => e.id !== p.id))}>
+                        <X className="w-4 h-4 text-muted-foreground hover:text-destructive transition-colors" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <Button onClick={generateDraw} size="lg" className="gap-2">
             <Shuffle className="w-5 h-5" />
-            {isATPFinals ? "Generate Groups" : "Generate Draw"}
+            {isATPFinals ? "Generate Groups" : isDavisCup ? "Generate Draw" : "Generate Draw"}
           </Button>
         </div>
       </div>
@@ -549,6 +649,43 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
           onStateChange={setAtpFinalsState}
           onMatchClick={(match, context) => setAtpFinalsSelectedMatch({ match, context })}
           onComplete={handleATPFinalsComplete}
+        />
+      </div>
+    );
+  }
+
+  // Davis Cup special view
+  if (isDavisCup) {
+    return (
+      <div className="space-y-4">
+        {davisCupSelectedMatch && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-lg">
+              <InteractiveMatchSimulator
+                player1={davisCupSelectedMatch.matchPlayer1}
+                player2={davisCupSelectedMatch.matchPlayer2}
+                bestOf={3}
+                onMatchComplete={handleDavisCupMatchComplete}
+              />
+              <Button 
+                variant="ghost" 
+                className="w-full mt-2"
+                onClick={() => setDavisCupSelectedMatch(null)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        <DavisCupView
+          players={players}
+          state={davisCupState}
+          onStateChange={setDavisCupState}
+          onMatchClick={(p1, p2, matchId, seriesId) => 
+            setDavisCupSelectedMatch({ matchPlayer1: p1, matchPlayer2: p2, matchId, seriesId })
+          }
+          onComplete={() => setResultsSubmitted(true)}
         />
       </div>
     );

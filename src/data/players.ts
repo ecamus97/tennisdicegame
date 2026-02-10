@@ -341,7 +341,7 @@ export const initialPlayers: Player[] = playerNames.map((name, index) => {
   };
 });
 
-export type TournamentCategory = "Grand Slam" | "Masters 1000" | "ATP 500" | "ATP 250" | "ATP Finals";
+export type TournamentCategory = "Grand Slam" | "Masters 1000" | "ATP 500" | "ATP 250" | "ATP Finals" | "Davis Cup";
 
 export interface Tournament {
   id: string;
@@ -448,6 +448,8 @@ export const tournaments: Tournament[] = [
   // 200 pts per group win, +400 for SF win, +500 for final win
   // Max points: 3 group wins (600) + SF (400) + Final (500) = 1500
   { id: "atp-finals", name: "ATP Finals", city: "Turin", country: "Italy", category: "ATP Finals", surface: "Hard", week: 40, playerLimit: 8, seeds: 8, isRoundRobin: true, points: { winner: 500, finalist: 0, sf: 400, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0, groupWin: 200 } },
+  // Week 42: Davis Cup Finals - Team competition (no ranking points)
+  { id: "davis-cup", name: "Davis Cup Finals", city: "Málaga", country: "Spain", category: "Davis Cup", surface: "Hard", week: 42, playerLimit: 32, seeds: 0, points: { winner: 0, finalist: 0, sf: 0, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0 } },
 ];
 
 export const getCategoryColor = (category: TournamentCategory): string => {
@@ -457,6 +459,7 @@ export const getCategoryColor = (category: TournamentCategory): string => {
     case "ATP 500": return "tournament-badge-500";
     case "ATP 250": return "tournament-badge-250";
     case "ATP Finals": return "tournament-badge-gs";
+    case "Davis Cup": return "tournament-badge-m1000";
   }
 };
 

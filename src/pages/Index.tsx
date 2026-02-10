@@ -27,6 +27,7 @@ const Index = () => {
     currentWeek, 
     currentSeason, 
     completedTournaments,
+    tournamentHistory,
     currentDraw,
     advanceWeek,
     addTournamentResult,
@@ -220,6 +221,7 @@ const Index = () => {
                 <CalendarView
                   currentWeek={currentWeek}
                   onTournamentSelect={handleTournamentSelect}
+                  tournamentHistory={tournamentHistory}
                 />
               </TabsContent>
             </div>
