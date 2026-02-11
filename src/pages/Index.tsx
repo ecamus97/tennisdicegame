@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { tournaments, Tournament, Player } from "@/data/players";
 import { useGameState } from "@/hooks/useGameState";
 import RankingsView from "@/components/RankingsView";
@@ -39,15 +39,33 @@ const Index = () => {
     saveCurrentDraw,
   } = useGameState();
   
-  // Find tournament for current week, may be null
-  const getTournamentForWeek = (week: number) => tournaments.find(t => t.week === week) || null;
+  // Get all tournaments for a given week
+  const getTournamentsForWeek = (week: number) => tournaments.filter(t => t.week === week);
+  
+  const weekTournaments = useMemo(() => getTournamentsForWeek(currentWeek), [currentWeek]);
   
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(
-    getTournamentForWeek(currentWeek)
+    weekTournaments[0] || null
   );
   const [activeTab, setActiveTab] = useState("current");
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [playerDialogOpen, setPlayerDialogOpen] = useState(false);
+
+  // Calculate excluded player IDs from completed same-week tournaments
+  const excludedPlayerIds = useMemo(() => {
+    const sameWeekTournaments = getTournamentsForWeek(currentWeek);
+    const completedThisWeek = sameWeekTournaments.filter(t => completedTournaments.includes(t.id));
+    const ids = new Set<number>();
+    completedThisWeek.forEach(t => {
+      const history = tournamentHistory.filter(
+        h => h.tournamentId === t.id && h.season === currentSeason
+      );
+      history.forEach(h => {
+        h.results.forEach(r => ids.add(r.playerId));
+      });
+    });
+    return ids;
+  }, [currentWeek, completedTournaments, tournamentHistory, currentSeason]);
 
   const handlePlayerSelect = (player: Player) => {
     setSelectedPlayer(player);
@@ -76,18 +94,19 @@ const Index = () => {
 
   const handleAdvanceWeek = () => {
     advanceWeek();
-    // Calculate next week
     const nextWeek = currentWeek >= 52 ? 1 : currentWeek + 1;
-    // Auto-select next week's tournament (may be null)
-    const nextTournament = getTournamentForWeek(nextWeek);
-    setSelectedTournament(nextTournament);
+    const nextTournaments = getTournamentsForWeek(nextWeek);
+    setSelectedTournament(nextTournaments[0] || null);
     
-    if (nextTournament) {
-      toast.info(`Advanced to Week ${nextWeek} - ${nextTournament.name}`);
+    if (nextTournaments.length > 0) {
+      toast.info(`Advanced to Week ${nextWeek} - ${nextTournaments.map(t => t.name).join(", ")}`);
     } else {
       toast.info(`Advanced to Week ${nextWeek} - No tournament this week`);
     }
   };
+
+  // Count completed/total for the week
+  const weekCompleted = weekTournaments.filter(t => completedTournaments.includes(t.id)).length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -189,15 +208,55 @@ const Index = () => {
             {/* Main Panel */}
             <div className="lg:col-span-2">
               <TabsContent value="current" className="mt-0">
-                {selectedTournament ? (
-                  <CurrentWeekView
-                    tournament={selectedTournament}
-                    players={players}
-                    onTournamentComplete={handleTournamentComplete}
-                    isCompleted={completedTournaments.includes(selectedTournament.id)}
-                    savedDraw={currentDraw}
-                    onSaveDraw={saveCurrentDraw}
-                  />
+                {weekTournaments.length > 0 ? (
+                  <div className="space-y-4">
+                    {/* Same-week tournament selector */}
+                    {weekTournaments.length > 1 && (
+                      <div className="glass-card p-3">
+                        <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
+                          <Calendar className="w-4 h-4" />
+                          Week {currentWeek} Tournaments ({weekCompleted}/{weekTournaments.length} completed)
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {weekTournaments.map(t => {
+                            const isCompleted = completedTournaments.includes(t.id);
+                            const isSelected = selectedTournament?.id === t.id;
+                            return (
+                              <button
+                                key={t.id}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground"
+                                    : isCompleted
+                                    ? "bg-green-500/20 text-green-500 line-through"
+                                    : "bg-secondary/50 text-foreground hover:bg-secondary"
+                                }`}
+                                onClick={() => setSelectedTournament(t)}
+                              >
+                                {t.name}
+                                {isCompleted && " ✓"}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-2">
+                          ⚠️ Players can only compete in one tournament per week
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedTournament && (
+                      <CurrentWeekView
+                        tournament={selectedTournament}
+                        players={players}
+                        onTournamentComplete={handleTournamentComplete}
+                        isCompleted={completedTournaments.includes(selectedTournament.id)}
+                        savedDraw={currentDraw}
+                        onSaveDraw={saveCurrentDraw}
+                        excludedPlayerIds={excludedPlayerIds}
+                      />
+                    )}
+                  </div>
                 ) : (
                   <div className="glass-card p-12 text-center">
                     <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />

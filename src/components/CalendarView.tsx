@@ -60,6 +60,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ currentWeek, onTournamentSe
       case "ATP 250": return "bg-muted-foreground";
       case "ATP Finals": return "bg-yellow-500";
       case "Davis Cup": return "bg-green-500";
+      case "Laver Cup": return "bg-purple-500";
       default: return "bg-muted-foreground";
     }
   };
@@ -165,6 +166,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ currentWeek, onTournamentSe
                     t?.category === "Masters 1000" ? "bg-primary/20 text-primary" :
                     t?.category === "ATP Finals" ? "bg-yellow-500/20 text-yellow-600" :
                     t?.category === "Davis Cup" ? "bg-green-500/20 text-green-600" :
+                    t?.category === "Laver Cup" ? "bg-purple-500/20 text-purple-600" :
                     "bg-secondary text-muted-foreground"
                   }`}>
                     {t?.category}
