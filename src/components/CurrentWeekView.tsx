@@ -61,6 +61,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   onSaveDraw,
 }) => {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [wildCardIds, setWildCardIds] = useState<Set<number>>(new Set());
   const [draw, setDraw] = useState<Match[][]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [resultsSubmitted, setResultsSubmitted] = useState(isCompleted);
@@ -172,14 +173,16 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
 
     // Include forced entrants in the draw
     const availableForAutoSelect = players.filter(p => !forcedEntrants.some(f => f.id === p.id));
-    const autoEntrants = selectTournamentEntrants(
+    const { entrants: autoEntrants, wildCardIds: autoWCs } = selectTournamentEntrants(
       availableForAutoSelect,
       tournament.category,
-      Math.max(0, tournament.playerLimit - forcedEntrants.length)
+      Math.max(0, tournament.playerLimit - forcedEntrants.length),
+      tournament.country
     );
     const tournamentEntrants = [...forcedEntrants, ...autoEntrants]
       .slice(0, tournament.playerLimit)
       .sort((a, b) => a.officialRanking - b.officialRanking);
+    setWildCardIds(autoWCs);
     setEntrants(tournamentEntrants);
 
     // For ATP Finals, use the special round-robin format
@@ -790,6 +793,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
         draw={draw}
         currentRound={currentRound}
         seeds={seedIds}
+        wildCardIds={wildCardIds}
         onMatchClick={(match) => !match.result && setSelectedMatch(match)}
         onRoundChange={setCurrentRound}
       />
