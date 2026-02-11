@@ -370,7 +370,7 @@ export const initialPlayers: Player[] = playerNames.map((name, index) => {
   };
 });
 
-export type TournamentCategory = "Grand Slam" | "Masters 1000" | "ATP 500" | "ATP 250" | "ATP Finals" | "Davis Cup";
+export type TournamentCategory = "Grand Slam" | "Masters 1000" | "ATP 500" | "ATP 250" | "ATP Finals" | "Davis Cup" | "Laver Cup";
 
 export interface Tournament {
   id: string;
@@ -382,7 +382,7 @@ export interface Tournament {
   week: number;
   playerLimit: number;
   seeds: number;
-  isRoundRobin?: boolean; // For ATP Finals
+  isRoundRobin?: boolean;
   points: {
     winner: number;
     finalist: number;
@@ -392,93 +392,138 @@ export interface Tournament {
     r32: number;
     r64: number;
     r128: number;
-    groupWin?: number; // For ATP Finals: 200 per group win
+    groupWin?: number;
   };
 }
 
+const gs = (id: string, name: string, city: string, country: string, surface: "Hard"|"Clay"|"Grass", week: number): Tournament => ({
+  id, name, city, country, category: "Grand Slam", surface, week, playerLimit: 128, seeds: 32,
+  points: { winner: 2000, finalist: 1300, sf: 800, qf: 400, r16: 200, r32: 100, r64: 50, r128: 10 },
+});
+const m1000 = (id: string, name: string, city: string, country: string, surface: "Hard"|"Clay"|"Grass", week: number): Tournament => ({
+  id, name, city, country, category: "Masters 1000", surface, week, playerLimit: 64, seeds: 16,
+  points: { winner: 1000, finalist: 650, sf: 400, qf: 200, r16: 100, r32: 50, r64: 10, r128: 0 },
+});
+const atp500 = (id: string, name: string, city: string, country: string, surface: "Hard"|"Clay"|"Grass", week: number): Tournament => ({
+  id, name, city, country, category: "ATP 500", surface, week, playerLimit: 32, seeds: 8,
+  points: { winner: 500, finalist: 330, sf: 200, qf: 100, r16: 50, r32: 10, r64: 0, r128: 0 },
+});
+const atp250 = (id: string, name: string, city: string, country: string, surface: "Hard"|"Clay"|"Grass", week: number): Tournament => ({
+  id, name, city, country, category: "ATP 250", surface, week, playerLimit: 32, seeds: 8,
+  points: { winner: 250, finalist: 165, sf: 100, qf: 50, r16: 25, r32: 0, r64: 0, r128: 0 },
+});
+
 export const tournaments: Tournament[] = [
-  // Week 1-2: Australian Open
-  { id: "ao", name: "Australian Open", city: "Melbourne", country: "Australia", category: "Grand Slam", surface: "Hard", week: 1, playerLimit: 128, seeds: 32, points: { winner: 2000, finalist: 1300, sf: 800, qf: 400, r16: 200, r32: 100, r64: 50, r128: 10 } },
-  
-  // Week 3
-  { id: "adelaide", name: "Adelaide International", city: "Adelaide", country: "Australia", category: "ATP 250", surface: "Hard", week: 3, playerLimit: 32, seeds: 8, points: { winner: 250, finalist: 165, sf: 100, qf: 50, r16: 25, r32: 0, r64: 0, r128: 0 } },
-  
-  // Week 4
-  { id: "montpellier", name: "Open Sud de France", city: "Montpellier", country: "France", category: "ATP 250", surface: "Hard", week: 4, playerLimit: 32, seeds: 8, points: { winner: 250, finalist: 165, sf: 100, qf: 50, r16: 25, r32: 0, r64: 0, r128: 0 } },
-  
-  // Week 5: Rotterdam
-  { id: "rotterdam", name: "ABN AMRO Open", city: "Rotterdam", country: "Netherlands", category: "ATP 500", surface: "Hard", week: 5, playerLimit: 32, seeds: 8, points: { winner: 500, finalist: 330, sf: 200, qf: 100, r16: 50, r32: 10, r64: 0, r128: 0 } },
-  
-  // Week 6
-  { id: "doha", name: "Qatar Open", city: "Doha", country: "Qatar", category: "ATP 500", surface: "Hard", week: 6, playerLimit: 32, seeds: 8, points: { winner: 500, finalist: 330, sf: 200, qf: 100, r16: 50, r32: 10, r64: 0, r128: 0 } },
-  
-  // Week 7
-  { id: "dubai", name: "Dubai Tennis Championships", city: "Dubai", country: "UAE", category: "ATP 500", surface: "Hard", week: 7, playerLimit: 32, seeds: 8, points: { winner: 500, finalist: 330, sf: 200, qf: 100, r16: 50, r32: 10, r64: 0, r128: 0 } },
-  
-  // Week 8-9: Indian Wells
-  { id: "indian-wells", name: "Indian Wells Masters", city: "Indian Wells", country: "USA", category: "Masters 1000", surface: "Hard", week: 8, playerLimit: 64, seeds: 16, points: { winner: 1000, finalist: 650, sf: 400, qf: 200, r16: 100, r32: 50, r64: 10, r128: 0 } },
-  
-  // Week 10-11: Miami
-  { id: "miami", name: "Miami Open", city: "Miami", country: "USA", category: "Masters 1000", surface: "Hard", week: 10, playerLimit: 64, seeds: 16, points: { winner: 1000, finalist: 650, sf: 400, qf: 200, r16: 100, r32: 50, r64: 10, r128: 0 } },
-  
-  // Week 12-13: Monte-Carlo
-  { id: "monte-carlo", name: "Monte-Carlo Masters", city: "Monaco", country: "Monaco", category: "Masters 1000", surface: "Clay", week: 12, playerLimit: 64, seeds: 16, points: { winner: 1000, finalist: 650, sf: 400, qf: 200, r16: 100, r32: 50, r64: 10, r128: 0 } },
-  
-  // Week 14
-  { id: "barcelona", name: "Barcelona Open", city: "Barcelona", country: "Spain", category: "ATP 500", surface: "Clay", week: 14, playerLimit: 32, seeds: 8, points: { winner: 500, finalist: 330, sf: 200, qf: 100, r16: 50, r32: 10, r64: 0, r128: 0 } },
-  
-  // Week 15: Madrid
-  { id: "madrid", name: "Madrid Open", city: "Madrid", country: "Spain", category: "Masters 1000", surface: "Clay", week: 15, playerLimit: 64, seeds: 16, points: { winner: 1000, finalist: 650, sf: 400, qf: 200, r16: 100, r32: 50, r64: 10, r128: 0 } },
-  
-  // Week 16-17: Rome
-  { id: "rome", name: "Italian Open", city: "Rome", country: "Italy", category: "Masters 1000", surface: "Clay", week: 17, playerLimit: 64, seeds: 16, points: { winner: 1000, finalist: 650, sf: 400, qf: 200, r16: 100, r32: 50, r64: 10, r128: 0 } },
-  
-  // Week 18-19: Roland Garros
-  { id: "rg", name: "Roland Garros", city: "Paris", country: "France", category: "Grand Slam", surface: "Clay", week: 19, playerLimit: 128, seeds: 32, points: { winner: 2000, finalist: 1300, sf: 800, qf: 400, r16: 200, r32: 100, r64: 50, r128: 10 } },
-  
-  // Week 21: Queen's
-  { id: "queens", name: "Queen's Club Championships", city: "London", country: "Great Britain", category: "ATP 500", surface: "Grass", week: 21, playerLimit: 32, seeds: 8, points: { winner: 500, finalist: 330, sf: 200, qf: 100, r16: 50, r32: 10, r64: 0, r128: 0 } },
-  
-  // Week 22: Halle
-  { id: "halle", name: "Halle Open", city: "Halle", country: "Germany", category: "ATP 500", surface: "Grass", week: 22, playerLimit: 32, seeds: 8, points: { winner: 500, finalist: 330, sf: 200, qf: 100, r16: 50, r32: 10, r64: 0, r128: 0 } },
-  
-  // Week 23-24: Wimbledon
-  { id: "wimbledon", name: "Wimbledon", city: "London", country: "Great Britain", category: "Grand Slam", surface: "Grass", week: 23, playerLimit: 128, seeds: 32, points: { winner: 2000, finalist: 1300, sf: 800, qf: 400, r16: 200, r32: 100, r64: 50, r128: 10 } },
-  
-  // Week 25: Hamburg
-  { id: "hamburg", name: "Hamburg Open", city: "Hamburg", country: "Germany", category: "ATP 500", surface: "Clay", week: 25, playerLimit: 32, seeds: 8, points: { winner: 500, finalist: 330, sf: 200, qf: 100, r16: 50, r32: 10, r64: 0, r128: 0 } },
-  
-  // Week 27-28: Canada (Rogers Cup)
-  { id: "canada", name: "Canadian Open", city: "Toronto", country: "Canada", category: "Masters 1000", surface: "Hard", week: 27, playerLimit: 64, seeds: 16, points: { winner: 1000, finalist: 650, sf: 400, qf: 200, r16: 100, r32: 50, r64: 10, r128: 0 } },
-  
-  // Week 29: Cincinnati
-  { id: "cincinnati", name: "Cincinnati Masters", city: "Cincinnati", country: "USA", category: "Masters 1000", surface: "Hard", week: 29, playerLimit: 64, seeds: 16, points: { winner: 1000, finalist: 650, sf: 400, qf: 200, r16: 100, r32: 50, r64: 10, r128: 0 } },
-  
-  // Week 30-31: US Open
-  { id: "uso", name: "US Open", city: "New York", country: "USA", category: "Grand Slam", surface: "Hard", week: 31, playerLimit: 128, seeds: 32, points: { winner: 2000, finalist: 1300, sf: 800, qf: 400, r16: 200, r32: 100, r64: 50, r128: 10 } },
-  
-  // Week 33: Chengdu
-  { id: "chengdu", name: "Chengdu Open", city: "Chengdu", country: "China", category: "ATP 250", surface: "Hard", week: 33, playerLimit: 32, seeds: 8, points: { winner: 250, finalist: 165, sf: 100, qf: 50, r16: 25, r32: 0, r64: 0, r128: 0 } },
-  
-  // Week 34: Tokyo
-  { id: "tokyo", name: "Japan Open", city: "Tokyo", country: "Japan", category: "ATP 500", surface: "Hard", week: 34, playerLimit: 32, seeds: 8, points: { winner: 500, finalist: 330, sf: 200, qf: 100, r16: 50, r32: 10, r64: 0, r128: 0 } },
-  
-  // Week 35: Shanghai
-  { id: "shanghai", name: "Shanghai Masters", city: "Shanghai", country: "China", category: "Masters 1000", surface: "Hard", week: 35, playerLimit: 64, seeds: 16, points: { winner: 1000, finalist: 650, sf: 400, qf: 200, r16: 100, r32: 50, r64: 10, r128: 0 } },
-  
-  // Week 37: Vienna
-  { id: "vienna", name: "Erste Bank Open", city: "Vienna", country: "Austria", category: "ATP 500", surface: "Hard", week: 37, playerLimit: 32, seeds: 8, points: { winner: 500, finalist: 330, sf: 200, qf: 100, r16: 50, r32: 10, r64: 0, r128: 0 } },
-  
-  // Week 38: Paris Masters
-  { id: "paris", name: "Paris Masters", city: "Paris", country: "France", category: "Masters 1000", surface: "Hard", week: 38, playerLimit: 64, seeds: 16, points: { winner: 1000, finalist: 650, sf: 400, qf: 200, r16: 100, r32: 50, r64: 10, r128: 0 } },
-  
-  // Week 40: ATP Finals - Round Robin format
-  // Group A: rankings 1,4,5,8 | Group B: rankings 2,3,6,7
-  // 200 pts per group win, +400 for SF win, +500 for final win
-  // Max points: 3 group wins (600) + SF (400) + Final (500) = 1500
-  { id: "atp-finals", name: "ATP Finals", city: "Turin", country: "Italy", category: "ATP Finals", surface: "Hard", week: 40, playerLimit: 8, seeds: 8, isRoundRobin: true, points: { winner: 500, finalist: 0, sf: 400, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0, groupWin: 200 } },
-  // Week 42: Davis Cup Finals - Team competition (no ranking points)
-  { id: "davis-cup", name: "Davis Cup Finals", city: "Málaga", country: "Spain", category: "Davis Cup", surface: "Hard", week: 42, playerLimit: 32, seeds: 0, points: { winner: 0, finalist: 0, sf: 0, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0 } },
+  // Week 1: Brisbane, Hong Kong
+  atp250("brisbane", "Brisbane International", "Brisbane", "Australia", "Hard", 1),
+  atp250("hong-kong", "Hong Kong Open", "Hong Kong", "China", "Hard", 1),
+  // Week 2: Adelaide, Auckland
+  atp250("adelaide", "Adelaide International", "Adelaide", "Australia", "Hard", 2),
+  atp250("auckland", "Auckland Open", "Auckland", "New Zealand", "Hard", 2),
+  // Week 3-4: Australian Open
+  gs("ao", "Australian Open", "Melbourne", "Australia", "Hard", 3),
+  // Week 5: Montpellier
+  atp250("montpellier", "Open Sud de France", "Montpellier", "France", "Hard", 5),
+  // Week 6: Dallas, Rotterdam, Buenos Aires
+  atp500("dallas", "Dallas Open", "Dallas", "USA", "Hard", 6),
+  atp500("rotterdam", "ABN AMRO Open", "Rotterdam", "Netherlands", "Hard", 6),
+  atp250("buenos-aires", "Argentina Open", "Buenos Aires", "Argentina", "Clay", 6),
+  // Week 7: Doha, Rio, Delray Beach
+  atp500("doha", "Qatar Open", "Doha", "Qatar", "Hard", 7),
+  atp500("rio", "Rio Open", "Rio de Janeiro", "Brazil", "Clay", 7),
+  atp250("delray-beach", "Delray Beach Open", "Delray Beach", "USA", "Hard", 7),
+  // Week 8: Acapulco, Dubai, Santiago
+  atp500("acapulco", "Abierto Mexicano", "Acapulco", "Mexico", "Hard", 8),
+  atp500("dubai", "Dubai Tennis Championships", "Dubai", "UAE", "Hard", 8),
+  atp250("santiago", "Chile Open", "Santiago", "Chile", "Clay", 8),
+  // Week 9-10: Indian Wells
+  m1000("indian-wells", "Indian Wells Masters", "Indian Wells", "USA", "Hard", 9),
+  // Week 11-12: Miami
+  m1000("miami", "Miami Open", "Miami", "USA", "Hard", 11),
+  // Week 13: Bucharest, Houston, Marrakech
+  atp250("bucharest", "Bucharest Open", "Bucharest", "Romania", "Clay", 13),
+  atp250("houston", "Houston Open", "Houston", "USA", "Clay", 13),
+  atp250("marrakech", "Grand Prix de Hassan II", "Marrakech", "Morocco", "Clay", 13),
+  // Week 14: Monte Carlo
+  m1000("monte-carlo", "Monte-Carlo Masters", "Monaco", "Monaco", "Clay", 14),
+  // Week 15: Barcelona, Munich
+  atp500("barcelona", "Barcelona Open", "Barcelona", "Spain", "Clay", 15),
+  atp500("munich", "BMW Open", "Munich", "Germany", "Clay", 15),
+  // Week 16-17: Madrid
+  m1000("madrid", "Madrid Open", "Madrid", "Spain", "Clay", 16),
+  // Week 18-19: Rome
+  m1000("rome", "Italian Open", "Rome", "Italy", "Clay", 18),
+  // Week 20: Hamburg, Geneva
+  atp500("hamburg", "Hamburg Open", "Hamburg", "Germany", "Clay", 20),
+  atp250("geneva", "Geneva Open", "Geneva", "Switzerland", "Clay", 20),
+  // Week 21-22: Roland Garros
+  gs("rg", "Roland Garros", "Paris", "France", "Clay", 21),
+  // Week 23: 's-Hertogenbosch, Stuttgart
+  atp250("hertogenbosch", "Libéma Open", "'s-Hertogenbosch", "Netherlands", "Grass", 23),
+  atp250("stuttgart", "Stuttgart Open", "Stuttgart", "Germany", "Grass", 23),
+  // Week 24: Halle, Queen's
+  atp500("halle", "Halle Open", "Halle", "Germany", "Grass", 24),
+  atp500("queens", "Queen's Club Championships", "London", "Great Britain", "Grass", 24),
+  // Week 25: Mallorca, Eastbourne
+  atp250("mallorca", "Mallorca Championships", "Mallorca", "Spain", "Grass", 25),
+  atp250("eastbourne", "Eastbourne International", "Eastbourne", "Great Britain", "Grass", 25),
+  // Week 26-27: Wimbledon
+  gs("wimbledon", "Wimbledon", "London", "Great Britain", "Grass", 26),
+  // Week 28: Båstad, Gstaad, Umag
+  atp250("bastad", "Swedish Open", "Båstad", "Sweden", "Clay", 28),
+  atp250("gstaad", "Swiss Open Gstaad", "Gstaad", "Switzerland", "Clay", 28),
+  atp250("umag", "Croatia Open", "Umag", "Croatia", "Clay", 28),
+  // Week 29: Kitzbühel, Estoril
+  atp250("kitzbuhel", "Generali Open", "Kitzbühel", "Austria", "Clay", 29),
+  atp250("estoril", "Estoril Open", "Estoril", "Portugal", "Clay", 29),
+  // Week 30: Washington, Los Cabos
+  atp500("washington", "Citi Open", "Washington", "USA", "Hard", 30),
+  atp250("los-cabos", "Los Cabos Open", "Los Cabos", "Mexico", "Hard", 30),
+  // Week 31-32: Canadian Open
+  m1000("canada", "Canadian Open", "Montreal", "Canada", "Hard", 31),
+  // Week 33-34: Cincinnati
+  m1000("cincinnati", "Cincinnati Masters", "Cincinnati", "USA", "Hard", 33),
+  // Week 34: Winston-Salem
+  atp250("winston-salem", "Winston-Salem Open", "Winston-Salem", "USA", "Hard", 34),
+  // Week 35-36: US Open
+  gs("uso", "US Open", "New York", "USA", "Hard", 35),
+  // Week 38: Chengdu, Hangzhou, Laver Cup
+  atp250("chengdu", "Chengdu Open", "Chengdu", "China", "Hard", 38),
+  atp250("hangzhou", "Hangzhou Open", "Hangzhou", "China", "Hard", 38),
+  {
+    id: "laver-cup", name: "Laver Cup", city: "San Francisco", country: "USA",
+    category: "Laver Cup", surface: "Hard", week: 38, playerLimit: 12, seeds: 0,
+    points: { winner: 0, finalist: 0, sf: 0, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0 },
+  },
+  // Week 39: Tokyo, Beijing
+  atp500("tokyo", "Japan Open", "Tokyo", "Japan", "Hard", 39),
+  atp500("beijing", "China Open", "Beijing", "China", "Hard", 39),
+  // Week 40-41: Shanghai
+  m1000("shanghai", "Shanghai Masters", "Shanghai", "China", "Hard", 40),
+  // Week 42: Almaty, Brussels, Lyon
+  atp250("almaty", "Almaty Open", "Almaty", "Kazakhstan", "Hard", 42),
+  atp250("brussels", "European Open", "Brussels", "Belgium", "Hard", 42),
+  atp250("lyon", "Open de Lyon", "Lyon", "France", "Hard", 42),
+  // Week 43: Basel, Vienna
+  atp500("basel", "Swiss Indoors", "Basel", "Switzerland", "Hard", 43),
+  atp500("vienna", "Erste Bank Open", "Vienna", "Austria", "Hard", 43),
+  // Week 44: Paris Masters
+  m1000("paris", "Paris Masters", "Paris", "France", "Hard", 44),
+  // Week 45: Stockholm
+  atp250("stockholm", "Stockholm Open", "Stockholm", "Sweden", "Hard", 45),
+  // Week 46: ATP Finals
+  {
+    id: "atp-finals", name: "ATP Finals", city: "Turin", country: "Italy",
+    category: "ATP Finals", surface: "Hard", week: 46, playerLimit: 8, seeds: 8,
+    isRoundRobin: true,
+    points: { winner: 500, finalist: 0, sf: 400, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0, groupWin: 200 },
+  },
+  // Week 47: Davis Cup Finals
+  {
+    id: "davis-cup", name: "Davis Cup Finals", city: "Málaga", country: "Spain",
+    category: "Davis Cup", surface: "Hard", week: 47, playerLimit: 32, seeds: 0,
+    points: { winner: 0, finalist: 0, sf: 0, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0 },
+  },
 ];
 
 export const getCategoryColor = (category: TournamentCategory): string => {
@@ -489,6 +534,7 @@ export const getCategoryColor = (category: TournamentCategory): string => {
     case "ATP 250": return "tournament-badge-250";
     case "ATP Finals": return "tournament-badge-gs";
     case "Davis Cup": return "tournament-badge-m1000";
+    case "Laver Cup": return "tournament-badge-500";
   }
 };
 
@@ -499,3 +545,10 @@ export const getSurfaceEmoji = (surface: "Hard" | "Clay" | "Grass"): string => {
     case "Grass": return "🟢";
   }
 };
+
+// European country codes for Laver Cup
+export const EUROPEAN_COUNTRY_CODES = new Set([
+  "ESP", "ITA", "SRB", "GER", "FRA", "GBR", "NOR", "DEN", "CZE", "NED",
+  "BEL", "GRE", "BUL", "HUN", "POL", "AUT", "CRO", "BIH", "GEO", "POR",
+  "SVK", "LTU", "FIN", "SUI", "LUX", "MON", "RUS", "SWE",
+]);

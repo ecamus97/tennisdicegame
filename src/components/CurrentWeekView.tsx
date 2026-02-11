@@ -7,6 +7,7 @@ import TournamentBracket from "./TournamentBracket";
 import InteractiveMatchSimulator from "./InteractiveMatchSimulator";
 import ATPFinalsView, { ATPFinalsState } from "./ATPFinalsView";
 import DavisCupView, { DavisCupState, updateDavisCupMatchResult } from "./DavisCupView";
+import LaverCupView, { LaverCupState } from "./LaverCupView";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Zap, Trophy, CheckCircle, Users, Shuffle, Search, X } from "lucide-react";
@@ -37,6 +38,7 @@ interface CurrentWeekViewProps {
   isCompleted?: boolean;
   savedDraw?: TournamentDraw | null;
   onSaveDraw?: (draw: TournamentDraw) => void;
+  excludedPlayerIds?: Set<number>;
 }
 
 // Helper function - defined outside component to avoid hoisting issues
@@ -59,6 +61,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   isCompleted = false,
   savedDraw,
   onSaveDraw,
+  excludedPlayerIds = new Set(),
 }) => {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [wildCardIds, setWildCardIds] = useState<Set<number>>(new Set());
@@ -80,9 +83,17 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     matchId: string;
     seriesId: string;
   } | null>(null);
+  // Laver Cup specific state
+  const [laverCupState, setLaverCupState] = useState<LaverCupState | null>(null);
+  const [laverCupSelectedMatch, setLaverCupSelectedMatch] = useState<{
+    player1: Player;
+    player2: Player;
+    matchId: string;
+  } | null>(null);
   
   const isATPFinals = tournament.category === "ATP Finals";
   const isDavisCup = tournament.category === "Davis Cup";
+  const isLaverCup = tournament.category === "Laver Cup";
 
   // Seed IDs for bracket display (first N entrants by ranking are seeds)
   const seedIds = useMemo(() => {
@@ -165,14 +176,17 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
 
   // Generate draw
   const generateDraw = () => {
-    // For Davis Cup, skip entrant selection (handled by DavisCupView)
-    if (isDavisCup) {
+    // For Davis Cup or Laver Cup, skip entrant selection
+    if (isDavisCup || isLaverCup) {
       setIsDrawGenerated(true);
       return;
     }
 
+    // Filter out players excluded from same-week tournaments
+    const availablePlayers = players.filter(p => !excludedPlayerIds.has(p.id));
+
     // Include forced entrants in the draw
-    const availableForAutoSelect = players.filter(p => !forcedEntrants.some(f => f.id === p.id));
+    const availableForAutoSelect = availablePlayers.filter(p => !forcedEntrants.some(f => f.id === p.id));
     const { entrants: autoEntrants, wildCardIds: autoWCs } = selectTournamentEntrants(
       availableForAutoSelect,
       tournament.category,
@@ -528,7 +542,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
         <div className="glass-card p-8 text-center">
           <Shuffle className="w-12 h-12 text-primary mx-auto mb-4" />
           <h3 className="font-display text-lg font-semibold text-foreground mb-2">
-            {isATPFinals ? "Generate ATP Finals Groups" : isDavisCup ? "Generate Davis Cup Draw" : "Generate Tournament Draw"}
+            {isATPFinals ? "Generate ATP Finals Groups" : isDavisCup ? "Generate Davis Cup Draw" : isLaverCup ? "Generate Laver Cup" : "Generate Tournament Draw"}
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
             {isATPFinals ? (
@@ -543,6 +557,12 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
                 <br />
                 4 groups of 4 countries, round-robin with 5-match series per matchup.
               </>
+            ) : isLaverCup ? (
+              <>
+                Team Europe vs Team World. Top 6 players per team.
+                <br />
+                3 days: Day 1 (1pt), Day 2 (2pts), Day 3 (3pts). First to 13 wins.
+              </>
             ) : (
               <>
                 {tournament.playerLimit} players will be selected based on rankings and tournament category.
@@ -552,8 +572,8 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
             )}
           </p>
 
-          {/* Manual Player Entry (not for ATP Finals or Davis Cup) */}
-          {!isATPFinals && !isDavisCup && (
+          {/* Manual Player Entry (not for ATP Finals, Davis Cup, or Laver Cup) */}
+          {!isATPFinals && !isDavisCup && !isLaverCup && (
             <div className="mt-4 mb-6 max-w-md mx-auto text-left space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -613,7 +633,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
 
           <Button onClick={generateDraw} size="lg" className="gap-2">
             <Shuffle className="w-5 h-5" />
-            {isATPFinals ? "Generate Groups" : isDavisCup ? "Generate Draw" : "Generate Draw"}
+            {isATPFinals ? "Generate Groups" : isDavisCup ? "Generate Draw" : isLaverCup ? "Generate Laver Cup" : "Generate Draw"}
           </Button>
         </div>
       </div>
@@ -689,6 +709,63 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
           onStateChange={setDavisCupState}
           onMatchClick={(p1, p2, matchId, seriesId) => 
             setDavisCupSelectedMatch({ matchPlayer1: p1, matchPlayer2: p2, matchId, seriesId })
+          }
+          onComplete={() => setResultsSubmitted(true)}
+        />
+      </div>
+    );
+  }
+
+  // Laver Cup special view
+  if (isLaverCup) {
+    const handleLaverCupMatchComplete = (result: MatchResult) => {
+      if (!laverCupSelectedMatch || !laverCupState) return;
+      const match = laverCupState.matches.find(m => m.id === laverCupSelectedMatch.matchId);
+      if (!match) return;
+      let europeWon: boolean;
+      if (match.isDoubles) {
+        const compositeId = -(match.europePlayer1Id * 1000 + match.europePlayer2Id!);
+        europeWon = result.winner.id === compositeId;
+      } else {
+        europeWon = result.winner.id === match.europePlayer1Id;
+      }
+      const updatedMatches = laverCupState.matches.map(m =>
+        m.id === match.id ? { ...m, result, europeWon } : m
+      );
+      setLaverCupState({
+        ...laverCupState,
+        matches: updatedMatches,
+        europeScore: updatedMatches.filter(m => m.europeWon === true).reduce((s, m) => s + m.pointValue, 0),
+        worldScore: updatedMatches.filter(m => m.europeWon === false).reduce((s, m) => s + m.pointValue, 0),
+        phase: updatedMatches.every(m => m.result) ? "complete" : "playing",
+      });
+      setLaverCupSelectedMatch(null);
+    };
+
+    return (
+      <div className="space-y-4">
+        {laverCupSelectedMatch && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-lg">
+              <InteractiveMatchSimulator
+                player1={laverCupSelectedMatch.player1}
+                player2={laverCupSelectedMatch.player2}
+                bestOf={3}
+                onMatchComplete={handleLaverCupMatchComplete}
+                surface={tournament.surface}
+              />
+              <Button variant="ghost" className="w-full mt-2" onClick={() => setLaverCupSelectedMatch(null)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+        <LaverCupView
+          players={players}
+          state={laverCupState}
+          onStateChange={setLaverCupState}
+          onMatchClick={(p1, p2, matchId) =>
+            setLaverCupSelectedMatch({ player1: p1, player2: p2, matchId })
           }
           onComplete={() => setResultsSubmitted(true)}
         />

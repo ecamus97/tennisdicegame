@@ -37,6 +37,9 @@ const getEntryProbability = (
     case "ATP Finals":
       return ranking <= 8 ? 1.0 : 0;
 
+    case "Laver Cup":
+      return ranking <= 12 ? 0.85 : 0;
+
     default:
       return 0.5;
   }
@@ -72,6 +75,18 @@ const getCountryCodeFromCountry = (country: string): string | null => {
     "Qatar": "QAT",
     "UAE": "ARE",
     "Chile": "CHI",
+    "Argentina": "ARG",
+    "Brazil": "BRA",
+    "Mexico": "MEX",
+    "Romania": "ROU",
+    "Morocco": "MAR",
+    "Switzerland": "SUI",
+    "Sweden": "SWE",
+    "Croatia": "CRO",
+    "Kazakhstan": "KAZ",
+    "Belgium": "BEL",
+    "Portugal": "POR",
+    "New Zealand": "NZL",
   };
   return map[country] || null;
 };
@@ -174,6 +189,8 @@ export const getFieldDescription = (category: TournamentCategory): string => {
       return "Few top players, mostly lower-ranked";
     case "ATP Finals":
       return "Top 8 players only";
+    case "Laver Cup":
+      return "Team Europe vs Team World - Top 6 per team";
     default:
       return "Various players";
   }
