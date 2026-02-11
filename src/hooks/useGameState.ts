@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Player, Tournament, initialPlayers, tournaments } from '@/data/players';
+import { Player, Tournament, initialPlayers, tournaments, Surface, SurfaceAffinity } from '@/data/players';
 import { MatchResult } from '@/lib/matchEngine';
 
 // Stored match in a draw
@@ -172,7 +172,21 @@ export const useGameState = () => {
     });
   }, []);
 
-  // Add points for tournament result
+  // Helper: get wins count from round name
+  const getWinsFromRound = (round: string, playerLimit: number): number => {
+    const roundMap: Record<string, number> = {
+      "Winner": Math.log2(playerLimit),
+      "Final": Math.log2(playerLimit) - 1,
+      "Semifinal": Math.log2(playerLimit) - 2,
+      "Quarterfinal": Math.log2(playerLimit) - 3,
+      "R16": Math.log2(playerLimit) - 4,
+      "R32": Math.log2(playerLimit) - 5,
+      "R64": Math.log2(playerLimit) - 6,
+      "R128": 0,
+    };
+    return Math.max(0, roundMap[round] ?? 0);
+  };
+
   const addTournamentResult = useCallback((
     tournamentId: string,
     results: { playerId: number; points: number; round: string }[],
@@ -180,28 +194,52 @@ export const useGameState = () => {
     runnerUpId: number
   ) => {
     setState(prev => {
-      // Update player points
+      const tournament = tournaments.find(t => t.id === tournamentId);
+      const surface: Surface = tournament?.surface || "Hard";
+      const playerLimit = tournament?.playerLimit || 32;
+
+      // Update player points and stats
       const updatedPlayers = prev.players.map(player => {
         const result = results.find(r => r.playerId === player.id);
         if (!result) return player;
 
-        // Add to both live and official points
         const newLivePoints = player.livePoints + result.points;
         const newOfficialPoints = player.points + result.points;
-        
-        // Update previous year points array for this week (for next year's deductions)
         const newPrevYearPoints = [...player.previousYearPoints];
         newPrevYearPoints[prev.currentWeek - 1] = (newPrevYearPoints[prev.currentWeek - 1] || 0) + result.points;
+
+        // Calculate stats
+        const wins = getWinsFromRound(result.round, playerLimit);
+        const lost = result.round !== "Winner" ? 1 : 0;
+        const isTitle = result.round === "Winner";
+        const stats = player.stats || { wins: 0, losses: 0, surfaceWins: { Hard: 0, Clay: 0, Grass: 0 }, surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 }, currentStreak: 0, bestWinStreak: 0, titles: 0 };
+        
+        let newStreak = stats.currentStreak;
+        if (isTitle) {
+          newStreak = newStreak > 0 ? newStreak + wins : wins;
+        } else {
+          // Won some, then lost 1
+          newStreak = -1;
+        }
 
         return {
           ...player,
           livePoints: newLivePoints,
           points: newOfficialPoints,
           previousYearPoints: newPrevYearPoints,
+          stats: {
+            ...stats,
+            wins: stats.wins + wins,
+            losses: stats.losses + lost,
+            surfaceWins: { ...stats.surfaceWins, [surface]: (stats.surfaceWins[surface] || 0) + wins },
+            surfaceLosses: { ...stats.surfaceLosses, [surface]: (stats.surfaceLosses[surface] || 0) + lost },
+            currentStreak: newStreak,
+            bestWinStreak: Math.max(stats.bestWinStreak, newStreak > 0 ? newStreak : 0),
+            titles: stats.titles + (isTitle ? 1 : 0),
+          },
         };
       });
 
-      // Re-rank by official points
       const rankedPlayers = [...updatedPlayers]
         .sort((a, b) => b.points - a.points)
         .map((player, index) => ({
@@ -243,6 +281,52 @@ export const useGameState = () => {
       players: prev.players.map(p =>
         p.id === playerId ? { ...p, fictionalRanking: newRanking } : p
       ),
+    }));
+  }, []);
+
+  // Update surface affinity for a player
+  const updateSurfaceAffinity = useCallback((playerId: number, affinity: SurfaceAffinity) => {
+    setState(prev => ({
+      ...prev,
+      players: prev.players.map(p =>
+        p.id === playerId ? { ...p, surfaceAffinity: affinity } : p
+      ),
+    }));
+  }, []);
+
+  // Record match result in player stats
+  const recordMatchResult = useCallback((winnerId: number, loserId: number, surface: Surface, isTitle: boolean = false) => {
+    setState(prev => ({
+      ...prev,
+      players: prev.players.map(p => {
+        if (p.id === winnerId) {
+          const newStreak = p.stats.currentStreak > 0 ? p.stats.currentStreak + 1 : 1;
+          return {
+            ...p,
+            stats: {
+              ...p.stats,
+              wins: p.stats.wins + 1,
+              surfaceWins: { ...p.stats.surfaceWins, [surface]: (p.stats.surfaceWins[surface] || 0) + 1 },
+              currentStreak: newStreak,
+              bestWinStreak: Math.max(p.stats.bestWinStreak, newStreak),
+              titles: isTitle ? p.stats.titles + 1 : p.stats.titles,
+            },
+          };
+        }
+        if (p.id === loserId) {
+          const newStreak = p.stats.currentStreak < 0 ? p.stats.currentStreak - 1 : -1;
+          return {
+            ...p,
+            stats: {
+              ...p.stats,
+              losses: p.stats.losses + 1,
+              surfaceLosses: { ...p.stats.surfaceLosses, [surface]: (p.stats.surfaceLosses[surface] || 0) + 1 },
+              currentStreak: newStreak,
+            },
+          };
+        }
+        return p;
+      }),
     }));
   }, []);
 
@@ -294,6 +378,8 @@ export const useGameState = () => {
     advanceWeek,
     addTournamentResult,
     updateFictionalRanking,
+    updateSurfaceAffinity,
+    recordMatchResult,
     resetGame,
     saveGame,
     saveCurrentDraw,

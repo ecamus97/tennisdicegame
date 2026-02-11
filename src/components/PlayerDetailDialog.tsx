@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Player } from "@/data/players";
+import { Player, Surface, SurfaceAffinity } from "@/data/players";
 import {
   Dialog,
   DialogContent,
@@ -10,34 +10,58 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, TrendingUp, Zap, Heart } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Trophy, TrendingUp, Zap, Heart, BarChart3, Flame } from "lucide-react";
 
 interface PlayerDetailDialogProps {
   player: Player | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdateFictionalRanking: (playerId: number, newRanking: number) => void;
+  onUpdateSurfaceAffinity?: (playerId: number, affinity: SurfaceAffinity) => void;
 }
+
+const surfaceColors: Record<Surface, string> = {
+  Hard: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  Clay: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  Grass: "bg-green-500/20 text-green-400 border-green-500/30",
+};
+
+const surfaceLabels: Record<number, string> = {
+  [-2]: "Muy débil",
+  [-1]: "Débil",
+  [0]: "Neutral",
+  [1]: "Fuerte",
+  [2]: "Especialista",
+};
 
 const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
   player,
   open,
   onOpenChange,
   onUpdateFictionalRanking,
+  onUpdateSurfaceAffinity,
 }) => {
   const [editingRanking, setEditingRanking] = useState<number>(1);
+  const [editingAffinity, setEditingAffinity] = useState<SurfaceAffinity>({ Hard: 0, Clay: 0, Grass: 0 });
 
   useEffect(() => {
     if (player) {
       setEditingRanking(player.fictionalRanking);
+      setEditingAffinity(player.surfaceAffinity || { Hard: 0, Clay: 0, Grass: 0 });
     }
   }, [player]);
 
   if (!player) return null;
 
+  const stats = player.stats || { wins: 0, losses: 0, surfaceWins: { Hard: 0, Clay: 0, Grass: 0 }, surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 }, currentStreak: 0, bestWinStreak: 0, titles: 0 };
+  const totalMatches = stats.wins + stats.losses;
+  const winPct = totalMatches > 0 ? ((stats.wins / totalMatches) * 100).toFixed(1) : "—";
+
   const handleSave = () => {
     const ranking = Math.max(1, Math.min(150, editingRanking));
     onUpdateFictionalRanking(player.id, ranking);
+    onUpdateSurfaceAffinity?.(player.id, editingAffinity);
     onOpenChange(false);
   };
 
@@ -51,9 +75,16 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
 
   const advantage = getAdvantagePreview();
 
+  const getSurfaceWinPct = (surface: Surface) => {
+    const w = stats.surfaceWins[surface] || 0;
+    const l = stats.surfaceLosses[surface] || 0;
+    const t = w + l;
+    return t > 0 ? `${((w / t) * 100).toFixed(0)}%` : "—";
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground">{player.countryCode}</span>
@@ -68,6 +99,12 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
               <Badge variant="destructive" className="gap-1">
                 <Heart className="w-3 h-3" />
                 Injured ({player.injuryWeeksRemaining} weeks)
+              </Badge>
+            )}
+            {stats.titles > 0 && (
+              <Badge className="gap-1 bg-amber-500/20 text-amber-400 border-amber-500/30">
+                <Trophy className="w-3 h-3" />
+                {stats.titles} título{stats.titles > 1 ? "s" : ""}
               </Badge>
             )}
           </div>
@@ -88,6 +125,77 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
               </div>
               <div className="text-xs text-muted-foreground">Live Points</div>
             </div>
+          </div>
+
+          {/* Stats Section */}
+          <div className="glass-card p-3 space-y-2">
+            <div className="flex items-center gap-2 mb-2">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              <span className="font-semibold text-sm text-foreground">Estadísticas</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="text-lg font-bold text-foreground">{stats.wins}</div>
+                <div className="text-xs text-muted-foreground">Victorias</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-foreground">{stats.losses}</div>
+                <div className="text-xs text-muted-foreground">Derrotas</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-foreground">{winPct}%</div>
+                <div className="text-xs text-muted-foreground">Win %</div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-sm pt-2 border-t border-border/50">
+              <div className="flex items-center gap-1">
+                <Flame className="w-3 h-3 text-orange-400" />
+                <span className="text-muted-foreground">Racha:</span>
+                <span className={`font-medium ${stats.currentStreak > 0 ? "text-green-400" : stats.currentStreak < 0 ? "text-red-400" : "text-muted-foreground"}`}>
+                  {stats.currentStreak > 0 ? `W${stats.currentStreak}` : stats.currentStreak < 0 ? `L${Math.abs(stats.currentStreak)}` : "—"}
+                </span>
+              </div>
+              <div className="text-muted-foreground">
+                Mejor racha: <span className="text-foreground font-medium">W{stats.bestWinStreak}</span>
+              </div>
+            </div>
+            {/* Surface Win % */}
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50">
+              {(["Hard", "Clay", "Grass"] as Surface[]).map(s => (
+                <div key={s} className={`rounded-md p-2 text-center border ${surfaceColors[s]}`}>
+                  <div className="text-xs font-medium">{s}</div>
+                  <div className="text-sm font-bold">{getSurfaceWinPct(s)}</div>
+                  <div className="text-[10px] opacity-70">{stats.surfaceWins[s] || 0}W-{stats.surfaceLosses[s] || 0}L</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Surface Affinity Editor */}
+          <div className="glass-card p-4 space-y-3 border-2 border-accent/30">
+            <span className="font-semibold text-sm text-foreground">🎾 Afinidad por Superficie</span>
+            {(["Hard", "Clay", "Grass"] as Surface[]).map(surface => (
+              <div key={surface} className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">{surface}</Label>
+                  <span className={`text-xs px-2 py-0.5 rounded ${surfaceColors[surface]}`}>
+                    {surfaceLabels[editingAffinity[surface]] || "Neutral"}
+                  </span>
+                </div>
+                <Slider
+                  min={-2}
+                  max={2}
+                  step={1}
+                  value={[editingAffinity[surface]]}
+                  onValueChange={([v]) => setEditingAffinity(prev => ({ ...prev, [surface]: v }))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>Muy débil</span>
+                  <span>Especialista</span>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Points Breakdown */}
@@ -129,9 +237,6 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
                   Reset to Official
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Fictional ranking affects match advantage calculations.
-              </p>
             </div>
 
             {/* Advantage Preview */}
@@ -144,7 +249,7 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
           {/* Save Button */}
           <Button onClick={handleSave} className="w-full gap-2">
             <Zap className="w-4 h-4" />
-            Save Fictional Ranking
+            Guardar Cambios
           </Button>
         </div>
       </DialogContent>

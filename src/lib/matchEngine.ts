@@ -1,4 +1,4 @@
-import { Player } from "@/data/players";
+import { Player, Surface } from "@/data/players";
 
 export interface GameResult {
   serverRoll: number;
@@ -240,8 +240,19 @@ const playTiebreak = (player1: Player, player2: Player, rankingDiff: number): Ti
   }
 };
 
-export const playMatch = (player1: Player, player2: Player, bestOf: 3 | 5 = 3): MatchResult => {
-  const rankingDiff = player2.fictionalRanking - player1.fictionalRanking; // Positive if player1 is higher ranked
+export const getEffectiveRankingDiff = (player1: Player, player2: Player, surface?: Surface): number => {
+  let rankingDiff = player2.fictionalRanking - player1.fictionalRanking;
+  if (surface && player1.surfaceAffinity && player2.surfaceAffinity) {
+    // Each affinity point shifts effective ranking by 8 positions
+    const p1Bonus = (player1.surfaceAffinity[surface] || 0) * 8;
+    const p2Bonus = (player2.surfaceAffinity[surface] || 0) * 8;
+    rankingDiff = rankingDiff + p1Bonus - p2Bonus;
+  }
+  return rankingDiff;
+};
+
+export const playMatch = (player1: Player, player2: Player, bestOf: 3 | 5 = 3, surface?: Surface): MatchResult => {
+  const rankingDiff = getEffectiveRankingDiff(player1, player2, surface);
   const setsToWin = bestOf === 3 ? 2 : 3;
   
   const sets: SetScore[] = [];
