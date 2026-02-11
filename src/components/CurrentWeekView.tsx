@@ -386,7 +386,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     currentMatches.forEach(match => {
       if (!match.result) {
         const bestOf = tournament.category === "Grand Slam" ? 5 : 3;
-        const result = playMatch(match.player1, match.player2, bestOf as 3 | 5);
+        const result = playMatch(match.player1, match.player2, bestOf as 3 | 5, tournament.surface);
         results.push({ matchId: match.id, result });
       }
     });
@@ -633,6 +633,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
                 player2={atpFinalsSelectedMatch.match.player2}
                 bestOf={3}
                 onMatchComplete={(result) => handleATPFinalsMatchComplete(atpFinalsSelectedMatch.match.id, result)}
+                surface={tournament.surface}
               />
               <Button 
                 variant="ghost" 
@@ -669,6 +670,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
                 player2={davisCupSelectedMatch.matchPlayer2}
                 bestOf={3}
                 onMatchComplete={handleDavisCupMatchComplete}
+                surface={tournament.surface}
               />
               <Button 
                 variant="ghost" 
@@ -766,6 +768,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
               player2={selectedMatch.player2}
               bestOf={tournament.category === "Grand Slam" ? 5 : 3}
               onMatchComplete={(result) => handleMatchComplete(selectedMatch.id, result)}
+              surface={tournament.surface}
             />
             <Button 
               variant="ghost" 

@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { Player } from "@/data/players";
+import { Player, Surface } from "@/data/players";
 import { 
   MatchResult, 
   SetScore, 
   GameResult,
   rollDice, 
   getAdvantageLevel, 
+  getEffectiveRankingDiff,
   AdvantageLevel 
 } from "@/lib/matchEngine";
 import { playGameWithAdvantage } from "@/lib/gameLogic";
@@ -18,7 +19,8 @@ interface InteractiveMatchSimulatorProps {
   player2: Player;
   bestOf?: 3 | 5;
   onMatchComplete?: (result: MatchResult) => void;
-  initialServerId?: number; // Which player serves first (player1.id or player2.id)
+  initialServerId?: number;
+  surface?: Surface;
 }
 
 interface MatchState {
@@ -48,6 +50,7 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
   player2,
   bestOf = 3,
   onMatchComplete,
+  surface,
   initialServerId,
 }) => {
   // Determine who serves first - randomize if not specified
@@ -96,12 +99,12 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
   }, [player1.id, player2.id, initialServerId]);
 
   const setsToWin = bestOf === 3 ? 2 : 3;
-  const rankingDiff = player2.fictionalRanking - player1.fictionalRanking;
+  const rankingDiff = getEffectiveRankingDiff(player1, player2, surface);
   const advantageLevel = getAdvantageLevel(rankingDiff);
   const favoredPlayer = rankingDiff > 0 ? player1 : rankingDiff < 0 ? player2 : null;
   
   // Determine which player is higher ranked (for advantage logic)
-  const isPlayer1HigherRanked = player1.fictionalRanking < player2.fictionalRanking;
+  const isPlayer1HigherRanked = rankingDiff > 0;
 
   const rollForGame = async () => {
     setIsRolling(true);

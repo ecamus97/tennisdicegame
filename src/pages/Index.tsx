@@ -33,6 +33,8 @@ const Index = () => {
     addTournamentResult,
     resetGame,
     updateFictionalRanking,
+    updateSurfaceAffinity,
+    recordMatchResult,
     saveGame,
     saveCurrentDraw,
   } = useGameState();
@@ -356,6 +358,7 @@ const Index = () => {
         open={playerDialogOpen}
         onOpenChange={setPlayerDialogOpen}
         onUpdateFictionalRanking={updateFictionalRanking}
+        onUpdateSurfaceAffinity={updateSurfaceAffinity}
       />
     </div>
   );

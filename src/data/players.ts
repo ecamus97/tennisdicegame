@@ -1,3 +1,21 @@
+export type Surface = "Hard" | "Clay" | "Grass";
+
+export interface SurfaceAffinity {
+  Hard: number;   // -2 to +2: penalty/bonus
+  Clay: number;
+  Grass: number;
+}
+
+export interface PlayerStats {
+  wins: number;
+  losses: number;
+  surfaceWins: Record<Surface, number>;
+  surfaceLosses: Record<Surface, number>;
+  currentStreak: number; // positive = win streak, negative = loss streak
+  bestWinStreak: number;
+  titles: number;
+}
+
 export interface Player {
   id: number;
   name: string;
@@ -10,6 +28,8 @@ export interface Player {
   previousYearPoints: number[]; // Points from previous year per week (52 weeks)
   injured: boolean;
   injuryWeeksRemaining: number;
+  surfaceAffinity: SurfaceAffinity;
+  stats: PlayerStats;
 }
 
 // Country code helper
@@ -333,11 +353,20 @@ export const initialPlayers: Player[] = playerNames.map((name, index) => {
     countryCode,
     officialRanking: index + 1,
     fictionalRanking: index + 1,
-    points: 0, // Start with 0 points
-    livePoints: 0, // No points in current year
-    previousYearPoints: new Array(52).fill(0), // No previous year points initially
+    points: 0,
+    livePoints: 0,
+    previousYearPoints: new Array(52).fill(0),
     injured: false,
     injuryWeeksRemaining: 0,
+    surfaceAffinity: { Hard: 0, Clay: 0, Grass: 0 },
+    stats: {
+      wins: 0, losses: 0,
+      surfaceWins: { Hard: 0, Clay: 0, Grass: 0 },
+      surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 },
+      currentStreak: 0,
+      bestWinStreak: 0,
+      titles: 0,
+    },
   };
 });
 
