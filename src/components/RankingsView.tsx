@@ -87,12 +87,12 @@ const RankingsView: React.FC<RankingsViewProps> = ({ players, onPlayerSelect }) 
       </div>
 
       {/* Rankings list */}
-      <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-        {filteredPlayers.slice(0, 50).map((player, index) => (
+      <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2">
+        {filteredPlayers.map((player, index) => (
           <div 
             key={player.id}
             className="animate-slide-up"
-            style={{ animationDelay: `${index * 20}ms` }}
+            style={{ animationDelay: `${Math.min(index, 30) * 20}ms` }}
           >
             <PlayerCard
               player={player}
@@ -104,11 +104,6 @@ const RankingsView: React.FC<RankingsViewProps> = ({ players, onPlayerSelect }) 
             />
           </div>
         ))}
-        {filteredPlayers.length > 50 && (
-          <p className="text-center text-sm text-muted-foreground py-2">
-            Showing top 50 of {filteredPlayers.length} players
-          </p>
-        )}
       </div>
     </div>
   );

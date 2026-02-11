@@ -17,6 +17,7 @@ interface TournamentBracketProps {
   draw: Match[][];
   currentRound: number;
   seeds: number[];
+  wildCardIds?: Set<number>;
   onMatchClick?: (match: Match) => void;
   onRoundChange?: (round: number) => void;
 }
@@ -31,6 +32,7 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({
   draw,
   currentRound,
   seeds,
+  wildCardIds,
   onMatchClick,
   onRoundChange,
 }) => {
@@ -65,6 +67,7 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({
 
   const renderPlayerRow = (player: Player, isWinner: boolean, isTop: boolean) => {
     const seedNum = getSeedNumber(player.id, seeds);
+    const isWildCard = wildCardIds?.has(player.id);
     
     return (
       <div 
@@ -74,10 +77,14 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({
           ${isWinner ? "bg-primary/20" : "bg-card/50"}
         `}
       >
-        {/* Seed number (only for seeded players) */}
+        {/* Seed number or WC badge */}
         {seedNum ? (
           <span className="bg-medal-gold text-primary-foreground px-2 py-0.5 rounded text-xs font-bold min-w-[1.75rem] text-center">
             {seedNum}
+          </span>
+        ) : isWildCard ? (
+          <span className="bg-accent text-accent-foreground px-1.5 py-0.5 rounded text-xs font-bold min-w-[1.75rem] text-center">
+            WC
           </span>
         ) : (
           <span className="min-w-[1.75rem]" />
