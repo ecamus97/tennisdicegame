@@ -33,7 +33,9 @@ interface CurrentWeekViewProps {
     tournamentId: string,
     results: PlayerResult[],
     winnerId: number,
-    runnerUpId: number
+    runnerUpId: number,
+    overrideWinnerName?: string,
+    overrideRunnerUpName?: string
   ) => void;
   isCompleted?: boolean;
   savedDraw?: TournamentDraw | null;
@@ -776,7 +778,24 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
           onMatchClick={(p1, p2, matchId, seriesId) => 
             setDavisCupSelectedMatch({ matchPlayer1: p1, matchPlayer2: p2, matchId, seriesId })
           }
-          onComplete={() => setResultsSubmitted(true)}
+          onComplete={() => {
+            setResultsSubmitted(true);
+            if (davisCupState?.final?.winner) {
+              const winnerCountry = davisCupState.countries.find(c => c.countryCode === davisCupState.final!.winner);
+              const runnerUpCode = davisCupState.final.winner === davisCupState.final.country1Code
+                ? davisCupState.final.country2Code
+                : davisCupState.final.country1Code;
+              const runnerUpCountry = davisCupState.countries.find(c => c.countryCode === runnerUpCode);
+              onTournamentComplete?.(
+                tournament.id,
+                [],
+                winnerCountry?.player1Id || 0,
+                runnerUpCountry?.player1Id || 0,
+                winnerCountry?.country || "Unknown",
+                runnerUpCountry?.country || "Unknown"
+              );
+            }
+          }}
         />
       </div>
     );
@@ -833,7 +852,19 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
           onMatchClick={(p1, p2, matchId) =>
             setLaverCupSelectedMatch({ player1: p1, player2: p2, matchId })
           }
-          onComplete={() => setResultsSubmitted(true)}
+          onComplete={() => {
+            setResultsSubmitted(true);
+            if (laverCupState) {
+              const europeScore = laverCupState.matches.filter(m => m.europeWon === true).reduce((s, m) => s + m.pointValue, 0);
+              const worldScore = laverCupState.matches.filter(m => m.europeWon === false).reduce((s, m) => s + m.pointValue, 0);
+              const winnerName = europeScore > worldScore ? "Team Europe" : "Team World";
+              const runnerUpName = europeScore > worldScore ? "Team World" : "Team Europe";
+              // Use first player of winning team as winnerId for palmarés
+              const winnerId = europeScore > worldScore ? laverCupState.europePlayerIds[0] : laverCupState.worldPlayerIds[0];
+              const runnerUpId = europeScore > worldScore ? laverCupState.worldPlayerIds[0] : laverCupState.europePlayerIds[0];
+              onTournamentComplete?.(tournament.id, [], winnerId, runnerUpId, winnerName, runnerUpName);
+            }
+          }}
         />
       </div>
     );
