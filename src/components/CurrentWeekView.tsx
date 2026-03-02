@@ -39,6 +39,7 @@ interface CurrentWeekViewProps {
   savedDraw?: TournamentDraw | null;
   onSaveDraw?: (draw: TournamentDraw) => void;
   excludedPlayerIds?: Set<number>;
+  sameWeekSameCategoryCount?: number;
 }
 
 // Helper function - defined outside component to avoid hoisting issues
@@ -62,6 +63,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   savedDraw,
   onSaveDraw,
   excludedPlayerIds = new Set(),
+  sameWeekSameCategoryCount = 1,
 }) => {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [wildCardIds, setWildCardIds] = useState<Set<number>>(new Set());
@@ -183,7 +185,21 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     }
 
     // Filter out players excluded from same-week tournaments
-    const availablePlayers = players.filter(p => !excludedPlayerIds.has(p.id));
+    let availablePlayers = players.filter(p => !excludedPlayerIds.has(p.id));
+
+    // Balance players across same-week same-category tournaments
+    // Each player is randomly "assigned" to one of the remaining tournaments
+    if (sameWeekSameCategoryCount > 1) {
+      availablePlayers = availablePlayers.filter(p => 
+        Math.random() < 1 / sameWeekSameCategoryCount
+      );
+      // Ensure we still have enough players for the draw
+      if (availablePlayers.length < tournament.playerLimit) {
+        const extraPool = players.filter(p => !excludedPlayerIds.has(p.id) && !availablePlayers.some(a => a.id === p.id));
+        const shuffled = [...extraPool].sort(() => Math.random() - 0.5);
+        availablePlayers.push(...shuffled.slice(0, tournament.playerLimit - availablePlayers.length));
+      }
+    }
 
     // Include forced entrants in the draw
     const availableForAutoSelect = availablePlayers.filter(p => !forcedEntrants.some(f => f.id === p.id));
@@ -220,32 +236,82 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     const firstRoundMatches: Match[] = [];
     const totalMatches = tournament.playerLimit / 2;
     
-    // Place seeds strategically
+    // Place seeds using proper tennis bracket seeding with randomization
     const positions: (Player | null)[] = new Array(tournament.playerLimit).fill(null);
+    const drawSize = tournament.playerLimit;
     
-    // Seed 1 at position 0, Seed 2 at last position
+    // Seed 1 at top, Seed 2 at bottom (always fixed)
     if (seeds[0]) positions[0] = seeds[0];
-    if (seeds[1]) positions[tournament.playerLimit - 1] = seeds[1];
+    if (seeds[1]) positions[drawSize - 1] = seeds[1];
     
-    // Place other seeds evenly
-    const seedPositions = [0, tournament.playerLimit - 1];
-    for (let i = 2; i < seeds.length; i++) {
-      // Find position that maximizes distance from existing seeds
-      let bestPos = 0;
-      let maxMinDist = -1;
+    // Place remaining seed tiers with randomization within each tier
+    const usedPositions = new Set<number>([0, drawSize - 1]);
+    let seedsPlaced = 2;
+    let numSections = 2;
+    
+    const shuffleArray = <T,>(arr: T[]): T[] => {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+    
+    while (seedsPlaced < seeds.length) {
+      numSections *= 2;
+      const sectionSize = drawSize / numSections;
+      if (sectionSize < 1) break;
       
-      for (let pos = 0; pos < tournament.playerLimit; pos++) {
-        if (positions[pos]) continue;
+      const newPositions: number[] = [];
+      
+      for (let s = 0; s < numSections; s++) {
+        const sectionStart = Math.floor(s * sectionSize);
+        const sectionEnd = Math.floor((s + 1) * sectionSize) - 1;
         
-        const minDist = Math.min(...seedPositions.map(sp => Math.abs(pos - sp)));
-        if (minDist > maxMinDist) {
-          maxMinDist = minDist;
-          bestPos = pos;
+        // Check if this section already has a seed
+        let hasExistingSeed = false;
+        for (const pos of usedPositions) {
+          if (pos >= sectionStart && pos <= sectionEnd) {
+            hasExistingSeed = true;
+            break;
+          }
+        }
+        
+        if (!hasExistingSeed) {
+          // Find the paired section's seed position to determine placement
+          const pairedSectionIdx = s % 2 === 0 ? s + 1 : s - 1;
+          const pairedStart = Math.floor(pairedSectionIdx * sectionSize);
+          const pairedEnd = Math.floor((pairedSectionIdx + 1) * sectionSize) - 1;
+          
+          let pairedSeedPos = -1;
+          for (const pos of usedPositions) {
+            if (pos >= pairedStart && pos <= pairedEnd) {
+              pairedSeedPos = pos;
+              break;
+            }
+          }
+          
+          // Place at the opposite end from the paired seed
+          if (pairedSeedPos >= 0 && pairedSeedPos <= (pairedStart + pairedEnd) / 2) {
+            newPositions.push(sectionEnd);
+          } else {
+            newPositions.push(sectionStart);
+          }
         }
       }
       
-      positions[bestPos] = seeds[i];
-      seedPositions.push(bestPos);
+      // Get seeds for this tier and shuffle them randomly
+      const tierSeeds = seeds.slice(seedsPlaced, seedsPlaced + newPositions.length);
+      const shuffledTierSeeds = shuffleArray(tierSeeds);
+      
+      // Assign shuffled seeds to positions
+      for (let i = 0; i < shuffledTierSeeds.length; i++) {
+        positions[newPositions[i]] = shuffledTierSeeds[i];
+        usedPositions.add(newPositions[i]);
+      }
+      
+      seedsPlaced += newPositions.length;
     }
     
     // Fill remaining positions with unseeded players

@@ -254,6 +254,11 @@ const Index = () => {
                         savedDraw={currentDraw}
                         onSaveDraw={saveCurrentDraw}
                         excludedPlayerIds={excludedPlayerIds}
+                        sameWeekSameCategoryCount={
+                          weekTournaments.filter(
+                            t => t.category === selectedTournament.category && !completedTournaments.includes(t.id)
+                          ).length
+                        }
                       />
                     )}
                   </div>

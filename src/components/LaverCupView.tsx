@@ -296,7 +296,7 @@ const LaverCupView: React.FC<LaverCupViewProps> = ({
           <div className="flex items-center gap-1 mx-2">
             {played ? (
               <span className="text-xs text-muted-foreground">
-                {match.result!.sets.map(s => `${s[0]}-${s[1]}`).join(" ")}
+                {match.result!.sets.map(s => `${s.player1Games}-${s.player2Games}`).join(" ")}
               </span>
             ) : (
               <span className="text-xs text-muted-foreground">vs</span>
