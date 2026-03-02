@@ -191,7 +191,9 @@ export const useGameState = () => {
     tournamentId: string,
     results: { playerId: number; points: number; round: string }[],
     winnerId: number,
-    runnerUpId: number
+    runnerUpId: number,
+    overrideWinnerName?: string,
+    overrideRunnerUpName?: string
   ) => {
     setState(prev => {
       const tournament = tournaments.find(t => t.id === tournamentId);
@@ -255,9 +257,9 @@ export const useGameState = () => {
         week: prev.currentWeek,
         season: prev.currentSeason,
         winnerId,
-        winnerName: winner?.name || 'Unknown',
+        winnerName: overrideWinnerName || winner?.name || 'Unknown',
         runnerUpId,
-        runnerUpName: runnerUp?.name || 'Unknown',
+        runnerUpName: overrideRunnerUpName || runnerUp?.name || 'Unknown',
         results: results.map(r => ({
           playerId: r.playerId,
           points: r.points,

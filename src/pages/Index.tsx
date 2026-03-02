@@ -81,9 +81,11 @@ const Index = () => {
     tournamentId: string,
     results: { playerId: number; points: number; round: string }[],
     winnerId: number,
-    runnerUpId: number
+    runnerUpId: number,
+    overrideWinnerName?: string,
+    overrideRunnerUpName?: string
   ) => {
-    addTournamentResult(tournamentId, results, winnerId, runnerUpId);
+    addTournamentResult(tournamentId, results, winnerId, runnerUpId, overrideWinnerName, overrideRunnerUpName);
     toast.success("Tournament results saved! Points have been awarded.");
   };
 
