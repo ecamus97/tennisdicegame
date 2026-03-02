@@ -247,6 +247,7 @@ const Index = () => {
 
                     {selectedTournament && (
                       <CurrentWeekView
+                        key={selectedTournament.id}
                         tournament={selectedTournament}
                         players={players}
                         onTournamentComplete={handleTournamentComplete}
