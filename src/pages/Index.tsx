@@ -143,6 +143,12 @@ const Index = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <Link to="/career">
+                  <Button size="sm" variant="secondary" className="gap-1">
+                    <User className="w-4 h-4" />
+                    <span className="hidden sm:inline">Career</span>
+                  </Button>
+                </Link>
                 <Button 
                   size="sm" 
                   variant="secondary" 
