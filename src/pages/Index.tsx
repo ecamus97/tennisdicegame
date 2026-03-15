@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { tournaments, Tournament, Player } from "@/data/players";
 import { useGameState } from "@/hooks/useGameState";
 import RankingsView from "@/components/RankingsView";
@@ -6,7 +7,7 @@ import CalendarView from "@/components/CalendarView";
 import CurrentWeekView from "@/components/CurrentWeekView";
 import PlayerDetailDialog from "@/components/PlayerDetailDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Calendar, Play, Dice1, RotateCcw, ChevronRight, Save } from "lucide-react";
+import { Trophy, Calendar, Play, Dice1, RotateCcw, ChevronRight, Save, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -142,6 +143,12 @@ const Index = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <Link to="/career">
+                  <Button size="sm" variant="secondary" className="gap-1">
+                    <User className="w-4 h-4" />
+                    <span className="hidden sm:inline">Career</span>
+                  </Button>
+                </Link>
                 <Button 
                   size="sm" 
                   variant="secondary" 
