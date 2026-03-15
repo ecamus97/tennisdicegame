@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { tournaments, Tournament, Player } from "@/data/players";
 import { useGameState } from "@/hooks/useGameState";
 import RankingsView from "@/components/RankingsView";
