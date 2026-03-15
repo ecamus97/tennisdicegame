@@ -7,7 +7,7 @@ import CalendarView from "@/components/CalendarView";
 import CurrentWeekView from "@/components/CurrentWeekView";
 import PlayerDetailDialog from "@/components/PlayerDetailDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Calendar, Play, Dice1, RotateCcw, ChevronRight, Save } from "lucide-react";
+import { Trophy, Calendar, Play, Dice1, RotateCcw, ChevronRight, Save, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
