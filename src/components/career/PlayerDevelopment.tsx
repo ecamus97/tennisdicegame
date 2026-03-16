@@ -1,5 +1,5 @@
 import React from 'react';
-import { CareerPlayer, CareerAttributes, ATTRIBUTE_MAX, getDPCost } from '@/data/careerData';
+import { CareerPlayer, CareerAttributes, ATTRIBUTE_MAX, getDPCost, powerScoreToFictionalRanking } from '@/data/careerData';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Plus } from 'lucide-react';
@@ -24,6 +24,8 @@ const ATTR_LABELS: { key: keyof CareerAttributes; label: string; icon: string }[
 ];
 
 const PlayerDevelopment: React.FC<Props> = ({ player, onSpendDP }) => {
+  const fictionalRank = powerScoreToFictionalRanking(player.fictionalRankingScore);
+
   return (
     <div className="space-y-4">
       <div className="glass-card p-4">
@@ -39,8 +41,12 @@ const PlayerDevelopment: React.FC<Props> = ({ player, onSpendDP }) => {
               <div className="text-lg font-display font-bold text-primary">{player.developmentPoints}</div>
             </div>
             <div className="text-right">
-              <div className="text-xs text-muted-foreground">Ranking Score</div>
+              <div className="text-xs text-muted-foreground">Power Score</div>
               <div className="text-lg font-display font-bold text-accent">{player.fictionalRankingScore}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-muted-foreground">Fictional Rank</div>
+              <div className="text-lg font-display font-bold text-green-400">#{fictionalRank}</div>
             </div>
           </div>
         </div>
@@ -51,6 +57,13 @@ const PlayerDevelopment: React.FC<Props> = ({ player, onSpendDP }) => {
             <span>{player.xp}/{player.xpToNextLevel}</span>
           </div>
           <Progress value={(player.xp / player.xpToNextLevel) * 100} className="h-2" />
+        </div>
+
+        <div className="mb-4 p-3 rounded-lg bg-secondary/30">
+          <p className="text-xs text-muted-foreground">
+            Improving attributes increases your Power Score, which lowers your Fictional Ranking number (better player = lower rank).
+            A new player starts around #{powerScoreToFictionalRanking(25)}. Elite players reach the top 20.
+          </p>
         </div>
 
         <div className="space-y-3">
