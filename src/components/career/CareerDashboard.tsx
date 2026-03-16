@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CareerPlayer, TrainingType, TRAINING_OPTIONS, PRIZE_MONEY, CITY_DATA, calculateTravelDistance, getTravelCost, getTravelFatigue } from '@/data/careerData';
+import { CareerPlayer, TrainingType, TRAINING_OPTIONS, PRIZE_MONEY, CITY_DATA, calculateTravelDistance, getTravelCost, getTravelFatigue, powerScoreToFictionalRanking } from '@/data/careerData';
 import { tournaments, Tournament, Surface, getSurfaceEmoji, getCategoryColor } from '@/data/players';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
-  MapPin, Plane, Dumbbell, BedDouble, Trophy, TrendingUp, Heart, Zap, Brain, Activity,
-  AlertTriangle, DollarSign, Calendar
+  MapPin, Plane, Dumbbell, BedDouble, Trophy, TrendingUp, Heart, Zap, Activity,
+  AlertTriangle, Calendar, Play, FastForward
 } from 'lucide-react';
 
 interface Props {
@@ -16,7 +16,8 @@ interface Props {
   currentWeek: number;
   currentSeason: number;
   weeklyActionTaken: boolean;
-  onPlayTournament: (tournamentId: string, round: string, wins: number, losses: number, points: number, surface: Surface) => void;
+  onEnterTournament: (tournamentId: string) => void;
+  onQuickSimTournament: (tournamentId: string) => void;
   onTrain: (type: TrainingType, surface?: Surface) => void;
   onRest: () => void;
   completedTournaments: string[];
@@ -24,7 +25,7 @@ interface Props {
 
 const CareerDashboard: React.FC<Props> = ({
   player, currentWeek, currentSeason, weeklyActionTaken,
-  onPlayTournament, onTrain, onRest, completedTournaments,
+  onEnterTournament, onQuickSimTournament, onTrain, onRest, completedTournaments,
 }) => {
   const [selectedTraining, setSelectedTraining] = useState<TrainingType>('serve');
   const [surfaceTarget, setSurfaceTarget] = useState<Surface>('Hard');
@@ -34,88 +35,20 @@ const CareerDashboard: React.FC<Props> = ({
     [currentWeek]
   );
 
-  const getEffectiveLevel = () => {
-    let level = player.fictionalRankingScore;
-    // Fatigue penalty
-    if (player.fatigue > 60) level -= (player.fatigue - 60) * 0.3;
-    if (player.energy < 30) level -= (30 - player.energy) * 0.2;
-    // Form bonus
-    level += player.form * 0.5;
-    level += player.momentum * 1;
-    // Injury
-    if (player.injured) level -= 15;
-    return Math.max(10, Math.round(level));
-  };
-
-  const simulateTournament = (tournament: Tournament) => {
-    const effectiveLevel = getEffectiveLevel();
-    const surfaceBonus = player.attributes[`surface${tournament.surface}` as keyof typeof player.attributes] as number;
-    const adjustedLevel = effectiveLevel + (surfaceBonus - 25) * 0.3;
-
-    // Simulate rounds
-    let wins = 0;
-    let round = '';
-    const rounds = tournament.playerLimit === 128
-      ? ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F', 'Winner']
-      : tournament.playerLimit === 64
-      ? ['R64', 'R32', 'R16', 'QF', 'SF', 'F', 'Winner']
-      : ['R32', 'R16', 'QF', 'SF', 'F', 'Winner'];
-
-    for (const r of rounds) {
-      // Opponent strength increases each round
-      const roundIndex = rounds.indexOf(r);
-      const opponentBase = 30 + (roundIndex / rounds.length) * 50;
-      const opponentVariance = (Math.random() - 0.5) * 20;
-      const opponentLevel = opponentBase + opponentVariance;
-
-      const winChance = 0.5 + (adjustedLevel - opponentLevel) * 0.01;
-      const clamped = Math.max(0.1, Math.min(0.9, winChance));
-
-      if (Math.random() < clamped) {
-        wins++;
-        round = r === 'F' ? 'Winner' : r;
-      } else {
-        round = r;
-        break;
-      }
-    }
-
-    // Get points for round reached
-    const pointsMap = tournament.points;
-    const roundKeyMap: Record<string, string> = {
-      'R128': 'r128', 'R64': 'r64', 'R32': 'r32', 'R16': 'r16',
-      'QF': 'qf', 'SF': 'sf', 'F': 'finalist', 'Winner': 'winner',
-    };
-    const pointsEarned = (pointsMap as any)[roundKeyMap[round] || 'r32'] || 0;
-
-    onPlayTournament(tournament.id, round, wins, round === 'Winner' ? 0 : 1, pointsEarned, tournament.surface);
-
-    if (round === 'Winner') {
-      toast.success(`🏆 You won ${tournament.name}! +${pointsEarned} pts`);
-    } else {
-      toast.info(`${tournament.name}: Lost in ${round}. +${pointsEarned} pts`);
-    }
-  };
+  const fictionalRank = powerScoreToFictionalRanking(player.fictionalRankingScore);
 
   const handleTrain = () => {
     const option = TRAINING_OPTIONS.find(t => t.type === selectedTraining);
     if (!option) return;
-    if (player.money < option.moneyCost) {
-      toast.error('Not enough money for training!');
-      return;
-    }
+    if (player.money < option.moneyCost) { toast.error('Not enough money for training!'); return; }
     onTrain(selectedTraining, selectedTraining === 'surface' ? surfaceTarget : undefined);
     toast.success(`Training completed: ${option.label}`);
   };
 
-  const handleRest = () => {
-    onRest();
-    toast.success('You rested this week. Energy restored!');
-  };
+  const handleRest = () => { onRest(); toast.success('You rested this week. Energy restored!'); };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      {/* Player Overview */}
       <div className="lg:col-span-2 space-y-4">
         {/* Status Bar */}
         <div className="glass-card p-4">
@@ -136,8 +69,8 @@ const CareerDashboard: React.FC<Props> = ({
               <div className="text-xl font-display font-bold text-foreground">#{player.officialRanking}</div>
             </div>
             <div className="p-3 rounded-lg bg-secondary/30">
-              <div className="text-xs text-muted-foreground">Fictional Rank Score</div>
-              <div className="text-xl font-display font-bold text-primary">{player.fictionalRankingScore}</div>
+              <div className="text-xs text-muted-foreground">Fictional Rank</div>
+              <div className="text-xl font-display font-bold text-primary">#{fictionalRank}</div>
             </div>
             <div className="p-3 rounded-lg bg-secondary/30">
               <div className="text-xs text-muted-foreground">Live Points</div>
@@ -237,7 +170,7 @@ const CareerDashboard: React.FC<Props> = ({
                       return (
                         <div key={t.id} className={`p-3 rounded-lg border transition-all ${isCompleted ? 'bg-muted/30 border-border/30 opacity-60' : 'bg-secondary/20 border-border/50 hover:border-primary/30'}`}>
                           <div className="flex items-center justify-between">
-                            <div>
+                            <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className={getCategoryColor(t.category) + ' !text-[10px]'}>{t.category}</span>
                                 <span className="font-medium text-sm text-foreground">{t.name}</span>
@@ -253,18 +186,41 @@ const CareerDashboard: React.FC<Props> = ({
                                 <span className="text-accent">Winner: ${prize?.winner.toLocaleString()}</span>
                               </div>
                             </div>
-                            <Button
-                              size="sm"
-                              disabled={isCompleted || weeklyActionTaken}
-                              onClick={() => simulateTournament(t)}
-                            >
-                              {isCompleted ? 'Done' : 'Play'}
-                            </Button>
+                            <div className="flex items-center gap-2 ml-2">
+                              <Button
+                                size="sm"
+                                disabled={isCompleted || weeklyActionTaken}
+                                onClick={() => onEnterTournament(t.id)}
+                                className="gap-1"
+                              >
+                                <Play className="w-3 h-3" />
+                                Play
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                disabled={isCompleted || weeklyActionTaken}
+                                onClick={() => {
+                                  onQuickSimTournament(t.id);
+                                  toast.info(`Simulating ${t.name}...`);
+                                }}
+                                className="gap-1"
+                              >
+                                <FastForward className="w-3 h-3" />
+                                Sim
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {weekTournaments.length === 0 && (
+                <div className="p-4 rounded-lg bg-secondary/20 text-center">
+                  <p className="text-sm text-muted-foreground">No tournaments this week</p>
                 </div>
               )}
 
@@ -294,9 +250,7 @@ const CareerDashboard: React.FC<Props> = ({
                       </SelectContent>
                     </Select>
                   )}
-                  <Button size="sm" variant="secondary" onClick={handleTrain} disabled={weeklyActionTaken}>
-                    Train
-                  </Button>
+                  <Button size="sm" variant="secondary" onClick={handleTrain} disabled={weeklyActionTaken}>Train</Button>
                 </div>
               </div>
 
@@ -320,6 +274,7 @@ const CareerDashboard: React.FC<Props> = ({
             <div className="flex justify-between"><span className="text-muted-foreground">Best Ranking</span><span className="text-foreground">#{player.stats.bestRanking}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Dev Points</span><span className="text-primary">{player.developmentPoints}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Money</span><span className="text-accent">${player.money.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Official Pts</span><span className="text-foreground">{player.officialPoints.toLocaleString()}</span></div>
           </div>
         </div>
 
@@ -341,6 +296,21 @@ const CareerDashboard: React.FC<Props> = ({
           <p className="text-xs text-muted-foreground mt-1">{player.momentum}/10</p>
         </div>
 
+        {/* Active Sponsors */}
+        {player.sponsors.length > 0 && (
+          <div className="glass-card p-4">
+            <h3 className="font-display font-semibold text-foreground mb-3">🤝 Sponsors</h3>
+            <div className="space-y-1.5">
+              {player.sponsors.map(s => (
+                <div key={s.sponsor.id} className="flex items-center justify-between text-xs">
+                  <span className="text-foreground">{s.sponsor.name}</span>
+                  <span className="text-muted-foreground">{s.weeksRemaining}w left</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Recent Results */}
         <div className="glass-card p-4">
           <h3 className="font-display font-semibold text-foreground mb-3">📋 Recent</h3>
@@ -351,7 +321,7 @@ const CareerDashboard: React.FC<Props> = ({
               {player.seasonHistory.slice(-5).reverse().map((e, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <span className="text-foreground truncate flex-1">{e.tournamentName}</span>
-                  <span className={`ml-2 ${e.round === 'Winner' ? 'text-primary font-bold' : 'text-muted-foreground'}`}>{e.round}</span>
+                  <span className={`ml-2 font-medium ${e.round === 'Winner' ? 'text-primary' : 'text-muted-foreground'}`}>{e.round}</span>
                 </div>
               ))}
             </div>

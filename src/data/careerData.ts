@@ -1,4 +1,4 @@
-import { Surface } from './players';
+import { Surface, Player, initialPlayers, PlayerStats, SurfaceAffinity } from './players';
 
 // ==================== CAREER TYPES ====================
 
@@ -18,6 +18,44 @@ export interface CareerAttributes {
   surfaceGrass: number;
 }
 
+export interface Sponsor {
+  id: string;
+  name: string;
+  weeklyIncome: number;
+  winBonus: number;
+  titleBonus: number;
+  travelDiscount: number;
+  minRanking: number;
+  duration: number;
+  description: string;
+}
+
+export interface ActiveSponsor {
+  sponsor: Sponsor;
+  weeksRemaining: number;
+  totalEarned: number;
+}
+
+export interface StaffMember {
+  id: string;
+  name: string;
+  role: 'coach' | 'fitness' | 'physio' | 'mental';
+  quality: 'basic' | 'pro' | 'elite';
+  weeklyCost: number;
+  description: string;
+  effects: {
+    trainingEfficiency?: number;
+    recoveryBonus?: number;
+    injuryPrevention?: number;
+    mentalBonus?: number;
+    fatigueReduction?: number;
+  };
+}
+
+export interface ActiveStaff {
+  member: StaffMember;
+}
+
 export interface CareerPlayer {
   firstName: string;
   lastName: string;
@@ -35,15 +73,17 @@ export interface CareerPlayer {
   totalDPEarned: number;
   fictionalRankingScore: number;
   officialRanking: number;
+  officialPoints: number;
   livePoints: number;
   previousYearPoints: number[];
+  currentYearWeeklyPoints: number[];
   money: number;
-  energy: number;        // 0-100
-  fatigue: number;       // 0-100 (high = bad)
-  travelFatigue: number; // 0-100
-  matchLoad: number;     // matches played recently
-  form: number;          // -20 to +20
-  momentum: number;      // 0-10
+  energy: number;
+  fatigue: number;
+  travelFatigue: number;
+  matchLoad: number;
+  form: number;
+  momentum: number;
   injured: boolean;
   injuryType?: string;
   injuryWeeksRemaining: number;
@@ -57,6 +97,8 @@ export interface CareerPlayer {
   financialHistory: FinancialEntry[];
   injuryHistory: InjuryEntry[];
   objectives: CareerObjective[];
+  sponsors: ActiveSponsor[];
+  staff: ActiveStaff[];
 }
 
 export interface CareerStats {
@@ -108,16 +150,30 @@ export interface CareerObjective {
 }
 
 export type WeeklyAction = 'play' | 'train' | 'rest' | 'skip';
-
 export type TrainingType = 'serve' | 'return' | 'physical' | 'mental' | 'surface' | 'recovery';
+
+export interface CareerTournamentResult {
+  tournamentId: string;
+  week: number;
+  season: number;
+  winnerId: number;
+  winnerName: string;
+  runnerUpId: number;
+  runnerUpName: string;
+  results: { playerId: number; points: number; round: string }[];
+}
 
 export interface CareerState {
   player: CareerPlayer | null;
+  allPlayers: Player[];
   currentWeek: number;
   currentSeason: number;
   completedTournaments: string[];
+  tournamentHistory: CareerTournamentResult[];
   isCreated: boolean;
   weeklyActionTaken: boolean;
+  activeTournament: string | null;
+  currentDraw: any | null;
 }
 
 // ==================== CONSTANTS ====================
@@ -125,10 +181,11 @@ export interface CareerState {
 export const ATTRIBUTE_MAX = 95;
 export const ATTRIBUTE_MIN = 10;
 export const MAX_LEVEL = 50;
-export const BASE_DP_COST = 1; // cost to improve 1 point
-export const DP_COST_SCALING = 0.05; // additional cost per current level
+export const BASE_DP_COST = 1;
+export const DP_COST_SCALING = 0.05;
 export const XP_PER_LEVEL_BASE = 100;
 export const XP_PER_LEVEL_SCALING = 1.15;
+export const CAREER_PLAYER_ID = -1;
 
 export const ARCHETYPE_BONUSES: Record<Archetype, Partial<CareerAttributes>> = {
   Balanced: { serve: 5, return: 5, rally: 5, mentality: 5, physical: 5, consistency: 5, pressure: 5, recovery: 5 },
@@ -140,22 +197,44 @@ export const ARCHETYPE_BONUSES: Record<Archetype, Partial<CareerAttributes>> = {
 };
 
 export const BASE_ATTRIBUTES: CareerAttributes = {
-  serve: 25, return: 25, rally: 25, mentality: 25, physical: 25,
-  consistency: 25, pressure: 25, recovery: 25,
-  surfaceHard: 25, surfaceClay: 25, surfaceGrass: 25,
+  serve: 20, return: 20, rally: 20, mentality: 20, physical: 20,
+  consistency: 20, pressure: 20, recovery: 20,
+  surfaceHard: 20, surfaceClay: 20, surfaceGrass: 20,
 };
+
+// ==================== SPONSORS ====================
+
+export const AVAILABLE_SPONSORS: Sponsor[] = [
+  { id: 'head', name: 'HEAD', weeklyIncome: 1000, winBonus: 200, titleBonus: 5000, travelDiscount: 0, minRanking: 400, duration: 26, description: 'Equipment sponsor for emerging players' },
+  { id: 'fila', name: 'Fila', weeklyIncome: 1500, winBonus: 300, titleBonus: 8000, travelDiscount: 0.05, minRanking: 250, duration: 26, description: 'Clothing sponsor with modest support' },
+  { id: 'nike-basic', name: 'Nike (Challenger)', weeklyIncome: 2500, winBonus: 500, titleBonus: 12000, travelDiscount: 0.1, minRanking: 150, duration: 26, description: 'Entry-level Nike deal for rising players' },
+  { id: 'adidas', name: 'Adidas', weeklyIncome: 4000, winBonus: 800, titleBonus: 20000, travelDiscount: 0.15, minRanking: 80, duration: 52, description: 'Premium sportswear deal' },
+  { id: 'emirates', name: 'Emirates', weeklyIncome: 3000, winBonus: 0, titleBonus: 0, travelDiscount: 0.4, minRanking: 100, duration: 52, description: 'Travel sponsor — massive travel cost reduction' },
+  { id: 'rolex', name: 'Rolex', weeklyIncome: 6000, winBonus: 1500, titleBonus: 50000, travelDiscount: 0.2, minRanking: 30, duration: 52, description: 'Elite luxury partnership' },
+  { id: 'nike-elite', name: 'Nike (Elite)', weeklyIncome: 8000, winBonus: 2000, titleBonus: 75000, travelDiscount: 0.25, minRanking: 10, duration: 52, description: 'Top-tier Nike contract for elite players' },
+];
+
+// ==================== STAFF ====================
+
+export const AVAILABLE_STAFF: StaffMember[] = [
+  { id: 'coach-basic', name: 'Local Coach', role: 'coach', quality: 'basic', weeklyCost: 1500, description: 'Improves training results', effects: { trainingEfficiency: 1.3 } },
+  { id: 'coach-pro', name: 'Experienced Coach', role: 'coach', quality: 'pro', weeklyCost: 4000, description: 'Significantly better training', effects: { trainingEfficiency: 1.6, mentalBonus: 2 } },
+  { id: 'coach-elite', name: 'Elite Coach', role: 'coach', quality: 'elite', weeklyCost: 8000, description: 'World-class coaching', effects: { trainingEfficiency: 2.0, mentalBonus: 4 } },
+  { id: 'fitness-basic', name: 'Fitness Trainer', role: 'fitness', quality: 'basic', weeklyCost: 1000, description: 'Reduces fatigue buildup', effects: { fatigueReduction: 5 } },
+  { id: 'fitness-pro', name: 'Pro Fitness Coach', role: 'fitness', quality: 'pro', weeklyCost: 3000, description: 'Better fatigue management and recovery', effects: { fatigueReduction: 10, recoveryBonus: 5 } },
+  { id: 'fitness-elite', name: 'Elite Performance Coach', role: 'fitness', quality: 'elite', weeklyCost: 6000, description: 'Peak physical conditioning', effects: { fatigueReduction: 15, recoveryBonus: 10 } },
+  { id: 'physio-basic', name: 'Physiotherapist', role: 'physio', quality: 'basic', weeklyCost: 1500, description: 'Injury prevention and recovery', effects: { recoveryBonus: 8, injuryPrevention: 0.3 } },
+  { id: 'physio-pro', name: 'Sports Physio', role: 'physio', quality: 'pro', weeklyCost: 4000, description: 'Advanced injury care', effects: { recoveryBonus: 15, injuryPrevention: 0.5 } },
+  { id: 'physio-elite', name: 'Elite Medical Team', role: 'physio', quality: 'elite', weeklyCost: 7000, description: 'Best-in-class medical support', effects: { recoveryBonus: 25, injuryPrevention: 0.7 } },
+  { id: 'mental-basic', name: 'Mental Coach', role: 'mental', quality: 'basic', weeklyCost: 2000, description: 'Pressure and focus training', effects: { mentalBonus: 3 } },
+  { id: 'mental-pro', name: 'Sports Psychologist', role: 'mental', quality: 'pro', weeklyCost: 5000, description: 'Advanced mental conditioning', effects: { mentalBonus: 6, trainingEfficiency: 1.1 } },
+];
 
 // ==================== PRIZE MONEY ====================
 
 export interface PrizeMoney {
-  winner: number;
-  finalist: number;
-  sf: number;
-  qf: number;
-  r16: number;
-  r32: number;
-  r64: number;
-  r128: number;
+  winner: number; finalist: number; sf: number; qf: number;
+  r16: number; r32: number; r64: number; r128: number;
 }
 
 export const PRIZE_MONEY: Record<string, PrizeMoney> = {
@@ -170,12 +249,10 @@ export const PRIZE_MONEY: Record<string, PrizeMoney> = {
 export type Continent = 'North America' | 'South America' | 'Europe' | 'Asia' | 'Oceania' | 'Middle East' | 'Africa';
 
 export const CITY_DATA: Record<string, { continent: Continent; lat: number; lng: number }> = {
-  // Oceania
   'Brisbane': { continent: 'Oceania', lat: -27.47, lng: 153.03 },
   'Adelaide': { continent: 'Oceania', lat: -34.93, lng: 138.60 },
   'Melbourne': { continent: 'Oceania', lat: -37.81, lng: 144.96 },
   'Auckland': { continent: 'Oceania', lat: -36.85, lng: 174.76 },
-  // Asia
   'Hong Kong': { continent: 'Asia', lat: 22.32, lng: 114.17 },
   'Tokyo': { continent: 'Asia', lat: 35.68, lng: 139.69 },
   'Beijing': { continent: 'Asia', lat: 39.90, lng: 116.40 },
@@ -183,7 +260,6 @@ export const CITY_DATA: Record<string, { continent: Continent; lat: number; lng:
   'Chengdu': { continent: 'Asia', lat: 30.57, lng: 104.07 },
   'Hangzhou': { continent: 'Asia', lat: 30.27, lng: 120.15 },
   'Almaty': { continent: 'Asia', lat: 43.24, lng: 76.95 },
-  // Europe
   'Montpellier': { continent: 'Europe', lat: 43.61, lng: 3.88 },
   'Rotterdam': { continent: 'Europe', lat: 51.92, lng: 4.48 },
   'Monaco': { continent: 'Europe', lat: 43.74, lng: 7.42 },
@@ -214,7 +290,6 @@ export const CITY_DATA: Record<string, { continent: Continent; lat: number; lng:
   'Turin': { continent: 'Europe', lat: 45.07, lng: 7.69 },
   'Málaga': { continent: 'Europe', lat: 36.72, lng: -4.42 },
   'San Francisco': { continent: 'North America', lat: 37.77, lng: -122.42 },
-  // North America
   'Dallas': { continent: 'North America', lat: 32.78, lng: -96.80 },
   'Delray Beach': { continent: 'North America', lat: 26.46, lng: -80.07 },
   'Indian Wells': { continent: 'North America', lat: 33.72, lng: -116.31 },
@@ -227,21 +302,18 @@ export const CITY_DATA: Record<string, { continent: Continent; lat: number; lng:
   'New York': { continent: 'North America', lat: 40.71, lng: -74.01 },
   'Los Cabos': { continent: 'North America', lat: 22.89, lng: -109.92 },
   'Acapulco': { continent: 'North America', lat: 16.86, lng: -99.88 },
-  // South America
   'Buenos Aires': { continent: 'South America', lat: -34.60, lng: -58.38 },
   'Rio de Janeiro': { continent: 'South America', lat: -22.91, lng: -43.17 },
   'Santiago': { continent: 'South America', lat: -33.45, lng: -70.67 },
-  // Middle East
   'Doha': { continent: 'Middle East', lat: 25.29, lng: 51.53 },
   'Dubai': { continent: 'Middle East', lat: 25.20, lng: 55.27 },
-  // Africa
   'Marrakech': { continent: 'Africa', lat: 31.63, lng: -8.00 },
 };
 
 export function calculateTravelDistance(fromCity: string, toCity: string): number {
   const from = CITY_DATA[fromCity];
   const to = CITY_DATA[toCity];
-  if (!from || !to) return 3000; // default medium distance
+  if (!from || !to) return 3000;
   const R = 6371;
   const dLat = (to.lat - from.lat) * Math.PI / 180;
   const dLng = (to.lng - from.lng) * Math.PI / 180;
@@ -263,7 +335,7 @@ export function getTravelFatigue(distance: number, fromContinent: string, toCont
   return fatigue;
 }
 
-// ==================== FICTIONAL RANKING SCORE CALC ====================
+// ==================== FICTIONAL RANKING ====================
 
 export function calculateFictionalRankingScore(attrs: CareerAttributes): number {
   return Math.round(
@@ -279,12 +351,69 @@ export function calculateFictionalRankingScore(attrs: CareerAttributes): number 
   );
 }
 
-// Maps a 0-100 score to a fictional ranking position (lower = better)
-export function scoreToFictionalRanking(score: number, totalPlayers: number): number {
-  // Score 95+ = rank 1, score 25 = ~totalPlayers
-  const maxRank = totalPlayers + 50; // can be outside top players
-  const rank = Math.max(1, Math.round(maxRank - (score / 100) * maxRank));
-  return rank;
+/**
+ * Converts a power score (0-100) to a fictional ranking position.
+ * Lower ranking = better player.
+ * New player (score ~25): rank ~350
+ * Mid-level (score ~50): rank ~150
+ * Elite (score ~85): rank ~29
+ */
+export function powerScoreToFictionalRanking(score: number): number {
+  const normalized = Math.max(0, Math.min(100, score)) / 100;
+  const rank = Math.round(500 * Math.pow(1 - normalized, 1.5));
+  return Math.max(1, rank);
+}
+
+/**
+ * Get effective fictional ranking considering fatigue, form, injury modifiers.
+ */
+export function getEffectiveFictionalRanking(player: CareerPlayer): number {
+  let effectiveScore = player.fictionalRankingScore;
+  if (player.fatigue > 60) effectiveScore -= (player.fatigue - 60) * 0.15;
+  if (player.energy < 30) effectiveScore -= (30 - player.energy) * 0.1;
+  effectiveScore += player.form * 0.3;
+  effectiveScore += player.momentum * 0.5;
+  if (player.injured) effectiveScore -= 10;
+  return powerScoreToFictionalRanking(effectiveScore);
+}
+
+// Keep old function for backward compat
+export function scoreToFictionalRanking(score: number, _totalPlayers: number): number {
+  return powerScoreToFictionalRanking(score);
+}
+
+/**
+ * Convert a CareerPlayer to a Player object for use in the match engine and rankings.
+ */
+export function careerPlayerToPlayer(cp: CareerPlayer): Player {
+  const fictionalRanking = getEffectiveFictionalRanking(cp);
+  return {
+    id: CAREER_PLAYER_ID,
+    name: `${cp.firstName} ${cp.lastName}`,
+    country: cp.nationality,
+    countryCode: cp.countryCode,
+    officialRanking: cp.officialRanking,
+    fictionalRanking,
+    points: cp.officialPoints,
+    livePoints: cp.livePoints,
+    previousYearPoints: cp.previousYearPoints,
+    injured: cp.injured,
+    injuryWeeksRemaining: cp.injuryWeeksRemaining,
+    surfaceAffinity: {
+      Hard: Math.max(-2, Math.min(2, Math.floor((cp.attributes.surfaceHard - 30) / 15))),
+      Clay: Math.max(-2, Math.min(2, Math.floor((cp.attributes.surfaceClay - 30) / 15))),
+      Grass: Math.max(-2, Math.min(2, Math.floor((cp.attributes.surfaceGrass - 30) / 15))),
+    },
+    stats: {
+      wins: cp.stats.wins,
+      losses: cp.stats.losses,
+      surfaceWins: { ...cp.stats.surfaceWins },
+      surfaceLosses: { ...cp.stats.surfaceLosses },
+      currentStreak: 0,
+      bestWinStreak: 0,
+      titles: cp.stats.titlesWon,
+    },
+  };
 }
 
 // ==================== XP / LEVEL ====================
@@ -326,7 +455,7 @@ export interface TrainingOption {
   fatigueCost: number;
   moneyCost: number;
   attributes: (keyof CareerAttributes)[];
-  improvementRange: [number, number]; // min-max improvement per attribute
+  improvementRange: [number, number];
 }
 
 export const TRAINING_OPTIONS: TrainingOption[] = [
@@ -337,6 +466,31 @@ export const TRAINING_OPTIONS: TrainingOption[] = [
   { type: 'surface', label: 'Surface Adaptation', description: 'Practice on specific surfaces', icon: '🏟️', energyCost: 15, fatigueCost: 10, moneyCost: 2500, attributes: ['surfaceHard', 'surfaceClay', 'surfaceGrass'], improvementRange: [1, 3] },
   { type: 'recovery', label: 'Recovery Week', description: 'Light training with focus on recovery', icon: '🧘', energyCost: -20, fatigueCost: -25, moneyCost: 1000, attributes: ['recovery'], improvementRange: [0, 1] },
 ];
+
+// ==================== HELPERS ====================
+
+export function getPointsForRound(pointsTable: { winner: number; finalist: number; sf: number; qf: number; r16: number; r32: number; r64: number; r128: number }, round: string): number {
+  switch (round) {
+    case 'Winner': return pointsTable.winner;
+    case 'Final': return pointsTable.finalist;
+    case 'Finalist': return pointsTable.finalist;
+    case 'Semifinal': return pointsTable.sf;
+    case 'SF': return pointsTable.sf;
+    case 'Quarterfinal': return pointsTable.qf;
+    case 'QF': return pointsTable.qf;
+    case 'R16': return pointsTable.r16;
+    case 'R32': return pointsTable.r32;
+    case 'R64': return pointsTable.r64;
+    case 'R128': return pointsTable.r128;
+    default: return 0;
+  }
+}
+
+export function getMoneyForRound(category: string, round: string): number {
+  const prize = PRIZE_MONEY[category];
+  if (!prize) return 0;
+  return getPointsForRound(prize, round);
+}
 
 // ==================== COUNTRY LIST ====================
 
