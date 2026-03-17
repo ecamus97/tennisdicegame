@@ -331,7 +331,7 @@ export const useCareerState = () => {
   ) => {
     setState(prev => {
       if (!prev.player) return prev;
-      const tournament = tournaments.find(t => t.id === tournamentId);
+      const tournament = allCareerTournaments.find(t => t.id === tournamentId);
       if (!tournament) return prev;
 
       const p = { ...prev.player };
