@@ -22,6 +22,7 @@ interface Props {
   onTrain: (type: TrainingType, surface?: Surface) => void;
   onRest: () => void;
   completedTournaments: string[];
+  allTournaments: Tournament[];
 }
 
 const CareerDashboard: React.FC<Props> = ({
