@@ -261,6 +261,11 @@ export const PRIZE_MONEY: Record<string, PrizeMoney> = {
   'Masters 1000': { winner: 1100000, finalist: 570000, sf: 300000, qf: 160000, r16: 85000, r32: 45000, r64: 25000, r128: 0 },
   'ATP 500': { winner: 420000, finalist: 215000, sf: 110000, qf: 58000, r16: 30000, r32: 17000, r64: 0, r128: 0 },
   'ATP 250': { winner: 195000, finalist: 110000, sf: 58000, qf: 32000, r16: 18000, r32: 10000, r64: 0, r128: 0 },
+  'Challenger 175': { winner: 33000, finalist: 19000, sf: 11000, qf: 6200, r16: 3600, r32: 1800, r64: 0, r128: 0 },
+  'Challenger 125': { winner: 22000, finalist: 13000, sf: 7500, qf: 4200, r16: 2500, r32: 1200, r64: 0, r128: 0 },
+  'Challenger 100': { winner: 18000, finalist: 11000, sf: 6200, qf: 3500, r16: 2000, r32: 1000, r64: 0, r128: 0 },
+  'Challenger 75': { winner: 12000, finalist: 7000, sf: 4000, qf: 2300, r16: 1300, r32: 650, r64: 0, r128: 0 },
+  'Challenger 50': { winner: 8000, finalist: 4500, sf: 2600, qf: 1500, r16: 850, r32: 425, r64: 0, r128: 0 },
 };
 
 // ==================== TRAVEL / CONTINENTS ====================
