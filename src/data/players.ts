@@ -535,6 +535,12 @@ export const getCategoryColor = (category: TournamentCategory): string => {
     case "ATP Finals": return "tournament-badge-gs";
     case "Davis Cup": return "tournament-badge-m1000";
     case "Laver Cup": return "tournament-badge-500";
+    case "Challenger 175": return "tournament-badge-250";
+    case "Challenger 125": return "tournament-badge-250";
+    case "Challenger 100": return "tournament-badge-250";
+    case "Challenger 75": return "tournament-badge-250";
+    case "Challenger 50": return "tournament-badge-250";
+    default: return "tournament-badge-250";
   }
 };
 
