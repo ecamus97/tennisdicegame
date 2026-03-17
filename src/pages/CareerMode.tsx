@@ -237,6 +237,7 @@ const CareerMode = () => {
               onTrain={career.train}
               onRest={career.rest}
               completedTournaments={career.completedTournaments}
+              allTournaments={career.allCareerTournaments}
             />
           </TabsContent>
           <TabsContent value="rankings" className="mt-0">
