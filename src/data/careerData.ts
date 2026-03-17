@@ -205,13 +205,32 @@ export const BASE_ATTRIBUTES: CareerAttributes = {
 // ==================== SPONSORS ====================
 
 export const AVAILABLE_SPONSORS: Sponsor[] = [
-  { id: 'head', name: 'HEAD', weeklyIncome: 1000, winBonus: 200, titleBonus: 5000, travelDiscount: 0, minRanking: 400, duration: 26, description: 'Equipment sponsor for emerging players' },
-  { id: 'fila', name: 'Fila', weeklyIncome: 1500, winBonus: 300, titleBonus: 8000, travelDiscount: 0.05, minRanking: 250, duration: 26, description: 'Clothing sponsor with modest support' },
-  { id: 'nike-basic', name: 'Nike (Challenger)', weeklyIncome: 2500, winBonus: 500, titleBonus: 12000, travelDiscount: 0.1, minRanking: 150, duration: 26, description: 'Entry-level Nike deal for rising players' },
-  { id: 'adidas', name: 'Adidas', weeklyIncome: 4000, winBonus: 800, titleBonus: 20000, travelDiscount: 0.15, minRanking: 80, duration: 52, description: 'Premium sportswear deal' },
-  { id: 'emirates', name: 'Emirates', weeklyIncome: 3000, winBonus: 0, titleBonus: 0, travelDiscount: 0.4, minRanking: 100, duration: 52, description: 'Travel sponsor — massive travel cost reduction' },
-  { id: 'rolex', name: 'Rolex', weeklyIncome: 6000, winBonus: 1500, titleBonus: 50000, travelDiscount: 0.2, minRanking: 30, duration: 52, description: 'Elite luxury partnership' },
+  // Sports brands — lower tier
+  { id: 'head', name: 'HEAD', weeklyIncome: 800, winBonus: 150, titleBonus: 3000, travelDiscount: 0, minRanking: 450, duration: 26, description: 'Equipment sponsor for emerging players' },
+  { id: 'babolat', name: 'Babolat', weeklyIncome: 900, winBonus: 180, titleBonus: 4000, travelDiscount: 0, minRanking: 400, duration: 26, description: 'Racquet sponsor for developing talent' },
+  { id: 'yonex', name: 'Yonex', weeklyIncome: 1000, winBonus: 200, titleBonus: 5000, travelDiscount: 0, minRanking: 350, duration: 26, description: 'Japanese equipment brand' },
+  { id: 'wilson', name: 'Wilson', weeklyIncome: 1200, winBonus: 250, titleBonus: 6000, travelDiscount: 0, minRanking: 300, duration: 26, description: 'Trusted equipment partner' },
+  { id: 'asics', name: 'ASICS', weeklyIncome: 1500, winBonus: 300, titleBonus: 8000, travelDiscount: 0.05, minRanking: 250, duration: 26, description: 'Footwear and apparel sponsor' },
+  { id: 'new-balance', name: 'New Balance', weeklyIncome: 1800, winBonus: 350, titleBonus: 10000, travelDiscount: 0.05, minRanking: 200, duration: 26, description: 'Athletic apparel and footwear' },
+  { id: 'lacoste', name: 'Lacoste', weeklyIncome: 2000, winBonus: 400, titleBonus: 12000, travelDiscount: 0.08, minRanking: 150, duration: 26, description: 'Classic sportswear brand' },
+  // Sports brands — higher tier
+  { id: 'nike-basic', name: 'Nike (Challenger)', weeklyIncome: 2500, winBonus: 500, titleBonus: 15000, travelDiscount: 0.1, minRanking: 120, duration: 26, description: 'Entry-level Nike deal for rising players' },
+  { id: 'adidas', name: 'Adidas', weeklyIncome: 4000, winBonus: 800, titleBonus: 25000, travelDiscount: 0.15, minRanking: 80, duration: 52, description: 'Premium sportswear deal' },
+  { id: 'nike-tour', name: 'Nike (Tour)', weeklyIncome: 5500, winBonus: 1200, titleBonus: 40000, travelDiscount: 0.18, minRanking: 50, duration: 52, description: 'Main tour Nike contract' },
   { id: 'nike-elite', name: 'Nike (Elite)', weeklyIncome: 8000, winBonus: 2000, titleBonus: 75000, travelDiscount: 0.25, minRanking: 10, duration: 52, description: 'Top-tier Nike contract for elite players' },
+  // Global brands
+  { id: 'pepsi', name: 'Pepsi', weeklyIncome: 1500, winBonus: 300, titleBonus: 8000, travelDiscount: 0, minRanking: 200, duration: 26, description: 'Beverage sponsor with visibility bonuses' },
+  { id: 'samsung', name: 'Samsung', weeklyIncome: 2000, winBonus: 500, titleBonus: 12000, travelDiscount: 0, minRanking: 150, duration: 26, description: 'Tech brand endorsement' },
+  { id: 'red-bull', name: 'Red Bull', weeklyIncome: 3000, winBonus: 600, titleBonus: 20000, travelDiscount: 0.1, minRanking: 100, duration: 52, description: 'Energy brand with athlete support program' },
+  { id: 'mastercard', name: 'Mastercard', weeklyIncome: 3500, winBonus: 0, titleBonus: 15000, travelDiscount: 0.15, minRanking: 80, duration: 52, description: 'Financial sponsor with travel benefits' },
+  { id: 'emirates', name: 'Emirates', weeklyIncome: 3000, winBonus: 0, titleBonus: 0, travelDiscount: 0.4, minRanking: 100, duration: 52, description: 'Travel sponsor — massive travel cost reduction' },
+  { id: 'apple', name: 'Apple', weeklyIncome: 4000, winBonus: 800, titleBonus: 25000, travelDiscount: 0, minRanking: 50, duration: 52, description: 'Premium tech brand endorsement' },
+  // Luxury brands
+  { id: 'tag-heuer', name: 'TAG Heuer', weeklyIncome: 4500, winBonus: 1000, titleBonus: 30000, travelDiscount: 0.1, minRanking: 50, duration: 52, description: 'Luxury watch partnership' },
+  { id: 'omega', name: 'Omega', weeklyIncome: 5000, winBonus: 1200, titleBonus: 40000, travelDiscount: 0.1, minRanking: 30, duration: 52, description: 'Premium luxury watch sponsor' },
+  { id: 'porsche', name: 'Porsche', weeklyIncome: 5500, winBonus: 1500, titleBonus: 45000, travelDiscount: 0.15, minRanking: 25, duration: 52, description: 'Luxury automotive partnership' },
+  { id: 'mercedes', name: 'Mercedes-Benz', weeklyIncome: 6000, winBonus: 1500, titleBonus: 50000, travelDiscount: 0.2, minRanking: 20, duration: 52, description: 'Premium automotive brand deal' },
+  { id: 'rolex', name: 'Rolex', weeklyIncome: 8000, winBonus: 2000, titleBonus: 80000, travelDiscount: 0.2, minRanking: 10, duration: 52, description: 'Elite luxury partnership — the pinnacle' },
 ];
 
 // ==================== STAFF ====================
