@@ -370,7 +370,7 @@ export const initialPlayers: Player[] = playerNames.map((name, index) => {
   };
 });
 
-export type TournamentCategory = "Grand Slam" | "Masters 1000" | "ATP 500" | "ATP 250" | "ATP Finals" | "Davis Cup" | "Laver Cup";
+export type TournamentCategory = "Grand Slam" | "Masters 1000" | "ATP 500" | "ATP 250" | "ATP Finals" | "Davis Cup" | "Laver Cup" | "Challenger 175" | "Challenger 125" | "Challenger 100" | "Challenger 75" | "Challenger 50";
 
 export interface Tournament {
   id: string;
@@ -535,6 +535,12 @@ export const getCategoryColor = (category: TournamentCategory): string => {
     case "ATP Finals": return "tournament-badge-gs";
     case "Davis Cup": return "tournament-badge-m1000";
     case "Laver Cup": return "tournament-badge-500";
+    case "Challenger 175": return "tournament-badge-250";
+    case "Challenger 125": return "tournament-badge-250";
+    case "Challenger 100": return "tournament-badge-250";
+    case "Challenger 75": return "tournament-badge-250";
+    case "Challenger 50": return "tournament-badge-250";
+    default: return "tournament-badge-250";
   }
 };
 

@@ -10,9 +10,40 @@ import {
   AVAILABLE_SPONSORS, AVAILABLE_STAFF, CareerTournamentResult,
 } from '@/data/careerData';
 import { tournaments, Tournament, Surface, Player, initialPlayers } from '@/data/players';
+import { extendedPlayers } from '@/data/playersExtended';
+import { challengerTournaments, ChallengerTournament, getChallengerMoneyForRound } from '@/data/challengerTournaments';
 import { playMatch } from '@/lib/matchEngine';
-import { selectTournamentEntrants } from '@/lib/tournamentEntryLogic';
+import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard } from '@/lib/tournamentEntryLogic';
 import { TournamentDraw } from '@/hooks/useGameState';
+
+// Combine all ATP + Challenger tournaments into a unified list for Career Mode
+const allCareerTournaments: Tournament[] = [
+  ...tournaments,
+  ...challengerTournaments.map(ct => ({
+    id: ct.id,
+    name: ct.name,
+    city: ct.city,
+    country: ct.country,
+    category: ct.category as Tournament['category'],
+    surface: ct.surface,
+    week: ct.week,
+    playerLimit: ct.playerLimit,
+    seeds: ct.seeds,
+    points: {
+      winner: ct.points.winner,
+      finalist: ct.points.finalist,
+      sf: ct.points.sf,
+      qf: ct.points.qf,
+      r16: ct.points.r16,
+      r32: ct.points.r32,
+      r64: 0,
+      r128: 0,
+    },
+  })),
+];
+
+// All players: original 150 + extended 151-500
+const allInitialPlayers: Player[] = [...initialPlayers, ...extendedPlayers];
 
 const CAREER_STORAGE_KEY = 'tennis-dice-tour-career';
 
@@ -22,8 +53,8 @@ const getInitialCareerState = (): CareerState => {
     try {
       const parsed = JSON.parse(saved);
       // Migration: add allPlayers if missing
-      if (!parsed.allPlayers || parsed.allPlayers.length === 0) {
-        parsed.allPlayers = initialPlayers.map(p => ({ ...p }));
+      if (!parsed.allPlayers || parsed.allPlayers.length < 200) {
+        parsed.allPlayers = allInitialPlayers.map(p => ({ ...p }));
       }
       if (parsed.activeTournament === undefined) parsed.activeTournament = null;
       if (!parsed.tournamentHistory) parsed.tournamentHistory = [];
@@ -66,7 +97,7 @@ function getRoundNameFromCount(playersInRound: number): string {
   return 'R128';
 }
 
-// Auto-simulate a tournament for AI players
+// Auto-simulate a tournament for AI players (works for both ATP and Challenger)
 function autoSimulateTournamentBracket(
   tournament: Tournament,
   availablePlayers: Player[],
@@ -198,7 +229,7 @@ export const useCareerState = () => {
       developmentPoints: 5,
       totalDPEarned: 5,
       fictionalRankingScore: score,
-      officialRanking: 250,
+      officialRanking: 500,
       officialPoints: 0,
       livePoints: 0,
       previousYearPoints: new Array(52).fill(0),
@@ -219,7 +250,7 @@ export const useCareerState = () => {
       weeksSinceRest: 0,
       stats: {
         wins: 0, losses: 0, titlesWon: 0, tournamentsPlayed: 0, matchesPlayed: 0,
-        bestRanking: 250, bestResult: 'N/A',
+        bestRanking: 500, bestResult: 'N/A',
         surfaceWins: { Hard: 0, Clay: 0, Grass: 0 },
         surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 },
       },
@@ -233,7 +264,7 @@ export const useCareerState = () => {
 
     setState({
       player,
-      allPlayers: initialPlayers.map(p => ({ ...p })),
+      allPlayers: allInitialPlayers.map(p => ({ ...p })),
       currentWeek: 1,
       currentSeason: 1,
       completedTournaments: [],
@@ -300,7 +331,7 @@ export const useCareerState = () => {
   ) => {
     setState(prev => {
       if (!prev.player) return prev;
-      const tournament = tournaments.find(t => t.id === tournamentId);
+      const tournament = allCareerTournaments.find(t => t.id === tournamentId);
       if (!tournament) return prev;
 
       const p = { ...prev.player };
@@ -466,7 +497,7 @@ export const useCareerState = () => {
   const quickSimTournament = useCallback((tournamentId: string) => {
     setState(prev => {
       if (!prev.player) return prev;
-      const tournament = tournaments.find(t => t.id === tournamentId);
+      const tournament = allCareerTournaments.find(t => t.id === tournamentId);
       if (!tournament) return prev;
 
       const p = { ...prev.player };
@@ -719,8 +750,8 @@ export const useCareerState = () => {
       if (!prev.player) return prev;
       const p = { ...prev.player };
 
-      // Auto-simulate other tournaments for this week
-      const weekTournaments = tournaments.filter(t =>
+      // Auto-simulate other tournaments for this week (ATP + Challenger)
+      const weekTournaments = allCareerTournaments.filter(t =>
         t.week === prev.currentWeek &&
         !prev.completedTournaments.includes(t.id) &&
         !['Davis Cup', 'Laver Cup', 'ATP Finals'].includes(t.category)
@@ -922,6 +953,7 @@ export const useCareerState = () => {
   return {
     ...state,
     allPlayersWithCareer,
+    allCareerTournaments,
     createPlayer,
     addXP,
     spendDP,

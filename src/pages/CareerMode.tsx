@@ -21,9 +21,8 @@ import {
 import { Home, Calendar, TrendingUp, DollarSign, Heart, Trophy, Target, RotateCcw, ChevronRight, Save, Award, Users, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { tournaments } from '@/data/players';
-import { CAREER_PLAYER_ID } from '@/data/careerData';
-import { powerScoreToFictionalRanking } from '@/data/careerData';
+import { tournaments, Tournament } from '@/data/players';
+import { CAREER_PLAYER_ID, powerScoreToFictionalRanking } from '@/data/careerData';
 
 const CareerMode = () => {
   const career = useCareerState();
@@ -35,7 +34,7 @@ const CareerMode = () => {
 
   // If we're in an active tournament, show the tournament bracket view
   if (career.activeTournament) {
-    const tournament = tournaments.find(t => t.id === career.activeTournament);
+    const tournament = career.allCareerTournaments.find((t: Tournament) => t.id === career.activeTournament);
     if (tournament) {
       return (
         <div className="min-h-screen bg-background">
@@ -238,6 +237,7 @@ const CareerMode = () => {
               onTrain={career.train}
               onRest={career.rest}
               completedTournaments={career.completedTournaments}
+              allTournaments={career.allCareerTournaments}
             />
           </TabsContent>
           <TabsContent value="rankings" className="mt-0">
