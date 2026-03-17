@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { CareerPlayer, TrainingType, TRAINING_OPTIONS, PRIZE_MONEY, CITY_DATA, calculateTravelDistance, getTravelCost, getTravelFatigue, powerScoreToFictionalRanking } from '@/data/careerData';
-import { tournaments, Tournament, Surface, getSurfaceEmoji, getCategoryColor } from '@/data/players';
+import { Tournament, Surface, getSurfaceEmoji, getCategoryColor } from '@/data/players';
+import { getCareerEligibleCategories, canEnterAsWildCard } from '@/lib/tournamentEntryLogic';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
