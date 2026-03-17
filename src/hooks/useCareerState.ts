@@ -750,8 +750,8 @@ export const useCareerState = () => {
       if (!prev.player) return prev;
       const p = { ...prev.player };
 
-      // Auto-simulate other tournaments for this week
-      const weekTournaments = tournaments.filter(t =>
+      // Auto-simulate other tournaments for this week (ATP + Challenger)
+      const weekTournaments = allCareerTournaments.filter(t =>
         t.week === prev.currentWeek &&
         !prev.completedTournaments.includes(t.id) &&
         !['Davis Cup', 'Laver Cup', 'ATP Finals'].includes(t.category)
