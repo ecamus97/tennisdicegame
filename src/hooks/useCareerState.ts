@@ -53,8 +53,8 @@ const getInitialCareerState = (): CareerState => {
     try {
       const parsed = JSON.parse(saved);
       // Migration: add allPlayers if missing
-      if (!parsed.allPlayers || parsed.allPlayers.length === 0) {
-        parsed.allPlayers = initialPlayers.map(p => ({ ...p }));
+      if (!parsed.allPlayers || parsed.allPlayers.length < 200) {
+        parsed.allPlayers = allInitialPlayers.map(p => ({ ...p }));
       }
       if (parsed.activeTournament === undefined) parsed.activeTournament = null;
       if (!parsed.tournamentHistory) parsed.tournamentHistory = [];
