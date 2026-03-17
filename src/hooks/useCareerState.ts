@@ -10,9 +10,40 @@ import {
   AVAILABLE_SPONSORS, AVAILABLE_STAFF, CareerTournamentResult,
 } from '@/data/careerData';
 import { tournaments, Tournament, Surface, Player, initialPlayers } from '@/data/players';
+import { extendedPlayers } from '@/data/playersExtended';
+import { challengerTournaments, ChallengerTournament, getChallengerMoneyForRound } from '@/data/challengerTournaments';
 import { playMatch } from '@/lib/matchEngine';
-import { selectTournamentEntrants } from '@/lib/tournamentEntryLogic';
+import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard } from '@/lib/tournamentEntryLogic';
 import { TournamentDraw } from '@/hooks/useGameState';
+
+// Combine all ATP + Challenger tournaments into a unified list for Career Mode
+const allCareerTournaments: Tournament[] = [
+  ...tournaments,
+  ...challengerTournaments.map(ct => ({
+    id: ct.id,
+    name: ct.name,
+    city: ct.city,
+    country: ct.country,
+    category: ct.category as Tournament['category'],
+    surface: ct.surface,
+    week: ct.week,
+    playerLimit: ct.playerLimit,
+    seeds: ct.seeds,
+    points: {
+      winner: ct.points.winner,
+      finalist: ct.points.finalist,
+      sf: ct.points.sf,
+      qf: ct.points.qf,
+      r16: ct.points.r16,
+      r32: ct.points.r32,
+      r64: 0,
+      r128: 0,
+    },
+  })),
+];
+
+// All players: original 150 + extended 151-500
+const allInitialPlayers: Player[] = [...initialPlayers, ...extendedPlayers];
 
 const CAREER_STORAGE_KEY = 'tennis-dice-tour-career';
 
