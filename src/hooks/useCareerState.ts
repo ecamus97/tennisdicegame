@@ -953,6 +953,7 @@ export const useCareerState = () => {
   return {
     ...state,
     allPlayersWithCareer,
+    allCareerTournaments,
     createPlayer,
     addXP,
     spendDP,

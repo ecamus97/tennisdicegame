@@ -27,15 +27,21 @@ interface Props {
 
 const CareerDashboard: React.FC<Props> = ({
   player, currentWeek, currentSeason, weeklyActionTaken,
-  onEnterTournament, onQuickSimTournament, onTrain, onRest, completedTournaments,
+  onEnterTournament, onQuickSimTournament, onTrain, onRest, completedTournaments, allTournaments,
 }) => {
   const [selectedTraining, setSelectedTraining] = useState<TrainingType>('serve');
   const [surfaceTarget, setSurfaceTarget] = useState<Surface>('Hard');
 
-  const weekTournaments = useMemo(() =>
-    tournaments.filter(t => t.week === currentWeek && !['Davis Cup', 'Laver Cup', 'ATP Finals'].includes(t.category)),
-    [currentWeek]
-  );
+  // Get eligible categories for the player's ranking
+  const eligibleCategories = useMemo(() => getCareerEligibleCategories(player.officialRanking), [player.officialRanking]);
+
+  const weekTournaments = useMemo(() => {
+    const all = allTournaments.filter(t => t.week === currentWeek && !['Davis Cup', 'Laver Cup', 'ATP Finals'].includes(t.category));
+    // Filter to only eligible tournaments or wild card eligible
+    return all.filter(t => 
+      eligibleCategories.includes(t.category) || canEnterAsWildCard(player.countryCode, t.country)
+    );
+  }, [currentWeek, allTournaments, eligibleCategories, player.countryCode]);
 
   const fictionalRank = powerScoreToFictionalRanking(player.fictionalRankingScore);
 
