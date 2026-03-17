@@ -250,7 +250,7 @@ export const useCareerState = () => {
       weeksSinceRest: 0,
       stats: {
         wins: 0, losses: 0, titlesWon: 0, tournamentsPlayed: 0, matchesPlayed: 0,
-        bestRanking: 250, bestResult: 'N/A',
+        bestRanking: 500, bestResult: 'N/A',
         surfaceWins: { Hard: 0, Clay: 0, Grass: 0 },
         surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 },
       },
