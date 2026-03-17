@@ -97,7 +97,7 @@ function getRoundNameFromCount(playersInRound: number): string {
   return 'R128';
 }
 
-// Auto-simulate a tournament for AI players
+// Auto-simulate a tournament for AI players (works for both ATP and Challenger)
 function autoSimulateTournamentBracket(
   tournament: Tournament,
   availablePlayers: Player[],
