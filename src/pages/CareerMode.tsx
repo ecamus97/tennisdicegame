@@ -21,9 +21,8 @@ import {
 import { Home, Calendar, TrendingUp, DollarSign, Heart, Trophy, Target, RotateCcw, ChevronRight, Save, Award, Users, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { tournaments } from '@/data/players';
-import { CAREER_PLAYER_ID } from '@/data/careerData';
-import { powerScoreToFictionalRanking } from '@/data/careerData';
+import { tournaments, Tournament } from '@/data/players';
+import { CAREER_PLAYER_ID, powerScoreToFictionalRanking } from '@/data/careerData';
 
 const CareerMode = () => {
   const career = useCareerState();
