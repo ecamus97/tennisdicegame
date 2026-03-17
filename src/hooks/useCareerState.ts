@@ -229,7 +229,7 @@ export const useCareerState = () => {
       developmentPoints: 5,
       totalDPEarned: 5,
       fictionalRankingScore: score,
-      officialRanking: 250,
+      officialRanking: 500,
       officialPoints: 0,
       livePoints: 0,
       previousYearPoints: new Array(52).fill(0),
