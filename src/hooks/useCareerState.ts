@@ -264,7 +264,7 @@ export const useCareerState = () => {
 
     setState({
       player,
-      allPlayers: initialPlayers.map(p => ({ ...p })),
+      allPlayers: allInitialPlayers.map(p => ({ ...p })),
       currentWeek: 1,
       currentSeason: 1,
       completedTournaments: [],
