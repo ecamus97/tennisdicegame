@@ -509,8 +509,9 @@ export const useCareerState = () => {
       const p = { ...prev.player };
       const careerAsPlayer = careerPlayerToPlayer(p);
 
-      // Get available players for this tournament
-      const available = prev.allPlayers.filter(pl => !pl.injured);
+      // Get available players within ranking range
+      const range = getEligibleRankingRange(tournament.category);
+      const available = prev.allPlayers.filter(pl => !pl.injured && pl.officialRanking >= range.min && pl.officialRanking <= range.max);
       const entrants = available
         .sort((a, b) => a.officialRanking - b.officialRanking)
         .slice(0, tournament.playerLimit - 1);
