@@ -67,6 +67,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   onSaveDraw,
   excludedPlayerIds = new Set(),
   sameWeekSameCategoryCount = 1,
+  initialForcedEntrants = [],
 }) => {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [wildCardIds, setWildCardIds] = useState<Set<number>>(new Set());
