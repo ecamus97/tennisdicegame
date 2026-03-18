@@ -42,6 +42,7 @@ interface CurrentWeekViewProps {
   onSaveDraw?: (draw: TournamentDraw) => void;
   excludedPlayerIds?: Set<number>;
   sameWeekSameCategoryCount?: number;
+  initialForcedEntrants?: Player[];
 }
 
 // Helper function - defined outside component to avoid hoisting issues
