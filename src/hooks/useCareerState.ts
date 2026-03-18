@@ -632,6 +632,11 @@ export const useCareerState = () => {
       const { players: ranked, careerRanking } = recalculateRankings(updatedPlayers, p);
       p.officialRanking = careerRanking;
 
+      // Update best ranking
+      if (p.officialRanking < p.stats.bestRanking) {
+        p.stats = { ...p.stats, bestRanking: p.officialRanking };
+      }
+
       const historyEntry: CareerTournamentResult = {
         tournamentId, week: prev.currentWeek, season: prev.currentSeason,
         winnerId: winner.id, winnerName: winner.id === CAREER_PLAYER_ID ? `${p.firstName} ${p.lastName}` : winner.name,
@@ -645,7 +650,6 @@ export const useCareerState = () => {
         ...prev, player: p, allPlayers: ranked,
         completedTournaments: [...prev.completedTournaments, tournamentId],
         tournamentHistory: [...prev.tournamentHistory, historyEntry],
-        weeklyActionTaken: true,
       };
     });
   }, [addXP]);
