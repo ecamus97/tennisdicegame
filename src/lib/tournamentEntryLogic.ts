@@ -8,31 +8,32 @@ const getEntryProbability = (
 ): number => {
   switch (category) {
     case "Grand Slam":
+      if (ranking > 130) return 0;
       if (ranking <= 32) return 0.98;
       if (ranking <= 50) return 0.95;
       if (ranking <= 100) return 0.90;
       return 0.85;
 
     case "Masters 1000":
+      if (ranking > 60) return 0;
       if (ranking <= 10) return 0.95;
       if (ranking <= 20) return 0.90;
-      if (ranking <= 50) return 0.85;
-      if (ranking <= 100) return 0.80;
-      return 0.70;
+      if (ranking <= 40) return 0.85;
+      return 0.75;
 
     case "ATP 500":
+      if (ranking > 60) return 0;
       if (ranking <= 10) return 0.50;
       if (ranking <= 20) return 0.65;
-      if (ranking <= 50) return 0.80;
-      if (ranking <= 100) return 0.90;
-      return 0.95;
+      if (ranking <= 40) return 0.80;
+      return 0.90;
 
     case "ATP 250":
+      if (ranking > 100) return 0;
       if (ranking <= 10) return 0.15;
       if (ranking <= 20) return 0.30;
       if (ranking <= 50) return 0.50;
-      if (ranking <= 100) return 0.85;
-      return 0.95;
+      return 0.85;
 
     case "ATP Finals":
       return ranking <= 8 ? 1.0 : 0;
@@ -40,42 +41,25 @@ const getEntryProbability = (
     case "Laver Cup":
       return ranking <= 12 ? 0.85 : 0;
 
-    // Challenger tournaments: higher-ranked players rarely enter
     case "Challenger 175":
-      if (ranking <= 50) return 0.02;
-      if (ranking <= 80) return 0.10;
-      if (ranking <= 120) return 0.30;
-      if (ranking <= 200) return 0.60;
-      if (ranking <= 300) return 0.80;
-      return 0.90;
+      if (ranking < 80 || ranking > 150) return 0;
+      return 0.85;
 
     case "Challenger 125":
-      if (ranking <= 80) return 0.02;
-      if (ranking <= 120) return 0.15;
-      if (ranking <= 200) return 0.50;
-      if (ranking <= 300) return 0.75;
-      return 0.90;
+      if (ranking < 150 || ranking > 250) return 0;
+      return 0.85;
 
     case "Challenger 100":
-      if (ranking <= 100) return 0.02;
-      if (ranking <= 150) return 0.15;
-      if (ranking <= 250) return 0.50;
-      if (ranking <= 350) return 0.75;
-      return 0.90;
+      if (ranking < 250 || ranking > 350) return 0;
+      return 0.85;
 
     case "Challenger 75":
-      if (ranking <= 120) return 0.01;
-      if (ranking <= 200) return 0.10;
-      if (ranking <= 300) return 0.40;
-      if (ranking <= 400) return 0.70;
+      if (ranking < 300 || ranking > 400) return 0;
       return 0.85;
 
     case "Challenger 50":
-      if (ranking <= 150) return 0.01;
-      if (ranking <= 250) return 0.05;
-      if (ranking <= 350) return 0.30;
-      if (ranking <= 450) return 0.60;
-      return 0.80;
+      if (ranking < 400 || ranking > 500) return 0;
+      return 0.85;
 
     default:
       return 0.5;
