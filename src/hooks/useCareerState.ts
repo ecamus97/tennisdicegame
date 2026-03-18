@@ -580,7 +580,7 @@ export const useCareerState = () => {
 
       const distance = calculateTravelDistance(p.currentCity, tournament.city);
       const toData = CITY_DATA[tournament.city];
-      const toContinent = toData?.continent || 'Europe';
+      const toContinent = toData?.continent || getContinentFromCountry(tournament.country);
       let travelCost = getTravelCost(distance);
       const totalDiscount = p.sponsors.reduce((sum, s) => sum + s.sponsor.travelDiscount, 0);
       travelCost = Math.round(travelCost * Math.max(0.1, 1 - totalDiscount));
