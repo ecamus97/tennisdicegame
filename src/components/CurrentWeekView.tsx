@@ -80,7 +80,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   // ATP Finals specific state
   const [atpFinalsState, setAtpFinalsState] = useState<ATPFinalsState | null>(null);
   const [atpFinalsSelectedMatch, setAtpFinalsSelectedMatch] = useState<{ match: any; context: any } | null>(null);
-  const [forcedEntrants, setForcedEntrants] = useState<Player[]>([]);
+  const [forcedEntrants, setForcedEntrants] = useState<Player[]>(initialForcedEntrants);
   const [searchQuery, setSearchQuery] = useState("");
   const [davisCupState, setDavisCupState] = useState<DavisCupState | null>(null);
   const [davisCupSelectedMatch, setDavisCupSelectedMatch] = useState<{

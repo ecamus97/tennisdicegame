@@ -359,6 +359,30 @@ export function getTravelFatigue(distance: number, fromContinent: string, toCont
   return fatigue;
 }
 
+// Country-to-continent mapping for cities not in CITY_DATA
+export const COUNTRY_TO_CONTINENT: Record<string, Continent> = {
+  'Australia': 'Oceania', 'New Zealand': 'Oceania', 'New Caledonia': 'Oceania',
+  'Japan': 'Asia', 'China': 'Asia', 'South Korea': 'Asia', 'India': 'Asia',
+  'Thailand': 'Asia', 'Taiwan': 'Asia', 'Kazakhstan': 'Asia', 'Georgia': 'Asia',
+  'Bahrain': 'Middle East', 'Qatar': 'Middle East', 'UAE': 'Middle East',
+  'USA': 'North America', 'Canada': 'North America', 'Mexico': 'North America',
+  'Dominican Republic': 'North America',
+  'Argentina': 'South America', 'Brazil': 'South America', 'Chile': 'South America',
+  'Colombia': 'South America', 'Peru': 'South America', 'Bolivia': 'South America',
+  'Uruguay': 'South America', 'Paraguay': 'South America', 'Ecuador': 'South America',
+  'Morocco': 'Africa', 'Tunisia': 'Africa', 'Rwanda': 'Africa',
+  'Great Britain': 'Europe', 'France': 'Europe', 'Germany': 'Europe', 'Spain': 'Europe',
+  'Italy': 'Europe', 'Portugal': 'Europe', 'Austria': 'Europe', 'Switzerland': 'Europe',
+  'Belgium': 'Europe', 'Netherlands': 'Europe', 'Czech Republic': 'Europe',
+  'Croatia': 'Europe', 'Hungary': 'Europe', 'Romania': 'Europe', 'Bulgaria': 'Europe',
+  'Slovakia': 'Europe', 'Poland': 'Europe', 'Finland': 'Europe', 'Sweden': 'Europe',
+  'Serbia': 'Europe', 'San Marino': 'Europe', 'North Macedonia': 'Europe',
+};
+
+export function getContinentFromCountry(country: string): Continent {
+  return COUNTRY_TO_CONTINENT[country] || 'Europe';
+}
+
 // ==================== FICTIONAL RANKING ====================
 
 export function calculateFictionalRankingScore(attrs: CareerAttributes): number {

@@ -948,6 +948,102 @@ export const useCareerState = () => {
     });
   }, []);
 
+  // Simulate a single other tournament (without career player)
+  const simulateOtherTournament = useCallback((tournamentId: string) => {
+    setState(prev => {
+      if (!prev.player) return prev;
+      const tournament = allCareerTournaments.find(t => t.id === tournamentId);
+      if (!tournament || prev.completedTournaments.includes(tournamentId)) return prev;
+
+      const sim = autoSimulateTournamentBracket(tournament, prev.allPlayers);
+      if (sim.results.length === 0) return prev;
+
+      let updatedPlayers = prev.allPlayers.map(player => {
+        const result = sim.results.find(r => r.playerId === player.id);
+        if (!result) return player;
+        const newPrev = [...player.previousYearPoints];
+        newPrev[prev.currentWeek - 1] = (newPrev[prev.currentWeek - 1] || 0) + result.points;
+        return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, previousYearPoints: newPrev };
+      });
+
+      const p = { ...prev.player };
+      const { players: ranked, careerRanking } = recalculateRankings(updatedPlayers, p);
+      p.officialRanking = careerRanking;
+      if (careerRanking < p.stats.bestRanking) {
+        p.stats = { ...p.stats, bestRanking: careerRanking };
+      }
+
+      return {
+        ...prev,
+        player: p,
+        allPlayers: ranked,
+        completedTournaments: [...prev.completedTournaments, tournamentId],
+        tournamentHistory: [...prev.tournamentHistory, {
+          tournamentId, week: prev.currentWeek, season: prev.currentSeason,
+          winnerId: sim.winnerId, winnerName: sim.winnerName,
+          runnerUpId: sim.runnerUpId, runnerUpName: sim.runnerUpName,
+          results: sim.results,
+        }],
+      };
+    });
+  }, []);
+
+  // Simulate all uncompleted tournaments this week
+  const simulateAllOtherTournaments = useCallback(() => {
+    setState(prev => {
+      if (!prev.player) return prev;
+      const weekTournaments = allCareerTournaments.filter(t =>
+        t.week === prev.currentWeek &&
+        !prev.completedTournaments.includes(t.id) &&
+        !['Davis Cup', 'Laver Cup', 'ATP Finals'].includes(t.category)
+      );
+      if (weekTournaments.length === 0) return prev;
+
+      let updatedPlayers = [...prev.allPlayers];
+      const newHistory = [...prev.tournamentHistory];
+      const newCompleted = [...prev.completedTournaments];
+      const usedPlayerIds = new Set<number>();
+
+      for (const t of weekTournaments) {
+        const available = updatedPlayers.filter(pl => !pl.injured && !usedPlayerIds.has(pl.id));
+        const sim = autoSimulateTournamentBracket(t, available);
+        if (sim.results.length === 0) continue;
+
+        sim.results.forEach(r => usedPlayerIds.add(r.playerId));
+        updatedPlayers = updatedPlayers.map(player => {
+          const result = sim.results.find(r => r.playerId === player.id);
+          if (!result) return player;
+          const newPrev = [...player.previousYearPoints];
+          newPrev[prev.currentWeek - 1] = (newPrev[prev.currentWeek - 1] || 0) + result.points;
+          return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, previousYearPoints: newPrev };
+        });
+
+        newCompleted.push(t.id);
+        newHistory.push({
+          tournamentId: t.id, week: prev.currentWeek, season: prev.currentSeason,
+          winnerId: sim.winnerId, winnerName: sim.winnerName,
+          runnerUpId: sim.runnerUpId, runnerUpName: sim.runnerUpName,
+          results: sim.results,
+        });
+      }
+
+      const p = { ...prev.player };
+      const { players: ranked, careerRanking } = recalculateRankings(updatedPlayers, p);
+      p.officialRanking = careerRanking;
+      if (careerRanking < p.stats.bestRanking) {
+        p.stats = { ...p.stats, bestRanking: careerRanking };
+      }
+
+      return {
+        ...prev,
+        player: p,
+        allPlayers: ranked,
+        completedTournaments: newCompleted,
+        tournamentHistory: newHistory,
+      };
+    });
+  }, []);
+
   const resetCareer = useCallback(() => {
     localStorage.removeItem(CAREER_STORAGE_KEY);
     setState({
@@ -982,5 +1078,7 @@ export const useCareerState = () => {
     cancelSponsor,
     hireStaff,
     fireStaff,
+    simulateOtherTournament,
+    simulateAllOtherTournaments,
   };
 };

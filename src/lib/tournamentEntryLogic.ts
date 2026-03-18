@@ -186,7 +186,8 @@ export const selectTournamentEntrants = (
   tournamentCountry?: string,
   forceIncludePlayer?: Player // Force include a specific player (Career Mode player)
 ): TournamentEntryResult => {
-  const availablePlayers = players.filter(p => !p.injured);
+  const range = getEligibleRankingRange(category);
+  const availablePlayers = players.filter(p => !p.injured && p.officialRanking >= range.min && p.officialRanking <= range.max);
   const sortedPlayers = [...availablePlayers].sort(
     (a, b) => a.officialRanking - b.officialRanking
   );

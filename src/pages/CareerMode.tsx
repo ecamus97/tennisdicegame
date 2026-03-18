@@ -239,6 +239,9 @@ const CareerMode = () => {
               onRest={career.rest}
               completedTournaments={career.completedTournaments}
               allTournaments={career.allCareerTournaments}
+              onSimulateOtherTournament={career.simulateOtherTournament}
+              onSimulateAllOtherTournaments={career.simulateAllOtherTournaments}
+              tournamentHistory={career.tournamentHistory}
             />
           </TabsContent>
           <TabsContent value="rankings" className="mt-0">
@@ -249,6 +252,8 @@ const CareerMode = () => {
               player={career.player}
               currentWeek={career.currentWeek}
               completedTournaments={career.completedTournaments}
+              allTournaments={career.allCareerTournaments}
+              tournamentHistory={career.tournamentHistory}
             />
           </TabsContent>
           <TabsContent value="development" className="mt-0">
