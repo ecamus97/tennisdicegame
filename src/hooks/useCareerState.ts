@@ -390,7 +390,7 @@ export const useCareerState = () => {
       // Travel
       const distance = calculateTravelDistance(p.currentCity, tournament.city);
       const toData = CITY_DATA[tournament.city];
-      const toContinent = toData?.continent || 'Europe';
+      const toContinent = toData?.continent || getContinentFromCountry(tournament.country);
       const travelFat = getTravelFatigue(distance, p.currentContinent, toContinent);
       let travelCost = getTravelCost(distance);
 
