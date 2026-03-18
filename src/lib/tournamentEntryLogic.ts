@@ -8,31 +8,32 @@ const getEntryProbability = (
 ): number => {
   switch (category) {
     case "Grand Slam":
+      if (ranking > 130) return 0;
       if (ranking <= 32) return 0.98;
       if (ranking <= 50) return 0.95;
       if (ranking <= 100) return 0.90;
       return 0.85;
 
     case "Masters 1000":
+      if (ranking > 60) return 0;
       if (ranking <= 10) return 0.95;
       if (ranking <= 20) return 0.90;
-      if (ranking <= 50) return 0.85;
-      if (ranking <= 100) return 0.80;
-      return 0.70;
+      if (ranking <= 40) return 0.85;
+      return 0.75;
 
     case "ATP 500":
+      if (ranking > 60) return 0;
       if (ranking <= 10) return 0.50;
       if (ranking <= 20) return 0.65;
-      if (ranking <= 50) return 0.80;
-      if (ranking <= 100) return 0.90;
-      return 0.95;
+      if (ranking <= 40) return 0.80;
+      return 0.90;
 
     case "ATP 250":
+      if (ranking > 100) return 0;
       if (ranking <= 10) return 0.15;
       if (ranking <= 20) return 0.30;
       if (ranking <= 50) return 0.50;
-      if (ranking <= 100) return 0.85;
-      return 0.95;
+      return 0.85;
 
     case "ATP Finals":
       return ranking <= 8 ? 1.0 : 0;
@@ -40,42 +41,25 @@ const getEntryProbability = (
     case "Laver Cup":
       return ranking <= 12 ? 0.85 : 0;
 
-    // Challenger tournaments: higher-ranked players rarely enter
     case "Challenger 175":
-      if (ranking <= 50) return 0.02;
-      if (ranking <= 80) return 0.10;
-      if (ranking <= 120) return 0.30;
-      if (ranking <= 200) return 0.60;
-      if (ranking <= 300) return 0.80;
-      return 0.90;
+      if (ranking < 80 || ranking > 150) return 0;
+      return 0.85;
 
     case "Challenger 125":
-      if (ranking <= 80) return 0.02;
-      if (ranking <= 120) return 0.15;
-      if (ranking <= 200) return 0.50;
-      if (ranking <= 300) return 0.75;
-      return 0.90;
+      if (ranking < 150 || ranking > 250) return 0;
+      return 0.85;
 
     case "Challenger 100":
-      if (ranking <= 100) return 0.02;
-      if (ranking <= 150) return 0.15;
-      if (ranking <= 250) return 0.50;
-      if (ranking <= 350) return 0.75;
-      return 0.90;
+      if (ranking < 250 || ranking > 350) return 0;
+      return 0.85;
 
     case "Challenger 75":
-      if (ranking <= 120) return 0.01;
-      if (ranking <= 200) return 0.10;
-      if (ranking <= 300) return 0.40;
-      if (ranking <= 400) return 0.70;
+      if (ranking < 300 || ranking > 400) return 0;
       return 0.85;
 
     case "Challenger 50":
-      if (ranking <= 150) return 0.01;
-      if (ranking <= 250) return 0.05;
-      if (ranking <= 350) return 0.30;
-      if (ranking <= 450) return 0.60;
-      return 0.80;
+      if (ranking < 400 || ranking > 500) return 0;
+      return 0.85;
 
     default:
       return 0.5;
@@ -128,17 +112,35 @@ export interface TournamentEntryResult {
 // Check if a player is eligible for a tournament based on REAL ranking (for Career Mode)
 export const isEligibleForTournament = (ranking: number, category: TournamentCategory): boolean => {
   switch (category) {
-    case "Grand Slam": return ranking <= 128;
-    case "Masters 1000": return ranking <= 96;
-    case "ATP 500": return ranking <= 100;
-    case "ATP 250": return ranking <= 150;
+    case "Grand Slam": return ranking <= 130;
+    case "Masters 1000": return ranking <= 60;
+    case "ATP 500": return ranking <= 60;
+    case "ATP 250": return ranking <= 100;
     case "ATP Finals": return ranking <= 8;
-    case "Challenger 175": return ranking <= 300 || ranking > 50;
-    case "Challenger 125": return ranking <= 350 || ranking > 80;
-    case "Challenger 100": return ranking <= 400 || ranking > 100;
-    case "Challenger 75": return ranking <= 450 || ranking > 120;
-    case "Challenger 50": return true; // Anyone can enter CH50
+    case "Challenger 175": return ranking >= 80 && ranking <= 150;
+    case "Challenger 125": return ranking >= 150 && ranking <= 250;
+    case "Challenger 100": return ranking >= 250 && ranking <= 350;
+    case "Challenger 75": return ranking >= 300 && ranking <= 400;
+    case "Challenger 50": return ranking >= 400 && ranking <= 500;
     default: return true;
+  }
+};
+
+// Get eligible ranking range for CPU player entry
+export const getEligibleRankingRange = (category: TournamentCategory): { min: number; max: number } => {
+  switch (category) {
+    case 'Grand Slam': return { min: 1, max: 130 };
+    case 'Masters 1000': return { min: 1, max: 60 };
+    case 'ATP 500': return { min: 1, max: 60 };
+    case 'ATP 250': return { min: 1, max: 100 };
+    case 'ATP Finals': return { min: 1, max: 8 };
+    case 'Laver Cup': return { min: 1, max: 12 };
+    case 'Challenger 175': return { min: 80, max: 150 };
+    case 'Challenger 125': return { min: 150, max: 250 };
+    case 'Challenger 100': return { min: 250, max: 350 };
+    case 'Challenger 75': return { min: 300, max: 400 };
+    case 'Challenger 50': return { min: 400, max: 500 };
+    default: return { min: 1, max: 500 };
   }
 };
 
@@ -146,17 +148,16 @@ export const isEligibleForTournament = (ranking: number, category: TournamentCat
 export const getCareerEligibleCategories = (ranking: number): TournamentCategory[] => {
   const categories: TournamentCategory[] = [];
 
-  // Challengers based on ranking
   if (ranking > 300) {
     categories.push("Challenger 50", "Challenger 75");
   } else if (ranking > 200) {
-    categories.push("Challenger 50", "Challenger 75", "Challenger 100");
+    categories.push("Challenger 75", "Challenger 100");
   } else if (ranking > 150) {
-    categories.push("Challenger 75", "Challenger 100", "Challenger 125");
+    categories.push("Challenger 100", "Challenger 125");
   } else if (ranking > 100) {
-    categories.push("Challenger 100", "Challenger 125", "Challenger 175", "ATP 250");
+    categories.push("Challenger 125", "ATP 250");
   } else if (ranking > 50) {
-    categories.push("Challenger 125", "Challenger 175", "ATP 250", "ATP 500");
+    categories.push("ATP 250", "ATP 500");
   } else if (ranking > 40) {
     categories.push("ATP 250", "ATP 500", "Masters 1000");
   } else {
@@ -164,7 +165,7 @@ export const getCareerEligibleCategories = (ranking: number): TournamentCategory
   }
 
   // Grand Slams for Top 100
-  if (ranking <= 128) {
+  if (ranking <= 100) {
     categories.push("Grand Slam");
   }
 
@@ -185,7 +186,8 @@ export const selectTournamentEntrants = (
   tournamentCountry?: string,
   forceIncludePlayer?: Player // Force include a specific player (Career Mode player)
 ): TournamentEntryResult => {
-  const availablePlayers = players.filter(p => !p.injured);
+  const range = getEligibleRankingRange(category);
+  const availablePlayers = players.filter(p => !p.injured && p.officialRanking >= range.min && p.officialRanking <= range.max);
   const sortedPlayers = [...availablePlayers].sort(
     (a, b) => a.officialRanking - b.officialRanking
   );

@@ -64,6 +64,7 @@ const CareerMode = () => {
               key={tournament.id}
               tournament={tournament}
               players={career.allPlayersWithCareer}
+              initialForcedEntrants={career.allPlayersWithCareer.filter(p => p.id === CAREER_PLAYER_ID)}
               onTournamentComplete={(tournamentId, results, winnerId, runnerUpId) => {
                 career.completeTournament(tournamentId, results, winnerId, runnerUpId);
                 const careerResult = results.find(r => r.playerId === CAREER_PLAYER_ID);
@@ -238,6 +239,9 @@ const CareerMode = () => {
               onRest={career.rest}
               completedTournaments={career.completedTournaments}
               allTournaments={career.allCareerTournaments}
+              onSimulateOtherTournament={career.simulateOtherTournament}
+              onSimulateAllOtherTournaments={career.simulateAllOtherTournaments}
+              tournamentHistory={career.tournamentHistory}
             />
           </TabsContent>
           <TabsContent value="rankings" className="mt-0">
@@ -248,6 +252,8 @@ const CareerMode = () => {
               player={career.player}
               currentWeek={career.currentWeek}
               completedTournaments={career.completedTournaments}
+              allTournaments={career.allCareerTournaments}
+              tournamentHistory={career.tournamentHistory}
             />
           </TabsContent>
           <TabsContent value="development" className="mt-0">

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CareerPlayer, TrainingType, TRAINING_OPTIONS, PRIZE_MONEY, CITY_DATA, calculateTravelDistance, getTravelCost, getTravelFatigue, powerScoreToFictionalRanking } from '@/data/careerData';
+import { CareerPlayer, TrainingType, TRAINING_OPTIONS, PRIZE_MONEY, CITY_DATA, calculateTravelDistance, getTravelCost, getTravelFatigue, powerScoreToFictionalRanking, CareerTournamentResult } from '@/data/careerData';
 import { Tournament, Surface, getSurfaceEmoji, getCategoryColor } from '@/data/players';
 import { getCareerEligibleCategories, canEnterAsWildCard } from '@/lib/tournamentEntryLogic';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import {
   MapPin, Plane, Dumbbell, BedDouble, Trophy, TrendingUp, Heart, Zap, Activity,
-  AlertTriangle, Calendar, Play, FastForward
+  AlertTriangle, Calendar, Play, FastForward, Lock, Globe
 } from 'lucide-react';
 
 interface Props {
@@ -23,25 +23,49 @@ interface Props {
   onRest: () => void;
   completedTournaments: string[];
   allTournaments: Tournament[];
+  onSimulateOtherTournament: (tournamentId: string) => void;
+  onSimulateAllOtherTournaments: () => void;
+  tournamentHistory: CareerTournamentResult[];
 }
 
 const CareerDashboard: React.FC<Props> = ({
   player, currentWeek, currentSeason, weeklyActionTaken,
   onEnterTournament, onQuickSimTournament, onTrain, onRest, completedTournaments, allTournaments,
+  onSimulateOtherTournament, onSimulateAllOtherTournaments, tournamentHistory,
 }) => {
   const [selectedTraining, setSelectedTraining] = useState<TrainingType>('serve');
   const [surfaceTarget, setSurfaceTarget] = useState<Surface>('Hard');
 
-  // Get eligible categories for the player's ranking
   const eligibleCategories = useMemo(() => getCareerEligibleCategories(player.officialRanking), [player.officialRanking]);
 
-  const weekTournaments = useMemo(() => {
-    const all = allTournaments.filter(t => t.week === currentWeek && !['Davis Cup', 'Laver Cup', 'ATP Finals'].includes(t.category));
-    // Filter to only eligible tournaments or wild card eligible
-    return all.filter(t => 
+  const careerPlayedThisWeek = useMemo(() =>
+    player.seasonHistory.some(s => s.week === currentWeek && s.season === currentSeason),
+    [player.seasonHistory, currentWeek, currentSeason]
+  );
+
+  const actionBlocked = weeklyActionTaken || careerPlayedThisWeek;
+
+  const allWeekTournaments = useMemo(() => {
+    return allTournaments.filter(t => t.week === currentWeek && !['Davis Cup', 'Laver Cup', 'ATP Finals'].includes(t.category));
+  }, [currentWeek, allTournaments]);
+
+  const eligibleTournaments = useMemo(() => {
+    return allWeekTournaments.filter(t =>
       eligibleCategories.includes(t.category) || canEnterAsWildCard(player.countryCode, t.country)
     );
-  }, [currentWeek, allTournaments, eligibleCategories, player.countryCode]);
+  }, [allWeekTournaments, eligibleCategories, player.countryCode]);
+
+  const ineligibleTournaments = useMemo(() => {
+    return allWeekTournaments.filter(t => !eligibleTournaments.some(e => e.id === t.id));
+  }, [allWeekTournaments, eligibleTournaments]);
+
+  const uncompletedOtherTournaments = useMemo(() => {
+    return allWeekTournaments.filter(t => !completedTournaments.includes(t.id));
+  }, [allWeekTournaments, completedTournaments]);
+
+  const completedThisWeek = useMemo(() => {
+    return allWeekTournaments.filter(t => completedTournaments.includes(t.id));
+  }, [allWeekTournaments, completedTournaments]);
 
   const fictionalRank = powerScoreToFictionalRanking(player.fictionalRankingScore);
 
@@ -146,33 +170,44 @@ const CareerDashboard: React.FC<Props> = ({
             Week {currentWeek} — Choose Your Action
           </h3>
 
-          {weeklyActionTaken ? (
-            <div className="p-4 rounded-lg bg-primary/10 border border-primary/30 text-center">
-              <p className="text-sm text-primary font-medium">✅ Action completed this week</p>
+          {/* Status Messages */}
+          {weeklyActionTaken && !careerPlayedThisWeek && (
+            <div className="p-4 rounded-lg bg-primary/10 border border-primary/30 text-center mb-4">
+              <p className="text-sm text-primary font-medium">✅ Action completed this week (trained/rested)</p>
               <p className="text-xs text-muted-foreground mt-1">Advance to next week to continue</p>
             </div>
-          ) : player.injured ? (
-            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-center">
+          )}
+
+          {careerPlayedThisWeek && (
+            <div className="p-4 rounded-lg bg-primary/10 border border-primary/30 text-center mb-4">
+              <p className="text-sm text-primary font-medium">✅ Tournament completed this week</p>
+              <p className="text-xs text-muted-foreground mt-1">You can still simulate other tournaments below</p>
+            </div>
+          )}
+
+          {player.injured && !careerPlayedThisWeek && !weeklyActionTaken && (
+            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-center mb-4">
               <p className="text-sm text-destructive">🤕 You're injured and can't compete</p>
               <Button size="sm" variant="secondary" onClick={handleRest} className="mt-2">
                 <BedDouble className="w-4 h-4 mr-1" /> Rest & Recover
               </Button>
             </div>
-          ) : (
+          )}
+
+          {/* Career Player Actions (when not yet acted) */}
+          {!actionBlocked && !player.injured && (
             <div className="space-y-4">
-              {/* Tournaments */}
-              {weekTournaments.length > 0 && (
+              {/* Available Tournaments */}
+              {eligibleTournaments.length > 0 && (
                 <div>
                   <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
                     <Trophy className="w-3.5 h-3.5" /> Available Tournaments
                   </h4>
                   <div className="space-y-2">
-                    {weekTournaments.map(t => {
+                    {eligibleTournaments.map(t => {
                       const isCompleted = completedTournaments.includes(t.id);
                       const distance = calculateTravelDistance(player.currentCity, t.city);
                       const cost = getTravelCost(distance);
-                      const cityData = CITY_DATA[t.city];
-                      const fatigue = getTravelFatigue(distance, player.currentContinent, cityData?.continent || 'Europe');
                       const prize = PRIZE_MONEY[t.category];
 
                       return (
@@ -190,33 +225,21 @@ const CareerDashboard: React.FC<Props> = ({
                               </div>
                               <div className="flex items-center gap-3 mt-1 text-xs">
                                 <span className="text-destructive">Travel: ${cost.toLocaleString()}</span>
-                                <span className="text-yellow-400">Fatigue: +{fatigue}</span>
-                                <span className="text-accent">Winner: ${prize?.winner.toLocaleString()}</span>
+                                {prize && <span className="text-accent">Winner: ${prize.winner.toLocaleString()}</span>}
                               </div>
                             </div>
                             <div className="flex items-center gap-2 ml-2">
-                              <Button
-                                size="sm"
-                                disabled={isCompleted || weeklyActionTaken}
-                                onClick={() => onEnterTournament(t.id)}
-                                className="gap-1"
-                              >
-                                <Play className="w-3 h-3" />
-                                Play
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                disabled={isCompleted || weeklyActionTaken}
-                                onClick={() => {
-                                  onQuickSimTournament(t.id);
-                                  toast.info(`Simulating ${t.name}...`);
-                                }}
-                                className="gap-1"
-                              >
-                                <FastForward className="w-3 h-3" />
-                                Sim
-                              </Button>
+                              {!isCompleted && (
+                                <>
+                                  <Button size="sm" onClick={() => onEnterTournament(t.id)} className="gap-1">
+                                    <Play className="w-3 h-3" /> Play
+                                  </Button>
+                                  <Button size="sm" variant="secondary" onClick={() => { onQuickSimTournament(t.id); toast.info(`Simulating ${t.name}...`); }} className="gap-1">
+                                    <FastForward className="w-3 h-3" /> Sim
+                                  </Button>
+                                </>
+                              )}
+                              {isCompleted && <span className="text-xs text-green-400">✅</span>}
                             </div>
                           </div>
                         </div>
@@ -226,7 +249,34 @@ const CareerDashboard: React.FC<Props> = ({
                 </div>
               )}
 
-              {weekTournaments.length === 0 && (
+              {/* Ineligible Tournaments */}
+              {ineligibleTournaments.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                    <Lock className="w-3.5 h-3.5" /> Not Eligible (Ranking Required)
+                  </h4>
+                  <div className="space-y-2">
+                    {ineligibleTournaments.slice(0, 5).map(t => (
+                      <div key={t.id} className="p-3 rounded-lg border bg-muted/10 border-border/20 opacity-50">
+                        <div className="flex items-center gap-2">
+                          <span className={getCategoryColor(t.category) + ' !text-[10px]'}>{t.category}</span>
+                          <span className="font-medium text-sm text-foreground">{t.name}</span>
+                          <Lock className="w-3 h-3 text-muted-foreground" />
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span>{t.city}, {t.country}</span>
+                          <span>{getSurfaceEmoji(t.surface)} {t.surface}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {ineligibleTournaments.length > 5 && (
+                      <p className="text-xs text-muted-foreground">+{ineligibleTournaments.length - 5} more tournaments</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {allWeekTournaments.length === 0 && (
                 <div className="p-4 rounded-lg bg-secondary/20 text-center">
                   <p className="text-sm text-muted-foreground">No tournaments this week</p>
                 </div>
@@ -258,14 +308,72 @@ const CareerDashboard: React.FC<Props> = ({
                       </SelectContent>
                     </Select>
                   )}
-                  <Button size="sm" variant="secondary" onClick={handleTrain} disabled={weeklyActionTaken}>Train</Button>
+                  <Button size="sm" variant="secondary" onClick={handleTrain}>Train</Button>
                 </div>
               </div>
 
               {/* Rest */}
-              <Button variant="outline" className="w-full gap-2" onClick={handleRest} disabled={weeklyActionTaken}>
+              <Button variant="outline" className="w-full gap-2" onClick={handleRest}>
                 <BedDouble className="w-4 h-4" /> Rest This Week
               </Button>
+            </div>
+          )}
+
+          {/* Other Tournaments - Available for simulation after career action */}
+          {actionBlocked && uncompletedOtherTournaments.length > 0 && (
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-foreground flex items-center gap-1">
+                  <Globe className="w-3.5 h-3.5" /> Other Tournaments This Week
+                </h4>
+                <Button size="sm" variant="secondary" onClick={() => { onSimulateAllOtherTournaments(); toast.success('All remaining tournaments simulated!'); }} className="gap-1">
+                  <FastForward className="w-3 h-3" /> Simulate All
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {uncompletedOtherTournaments.map(t => (
+                  <div key={t.id} className="p-3 rounded-lg border bg-secondary/20 border-border/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={getCategoryColor(t.category) + ' !text-[10px]'}>{t.category}</span>
+                          <span className="font-medium text-sm text-foreground">{t.name}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span>{t.city}, {t.country}</span>
+                          <span>{getSurfaceEmoji(t.surface)} {t.surface}</span>
+                        </div>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => { onSimulateOtherTournament(t.id); toast.info(`${t.name} simulated!`); }} className="gap-1">
+                        <FastForward className="w-3 h-3" /> Sim
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Completed tournaments this week */}
+          {completedThisWeek.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <h4 className="text-xs font-medium text-muted-foreground">✅ Completed This Week</h4>
+              {completedThisWeek.map(t => {
+                const historyEntry = tournamentHistory.find(h => h.tournamentId === t.id);
+                return (
+                  <div key={t.id} className="flex items-center justify-between text-xs p-2 rounded bg-muted/20">
+                    <div className="flex items-center gap-2">
+                      <span className={getCategoryColor(t.category) + ' !text-[9px]'}>{t.category}</span>
+                      <span className="text-muted-foreground">{t.name}</span>
+                    </div>
+                    {historyEntry && (
+                      <span className="text-primary flex items-center gap-1">
+                        <Trophy className="w-3 h-3" /> {historyEntry.winnerName}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -328,8 +436,8 @@ const CareerDashboard: React.FC<Props> = ({
             <div className="space-y-1.5">
               {player.seasonHistory.slice(-5).reverse().map((e, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
-                  <span className="text-foreground truncate flex-1">{e.tournamentName}</span>
-                  <span className={`ml-2 font-medium ${e.round === 'Winner' ? 'text-primary' : 'text-muted-foreground'}`}>{e.round}</span>
+                  <span className="text-foreground truncate">{e.tournamentName}</span>
+                  <span className={`font-medium ${e.round === 'Winner' ? 'text-primary' : 'text-muted-foreground'}`}>{e.round}</span>
                 </div>
               ))}
             </div>

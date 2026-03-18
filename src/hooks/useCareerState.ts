@@ -8,12 +8,13 @@ import {
   TRAINING_OPTIONS, CAREER_PLAYER_ID, getMoneyForRound,
   ActiveSponsor, Sponsor, ActiveStaff, StaffMember,
   AVAILABLE_SPONSORS, AVAILABLE_STAFF, CareerTournamentResult,
+  getContinentFromCountry,
 } from '@/data/careerData';
 import { tournaments, Tournament, Surface, Player, initialPlayers } from '@/data/players';
 import { extendedPlayers } from '@/data/playersExtended';
 import { challengerTournaments, ChallengerTournament, getChallengerMoneyForRound } from '@/data/challengerTournaments';
 import { playMatch } from '@/lib/matchEngine';
-import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard } from '@/lib/tournamentEntryLogic';
+import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard, getEligibleRankingRange } from '@/lib/tournamentEntryLogic';
 import { TournamentDraw } from '@/hooks/useGameState';
 
 // Combine all ATP + Challenger tournaments into a unified list for Career Mode
@@ -106,8 +107,9 @@ function autoSimulateTournamentBracket(
     return { results: [], winnerId: 0, runnerUpId: 0, winnerName: '', runnerUpName: '' };
   }
 
+  const range = getEligibleRankingRange(tournament.category);
   const entrants = availablePlayers
-    .filter(p => !p.injured && p.id !== CAREER_PLAYER_ID)
+    .filter(p => !p.injured && p.id !== CAREER_PLAYER_ID && p.officialRanking >= range.min && p.officialRanking <= range.max)
     .sort((a, b) => a.officialRanking - b.officialRanking)
     .slice(0, tournament.playerLimit);
 
@@ -388,7 +390,7 @@ export const useCareerState = () => {
       // Travel
       const distance = calculateTravelDistance(p.currentCity, tournament.city);
       const toData = CITY_DATA[tournament.city];
-      const toContinent = toData?.continent || 'Europe';
+      const toContinent = toData?.continent || getContinentFromCountry(tournament.country);
       const travelFat = getTravelFatigue(distance, p.currentContinent, toContinent);
       let travelCost = getTravelCost(distance);
 
@@ -478,6 +480,11 @@ export const useCareerState = () => {
         results,
       };
 
+      // Update best ranking
+      if (p.officialRanking < p.stats.bestRanking) {
+        p.stats = { ...p.stats, bestRanking: p.officialRanking };
+      }
+
       setTimeout(() => addXP(Math.round(xpGained)), 0);
 
       return {
@@ -486,7 +493,6 @@ export const useCareerState = () => {
         allPlayers: rankedPlayers,
         completedTournaments: [...prev.completedTournaments, tournamentId],
         tournamentHistory: [...prev.tournamentHistory, historyEntry],
-        weeklyActionTaken: true,
         activeTournament: null,
         currentDraw: null,
       };
@@ -503,8 +509,9 @@ export const useCareerState = () => {
       const p = { ...prev.player };
       const careerAsPlayer = careerPlayerToPlayer(p);
 
-      // Get available players for this tournament
-      const available = prev.allPlayers.filter(pl => !pl.injured);
+      // Get available players within ranking range
+      const range = getEligibleRankingRange(tournament.category);
+      const available = prev.allPlayers.filter(pl => !pl.injured && pl.officialRanking >= range.min && pl.officialRanking <= range.max);
       const entrants = available
         .sort((a, b) => a.officialRanking - b.officialRanking)
         .slice(0, tournament.playerLimit - 1);
@@ -573,7 +580,7 @@ export const useCareerState = () => {
 
       const distance = calculateTravelDistance(p.currentCity, tournament.city);
       const toData = CITY_DATA[tournament.city];
-      const toContinent = toData?.continent || 'Europe';
+      const toContinent = toData?.continent || getContinentFromCountry(tournament.country);
       let travelCost = getTravelCost(distance);
       const totalDiscount = p.sponsors.reduce((sum, s) => sum + s.sponsor.travelDiscount, 0);
       travelCost = Math.round(travelCost * Math.max(0.1, 1 - totalDiscount));
@@ -625,6 +632,11 @@ export const useCareerState = () => {
       const { players: ranked, careerRanking } = recalculateRankings(updatedPlayers, p);
       p.officialRanking = careerRanking;
 
+      // Update best ranking
+      if (p.officialRanking < p.stats.bestRanking) {
+        p.stats = { ...p.stats, bestRanking: p.officialRanking };
+      }
+
       const historyEntry: CareerTournamentResult = {
         tournamentId, week: prev.currentWeek, season: prev.currentSeason,
         winnerId: winner.id, winnerName: winner.id === CAREER_PLAYER_ID ? `${p.firstName} ${p.lastName}` : winner.name,
@@ -638,7 +650,6 @@ export const useCareerState = () => {
         ...prev, player: p, allPlayers: ranked,
         completedTournaments: [...prev.completedTournaments, tournamentId],
         tournamentHistory: [...prev.tournamentHistory, historyEntry],
-        weeklyActionTaken: true,
       };
     });
   }, [addXP]);
@@ -937,6 +948,102 @@ export const useCareerState = () => {
     });
   }, []);
 
+  // Simulate a single other tournament (without career player)
+  const simulateOtherTournament = useCallback((tournamentId: string) => {
+    setState(prev => {
+      if (!prev.player) return prev;
+      const tournament = allCareerTournaments.find(t => t.id === tournamentId);
+      if (!tournament || prev.completedTournaments.includes(tournamentId)) return prev;
+
+      const sim = autoSimulateTournamentBracket(tournament, prev.allPlayers);
+      if (sim.results.length === 0) return prev;
+
+      let updatedPlayers = prev.allPlayers.map(player => {
+        const result = sim.results.find(r => r.playerId === player.id);
+        if (!result) return player;
+        const newPrev = [...player.previousYearPoints];
+        newPrev[prev.currentWeek - 1] = (newPrev[prev.currentWeek - 1] || 0) + result.points;
+        return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, previousYearPoints: newPrev };
+      });
+
+      const p = { ...prev.player };
+      const { players: ranked, careerRanking } = recalculateRankings(updatedPlayers, p);
+      p.officialRanking = careerRanking;
+      if (careerRanking < p.stats.bestRanking) {
+        p.stats = { ...p.stats, bestRanking: careerRanking };
+      }
+
+      return {
+        ...prev,
+        player: p,
+        allPlayers: ranked,
+        completedTournaments: [...prev.completedTournaments, tournamentId],
+        tournamentHistory: [...prev.tournamentHistory, {
+          tournamentId, week: prev.currentWeek, season: prev.currentSeason,
+          winnerId: sim.winnerId, winnerName: sim.winnerName,
+          runnerUpId: sim.runnerUpId, runnerUpName: sim.runnerUpName,
+          results: sim.results,
+        }],
+      };
+    });
+  }, []);
+
+  // Simulate all uncompleted tournaments this week
+  const simulateAllOtherTournaments = useCallback(() => {
+    setState(prev => {
+      if (!prev.player) return prev;
+      const weekTournaments = allCareerTournaments.filter(t =>
+        t.week === prev.currentWeek &&
+        !prev.completedTournaments.includes(t.id) &&
+        !['Davis Cup', 'Laver Cup', 'ATP Finals'].includes(t.category)
+      );
+      if (weekTournaments.length === 0) return prev;
+
+      let updatedPlayers = [...prev.allPlayers];
+      const newHistory = [...prev.tournamentHistory];
+      const newCompleted = [...prev.completedTournaments];
+      const usedPlayerIds = new Set<number>();
+
+      for (const t of weekTournaments) {
+        const available = updatedPlayers.filter(pl => !pl.injured && !usedPlayerIds.has(pl.id));
+        const sim = autoSimulateTournamentBracket(t, available);
+        if (sim.results.length === 0) continue;
+
+        sim.results.forEach(r => usedPlayerIds.add(r.playerId));
+        updatedPlayers = updatedPlayers.map(player => {
+          const result = sim.results.find(r => r.playerId === player.id);
+          if (!result) return player;
+          const newPrev = [...player.previousYearPoints];
+          newPrev[prev.currentWeek - 1] = (newPrev[prev.currentWeek - 1] || 0) + result.points;
+          return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, previousYearPoints: newPrev };
+        });
+
+        newCompleted.push(t.id);
+        newHistory.push({
+          tournamentId: t.id, week: prev.currentWeek, season: prev.currentSeason,
+          winnerId: sim.winnerId, winnerName: sim.winnerName,
+          runnerUpId: sim.runnerUpId, runnerUpName: sim.runnerUpName,
+          results: sim.results,
+        });
+      }
+
+      const p = { ...prev.player };
+      const { players: ranked, careerRanking } = recalculateRankings(updatedPlayers, p);
+      p.officialRanking = careerRanking;
+      if (careerRanking < p.stats.bestRanking) {
+        p.stats = { ...p.stats, bestRanking: careerRanking };
+      }
+
+      return {
+        ...prev,
+        player: p,
+        allPlayers: ranked,
+        completedTournaments: newCompleted,
+        tournamentHistory: newHistory,
+      };
+    });
+  }, []);
+
   const resetCareer = useCallback(() => {
     localStorage.removeItem(CAREER_STORAGE_KEY);
     setState({
@@ -971,5 +1078,7 @@ export const useCareerState = () => {
     cancelSponsor,
     hireStaff,
     fireStaff,
+    simulateOtherTournament,
+    simulateAllOtherTournaments,
   };
 };

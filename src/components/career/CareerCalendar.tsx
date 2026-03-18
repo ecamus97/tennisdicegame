@@ -1,23 +1,52 @@
-import React from 'react';
-import { CareerPlayer, CITY_DATA, calculateTravelDistance, getTravelCost, getTravelFatigue } from '@/data/careerData';
-import { tournaments, getSurfaceEmoji, getCategoryColor } from '@/data/players';
-import { MapPin, Plane, Check } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { CareerPlayer, CareerTournamentResult } from '@/data/careerData';
+import { Tournament, getSurfaceEmoji, getCategoryColor } from '@/data/players';
+import { Check, Trophy } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Props {
   player: CareerPlayer;
   currentWeek: number;
   completedTournaments: string[];
+  allTournaments: Tournament[];
+  tournamentHistory: CareerTournamentResult[];
 }
 
-const CareerCalendar: React.FC<Props> = ({ player, currentWeek, completedTournaments }) => {
+const CareerCalendar: React.FC<Props> = ({ player, currentWeek, completedTournaments, allTournaments, tournamentHistory }) => {
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+
   const weeks = Array.from({ length: 52 }, (_, i) => i + 1);
+
+  const filteredTournaments = useMemo(() => {
+    if (categoryFilter === 'all') return allTournaments;
+    return allTournaments.filter(t => t.category === categoryFilter);
+  }, [allTournaments, categoryFilter]);
 
   return (
     <div className="glass-card p-4">
-      <h2 className="font-display font-semibold text-foreground mb-4">📅 Season Calendar</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-display font-semibold text-foreground">📅 Season Calendar</h2>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Tournaments</SelectItem>
+            <SelectItem value="Grand Slam">Grand Slam</SelectItem>
+            <SelectItem value="Masters 1000">Masters 1000</SelectItem>
+            <SelectItem value="ATP 500">ATP 500</SelectItem>
+            <SelectItem value="ATP 250">ATP 250</SelectItem>
+            <SelectItem value="Challenger 175">Challenger 175</SelectItem>
+            <SelectItem value="Challenger 125">Challenger 125</SelectItem>
+            <SelectItem value="Challenger 100">Challenger 100</SelectItem>
+            <SelectItem value="Challenger 75">Challenger 75</SelectItem>
+            <SelectItem value="Challenger 50">Challenger 50</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div className="space-y-1">
         {weeks.map(week => {
-          const weekTournaments = tournaments.filter(t => t.week === week);
+          const weekTournaments = filteredTournaments.filter(t => t.week === week);
           const isCurrent = week === currentWeek;
           const isPast = week < currentWeek;
 
@@ -43,10 +72,7 @@ const CareerCalendar: React.FC<Props> = ({ player, currentWeek, completedTournam
                 <div className="space-y-1">
                   {weekTournaments.map(t => {
                     const completed = completedTournaments.includes(t.id);
-                    const distance = calculateTravelDistance(player.currentCity, t.city);
-                    const cost = getTravelCost(distance);
-                    const cityData = CITY_DATA[t.city];
-                    const fatigue = getTravelFatigue(distance, player.currentContinent, cityData?.continent || 'Europe');
+                    const historyEntry = tournamentHistory.find(h => h.tournamentId === t.id);
                     const result = player.seasonHistory.find(s => s.tournamentId === t.id);
 
                     return (
@@ -63,11 +89,10 @@ const CareerCalendar: React.FC<Props> = ({ player, currentWeek, completedTournam
                               {result.round}
                             </span>
                           )}
-                          {!isPast && !completed && (
-                            <>
-                              <span className="text-muted-foreground">{Math.round(distance)}km</span>
-                              <span className="text-destructive/70">${cost.toLocaleString()}</span>
-                            </>
+                          {historyEntry && !result && (
+                            <span className="flex items-center gap-1 text-muted-foreground">
+                              <Trophy className="w-3 h-3" /> {historyEntry.winnerName}
+                            </span>
                           )}
                         </div>
                       </div>
