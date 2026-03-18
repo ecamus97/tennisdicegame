@@ -480,6 +480,11 @@ export const useCareerState = () => {
         results,
       };
 
+      // Update best ranking
+      if (p.officialRanking < p.stats.bestRanking) {
+        p.stats = { ...p.stats, bestRanking: p.officialRanking };
+      }
+
       setTimeout(() => addXP(Math.round(xpGained)), 0);
 
       return {
@@ -488,7 +493,6 @@ export const useCareerState = () => {
         allPlayers: rankedPlayers,
         completedTournaments: [...prev.completedTournaments, tournamentId],
         tournamentHistory: [...prev.tournamentHistory, historyEntry],
-        weeklyActionTaken: true,
         activeTournament: null,
         currentDraw: null,
       };
