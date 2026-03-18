@@ -107,8 +107,9 @@ function autoSimulateTournamentBracket(
     return { results: [], winnerId: 0, runnerUpId: 0, winnerName: '', runnerUpName: '' };
   }
 
+  const range = getEligibleRankingRange(tournament.category);
   const entrants = availablePlayers
-    .filter(p => !p.injured && p.id !== CAREER_PLAYER_ID)
+    .filter(p => !p.injured && p.id !== CAREER_PLAYER_ID && p.officialRanking >= range.min && p.officialRanking <= range.max)
     .sort((a, b) => a.officialRanking - b.officialRanking)
     .slice(0, tournament.playerLimit);
 
