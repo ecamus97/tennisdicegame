@@ -8,12 +8,13 @@ import {
   TRAINING_OPTIONS, CAREER_PLAYER_ID, getMoneyForRound,
   ActiveSponsor, Sponsor, ActiveStaff, StaffMember,
   AVAILABLE_SPONSORS, AVAILABLE_STAFF, CareerTournamentResult,
+  getContinentFromCountry,
 } from '@/data/careerData';
 import { tournaments, Tournament, Surface, Player, initialPlayers } from '@/data/players';
 import { extendedPlayers } from '@/data/playersExtended';
 import { challengerTournaments, ChallengerTournament, getChallengerMoneyForRound } from '@/data/challengerTournaments';
 import { playMatch } from '@/lib/matchEngine';
-import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard } from '@/lib/tournamentEntryLogic';
+import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard, getEligibleRankingRange } from '@/lib/tournamentEntryLogic';
 import { TournamentDraw } from '@/hooks/useGameState';
 
 // Combine all ATP + Challenger tournaments into a unified list for Career Mode
