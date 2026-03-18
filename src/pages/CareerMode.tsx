@@ -64,6 +64,7 @@ const CareerMode = () => {
               key={tournament.id}
               tournament={tournament}
               players={career.allPlayersWithCareer}
+              initialForcedEntrants={career.allPlayersWithCareer.filter(p => p.id === CAREER_PLAYER_ID)}
               onTournamentComplete={(tournamentId, results, winnerId, runnerUpId) => {
                 career.completeTournament(tournamentId, results, winnerId, runnerUpId);
                 const careerResult = results.find(r => r.playerId === CAREER_PLAYER_ID);
