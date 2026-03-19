@@ -347,9 +347,8 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
           round: getRoundName(tournament.playerLimit, 1),
         });
       } else if (p1) {
-        // Bye - player advances automatically. We still need to track them.
-        // Find a replacement from the pool
-        const extraPlayer = sortedPlayers.find(ep => !positions.includes(ep) && !entrants.includes(ep) && !ep.injured);
+        // Find a replacement from available players not yet in the draw
+        const extraPlayer = players.find(ep => !positions.includes(ep) && !tournamentEntrants.includes(ep) && !ep.injured);
         if (extraPlayer) {
           firstRoundMatches.push({
             id: `R1-${i}`,
