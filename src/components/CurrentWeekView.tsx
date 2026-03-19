@@ -326,7 +326,16 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
       }
     }
 
-    // Create matches from positions
+    // If there are still empty positions, fill with remaining available players
+    if (unseededIndex < unseeded.length) {
+      for (let i = 0; i < positions.length; i++) {
+        if (!positions[i] && unseededIndex < unseeded.length) {
+          positions[i] = unseeded[unseededIndex++];
+        }
+      }
+    }
+
+    // Create matches from positions - ensure all matches are created even if positions might be sparse
     for (let i = 0; i < totalMatches; i++) {
       const p1 = positions[i * 2];
       const p2 = positions[i * 2 + 1];
@@ -337,6 +346,17 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
           player2: p2,
           round: getRoundName(tournament.playerLimit, 1),
         });
+      } else if (p1) {
+        // Find a replacement from available players not yet in the draw
+        const extraPlayer = players.find(ep => !positions.includes(ep) && !tournamentEntrants.includes(ep) && !ep.injured);
+        if (extraPlayer) {
+          firstRoundMatches.push({
+            id: `R1-${i}`,
+            player1: p1,
+            player2: extraPlayer,
+            round: getRoundName(tournament.playerLimit, 1),
+          });
+        }
       }
     }
 
