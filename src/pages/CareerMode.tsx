@@ -34,7 +34,9 @@ const CareerMode = () => {
 
   // If we're in an active tournament, show the tournament bracket view
   if (career.activeTournament) {
-    const tournament = career.allCareerTournaments.find((t: Tournament) => t.id === career.activeTournament);
+    const isSpectator = career.activeTournament.startsWith('spectator-');
+    const tournamentId = isSpectator ? career.activeTournament.replace('spectator-', '') : career.activeTournament;
+    const tournament = career.allCareerTournaments.find((t: Tournament) => t.id === tournamentId);
     if (tournament) {
       return (
         <div className="min-h-screen bg-background">
@@ -49,32 +51,41 @@ const CareerMode = () => {
                   <div className="w-px h-6 bg-border" />
                   <div>
                     <h1 className="font-display text-lg font-bold text-foreground">{tournament.name}</h1>
-                    <p className="text-xs text-muted-foreground">{career.player.firstName} {career.player.lastName} • Rank #{career.player.officialRanking}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isSpectator ? 'Spectator Mode' : `${career.player.firstName} ${career.player.lastName} • Rank #${career.player.officialRanking}`}
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Fictional Rank:</span>
-                  <span className="font-bold text-primary">#{powerScoreToFictionalRanking(career.player.fictionalRankingScore)}</span>
-                </div>
+                {!isSpectator && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Fictional Rank:</span>
+                    <span className="font-bold text-primary">#{powerScoreToFictionalRanking(career.player.fictionalRankingScore)}</span>
+                  </div>
+                )}
               </div>
             </div>
           </header>
           <main className="container mx-auto px-4 py-4">
             <CurrentWeekView
-              key={tournament.id}
+              key={career.activeTournament}
               tournament={tournament}
               players={career.allPlayersWithCareer}
-              initialForcedEntrants={career.allPlayersWithCareer.filter(p => p.id === CAREER_PLAYER_ID)}
-              onTournamentComplete={(tournamentId, results, winnerId, runnerUpId) => {
-                career.completeTournament(tournamentId, results, winnerId, runnerUpId);
-                const careerResult = results.find(r => r.playerId === CAREER_PLAYER_ID);
-                if (careerResult?.round === 'Winner') {
-                  toast.success(`🏆 You won ${tournament.name}!`);
+              initialForcedEntrants={isSpectator ? [] : career.allPlayersWithCareer.filter(p => p.id === CAREER_PLAYER_ID)}
+              onTournamentComplete={(tid, results, winnerId, runnerUpId) => {
+                if (isSpectator) {
+                  // For spectator mode, treat as simulating the other tournament
+                  career.completeTournament(tid, results, winnerId, runnerUpId);
                 } else {
-                  toast.info(`${tournament.name}: ${careerResult?.round || 'Eliminated'}`);
+                  career.completeTournament(tid, results, winnerId, runnerUpId);
+                  const careerResult = results.find(r => r.playerId === CAREER_PLAYER_ID);
+                  if (careerResult?.round === 'Winner') {
+                    toast.success(`🏆 You won ${tournament.name}!`);
+                  } else {
+                    toast.info(`${tournament.name}: ${careerResult?.round || 'Eliminated'}`);
+                  }
                 }
               }}
-              isCompleted={career.completedTournaments.includes(tournament.id)}
+              isCompleted={career.completedTournaments.includes(tournamentId)}
               savedDraw={career.currentDraw}
               onSaveDraw={career.saveCurrentDraw}
             />
