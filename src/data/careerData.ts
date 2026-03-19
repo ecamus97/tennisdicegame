@@ -105,12 +105,21 @@ export interface CareerStats {
   wins: number;
   losses: number;
   titlesWon: number;
+  titlesDetail?: TitleDetail[];
   tournamentsPlayed: number;
   matchesPlayed: number;
   bestRanking: number;
   bestResult: string;
   surfaceWins: Record<Surface, number>;
   surfaceLosses: Record<Surface, number>;
+}
+
+export interface TitleDetail {
+  tournamentName: string;
+  category: string;
+  season: number;
+  week: number;
+  surface: Surface;
 }
 
 export interface CareerSeasonEntry {
@@ -273,10 +282,16 @@ export const PRIZE_MONEY: Record<string, PrizeMoney> = {
 export type Continent = 'North America' | 'South America' | 'Europe' | 'Asia' | 'Oceania' | 'Middle East' | 'Africa';
 
 export const CITY_DATA: Record<string, { continent: Continent; lat: number; lng: number }> = {
+  // Oceania
   'Brisbane': { continent: 'Oceania', lat: -27.47, lng: 153.03 },
   'Adelaide': { continent: 'Oceania', lat: -34.93, lng: 138.60 },
   'Melbourne': { continent: 'Oceania', lat: -37.81, lng: 144.96 },
   'Auckland': { continent: 'Oceania', lat: -36.85, lng: 174.76 },
+  'Canberra': { continent: 'Oceania', lat: -35.28, lng: 149.13 },
+  'Burnie': { continent: 'Oceania', lat: -41.05, lng: 145.90 },
+  'Playford': { continent: 'Oceania', lat: -34.72, lng: 138.68 },
+  'Nouméa': { continent: 'Oceania', lat: -22.28, lng: 166.46 },
+  // Asia
   'Hong Kong': { continent: 'Asia', lat: 22.32, lng: 114.17 },
   'Tokyo': { continent: 'Asia', lat: 35.68, lng: 139.69 },
   'Beijing': { continent: 'Asia', lat: 39.90, lng: 116.40 },
@@ -284,6 +299,29 @@ export const CITY_DATA: Record<string, { continent: Continent; lat: number; lng:
   'Chengdu': { continent: 'Asia', lat: 30.57, lng: 104.07 },
   'Hangzhou': { continent: 'Asia', lat: 30.27, lng: 120.15 },
   'Almaty': { continent: 'Asia', lat: 43.24, lng: 76.95 },
+  'Nonthaburi': { continent: 'Asia', lat: 13.86, lng: 100.51 },
+  'Pune': { continent: 'Asia', lat: 18.52, lng: 73.86 },
+  'Bengaluru': { continent: 'Asia', lat: 12.97, lng: 77.59 },
+  'New Delhi': { continent: 'Asia', lat: 28.61, lng: 77.21 },
+  'Busan': { continent: 'Asia', lat: 35.18, lng: 129.08 },
+  'Gwangju': { continent: 'Asia', lat: 35.16, lng: 126.85 },
+  'Seoul': { continent: 'Asia', lat: 37.57, lng: 126.98 },
+  'Shenzhen': { continent: 'Asia', lat: 22.54, lng: 114.06 },
+  'Guangzhou': { continent: 'Asia', lat: 23.13, lng: 113.26 },
+  'Wuxi': { continent: 'Asia', lat: 31.49, lng: 120.31 },
+  'Taipei': { continent: 'Asia', lat: 25.03, lng: 121.57 },
+  'Zhangjiagang': { continent: 'Asia', lat: 31.87, lng: 120.55 },
+  'Jinan': { continent: 'Asia', lat: 36.65, lng: 116.99 },
+  'Matsuyama': { continent: 'Asia', lat: 33.84, lng: 132.77 },
+  'Kobe': { continent: 'Asia', lat: 34.69, lng: 135.20 },
+  'Yokohama': { continent: 'Asia', lat: 35.44, lng: 139.64 },
+  'Yokkaichi': { continent: 'Asia', lat: 34.97, lng: 136.62 },
+  'Astana': { continent: 'Asia', lat: 51.17, lng: 71.45 },
+  // Middle East
+  'Doha': { continent: 'Middle East', lat: 25.29, lng: 51.53 },
+  'Dubai': { continent: 'Middle East', lat: 25.20, lng: 55.27 },
+  'Manama': { continent: 'Middle East', lat: 26.23, lng: 50.59 },
+  // Europe
   'Montpellier': { continent: 'Europe', lat: 43.61, lng: 3.88 },
   'Rotterdam': { continent: 'Europe', lat: 51.92, lng: 4.48 },
   'Monaco': { continent: 'Europe', lat: 43.74, lng: 7.42 },
@@ -313,6 +351,92 @@ export const CITY_DATA: Record<string, { continent: Continent; lat: number; lng:
   'Stockholm': { continent: 'Europe', lat: 59.33, lng: 18.07 },
   'Turin': { continent: 'Europe', lat: 45.07, lng: 7.69 },
   'Málaga': { continent: 'Europe', lat: 36.72, lng: -4.42 },
+  'Tenerife': { continent: 'Europe', lat: 28.47, lng: -16.25 },
+  'Oeiras': { continent: 'Europe', lat: 38.69, lng: -9.31 },
+  'Ottignies': { continent: 'Europe', lat: 50.67, lng: 4.57 },
+  'Quimper': { continent: 'Europe', lat: 48.00, lng: -4.10 },
+  'Koblenz': { continent: 'Europe', lat: 50.36, lng: 7.59 },
+  'Cherbourg': { continent: 'Europe', lat: 49.64, lng: -1.62 },
+  'Pau': { continent: 'Europe', lat: 43.30, lng: -0.37 },
+  'Lille': { continent: 'Europe', lat: 50.63, lng: 3.06 },
+  'Lugano': { continent: 'Europe', lat: 46.00, lng: 8.95 },
+  'Székesfehérvár': { continent: 'Europe', lat: 47.19, lng: 18.41 },
+  'Murcia': { continent: 'Europe', lat: 37.98, lng: -1.13 },
+  'Zadar': { continent: 'Europe', lat: 44.12, lng: 15.23 },
+  'Napoli': { continent: 'Europe', lat: 40.85, lng: 14.27 },
+  'Girona': { continent: 'Europe', lat: 41.98, lng: 2.82 },
+  'Barletta': { continent: 'Europe', lat: 41.31, lng: 16.29 },
+  'Split': { continent: 'Europe', lat: 43.51, lng: 16.44 },
+  'Ostrava': { continent: 'Europe', lat: 49.82, lng: 18.26 },
+  'Cagliari': { continent: 'Europe', lat: 39.22, lng: 9.12 },
+  'Aix-en-Provence': { continent: 'Europe', lat: 43.53, lng: 5.45 },
+  'Mauthausen': { continent: 'Europe', lat: 48.25, lng: 14.52 },
+  'Francavilla al Mare': { continent: 'Europe', lat: 42.42, lng: 14.29 },
+  'Prague': { continent: 'Europe', lat: 50.08, lng: 14.44 },
+  'Bordeaux': { continent: 'Europe', lat: 44.84, lng: -0.58 },
+  'Skopje': { continent: 'Europe', lat: 42.00, lng: 21.43 },
+  'Vicenza': { continent: 'Europe', lat: 45.55, lng: 11.55 },
+  'Heilbronn': { continent: 'Europe', lat: 49.14, lng: 9.22 },
+  'Prostějov': { continent: 'Europe', lat: 49.47, lng: 17.11 },
+  'Surbiton': { continent: 'Europe', lat: 51.39, lng: -0.30 },
+  'Nottingham': { continent: 'Europe', lat: 52.95, lng: -1.15 },
+  'Perugia': { continent: 'Europe', lat: 43.11, lng: 12.39 },
+  'Bratislava': { continent: 'Europe', lat: 48.15, lng: 17.11 },
+  'Ilkley': { continent: 'Europe', lat: 53.92, lng: -1.82 },
+  'Sassuolo': { continent: 'Europe', lat: 44.54, lng: 10.78 },
+  'Poznań': { continent: 'Europe', lat: 52.41, lng: 16.93 },
+  'Blois': { continent: 'Europe', lat: 47.59, lng: 1.33 },
+  'Milan': { continent: 'Europe', lat: 45.46, lng: 9.19 },
+  'Modena': { continent: 'Europe', lat: 44.65, lng: 10.92 },
+  'Brașov': { continent: 'Europe', lat: 45.66, lng: 25.61 },
+  'Karlsruhe': { continent: 'Europe', lat: 49.01, lng: 8.40 },
+  'Troyes': { continent: 'Europe', lat: 48.30, lng: 4.07 },
+  'Braunschweig': { continent: 'Europe', lat: 52.27, lng: 10.52 },
+  'Salzburg': { continent: 'Europe', lat: 47.80, lng: 13.04 },
+  'Iași': { continent: 'Europe', lat: 47.16, lng: 27.59 },
+  'Trieste': { continent: 'Europe', lat: 45.65, lng: 13.78 },
+  'Amersfoort': { continent: 'Europe', lat: 52.16, lng: 5.39 },
+  'Verona': { continent: 'Europe', lat: 45.44, lng: 10.99 },
+  'Zug': { continent: 'Europe', lat: 47.17, lng: 8.52 },
+  'Tampere': { continent: 'Europe', lat: 61.50, lng: 23.79 },
+  'Segovia': { continent: 'Europe', lat: 40.95, lng: -4.12 },
+  'San Marino': { continent: 'Europe', lat: 43.94, lng: 12.45 },
+  'Porto': { continent: 'Europe', lat: 41.15, lng: -8.61 },
+  'Lüdenscheid': { continent: 'Europe', lat: 51.22, lng: 7.63 },
+  'Meerbusch': { continent: 'Europe', lat: 51.25, lng: 6.69 },
+  'Grodzisk Mazowiecki': { continent: 'Europe', lat: 52.11, lng: 20.63 },
+  'Todi': { continent: 'Europe', lat: 42.78, lng: 12.41 },
+  'Kozerki': { continent: 'Europe', lat: 52.16, lng: 20.38 },
+  'Como': { continent: 'Europe', lat: 45.81, lng: 9.08 },
+  'Genova': { continent: 'Europe', lat: 44.41, lng: 8.93 },
+  'Sevilla': { continent: 'Europe', lat: 37.39, lng: -5.98 },
+  'Cassis': { continent: 'Europe', lat: 43.21, lng: 5.54 },
+  'Tulln': { continent: 'Europe', lat: 48.33, lng: 15.90 },
+  'Szczecin': { continent: 'Europe', lat: 53.43, lng: 14.55 },
+  'Rennes': { continent: 'Europe', lat: 48.11, lng: -1.68 },
+  'Bad Waltersdorf': { continent: 'Europe', lat: 47.17, lng: 16.02 },
+  'Saint-Tropez': { continent: 'Europe', lat: 43.27, lng: 6.64 },
+  'Orléans': { continent: 'Europe', lat: 47.90, lng: 1.90 },
+  'Lisbon': { continent: 'Europe', lat: 38.72, lng: -9.14 },
+  'Mouilleron-le-Captif': { continent: 'Europe', lat: 46.71, lng: -1.47 },
+  'Alicante': { continent: 'Europe', lat: 38.35, lng: -0.48 },
+  'Valencia': { continent: 'Europe', lat: 39.47, lng: -0.38 },
+  'Roanne': { continent: 'Europe', lat: 46.04, lng: 4.07 },
+  'Olbia': { continent: 'Europe', lat: 40.92, lng: 9.50 },
+  'Saint-Brieuc': { continent: 'Europe', lat: 48.51, lng: -2.76 },
+  'Brest': { continent: 'Europe', lat: 48.39, lng: -4.49 },
+  'Helsinki': { continent: 'Europe', lat: 60.17, lng: 24.94 },
+  'Rovereto': { continent: 'Europe', lat: 45.89, lng: 11.04 },
+  'Maia': { continent: 'Europe', lat: 41.24, lng: -8.62 },
+  'Maspalomas': { continent: 'Europe', lat: 27.76, lng: -15.59 },
+  'Glasgow': { continent: 'Europe', lat: 55.86, lng: -4.25 },
+  'Augsburg': { continent: 'Europe', lat: 48.37, lng: 10.89 },
+  'Kachreti': { continent: 'Europe', lat: 41.65, lng: 45.80 },
+  'Pozoblanco': { continent: 'Europe', lat: 38.38, lng: -4.91 },
+  'Bonn': { continent: 'Europe', lat: 50.74, lng: 7.10 },
+  'Cordenons': { continent: 'Europe', lat: 45.98, lng: 12.70 },
+  'Dobrich': { continent: 'Europe', lat: 43.57, lng: 27.83 },
+  // North America
   'San Francisco': { continent: 'North America', lat: 37.77, lng: -122.42 },
   'Dallas': { continent: 'North America', lat: 32.78, lng: -96.80 },
   'Delray Beach': { continent: 'North America', lat: 26.46, lng: -80.07 },
@@ -326,18 +450,69 @@ export const CITY_DATA: Record<string, { continent: Continent; lat: number; lng:
   'New York': { continent: 'North America', lat: 40.71, lng: -74.01 },
   'Los Cabos': { continent: 'North America', lat: 22.89, lng: -109.92 },
   'Acapulco': { continent: 'North America', lat: 16.86, lng: -99.88 },
+  'Morelos': { continent: 'North America', lat: 18.68, lng: -99.10 },
+  'Mérida': { continent: 'North America', lat: 20.97, lng: -89.62 },
+  'San Luis Potosí': { continent: 'North America', lat: 22.15, lng: -100.98 },
+  'Mexico City': { continent: 'North America', lat: 19.43, lng: -99.13 },
+  'Cleveland': { continent: 'North America', lat: 41.50, lng: -81.69 },
+  'Sarasota': { continent: 'North America', lat: 27.34, lng: -82.53 },
+  'Tallahassee': { continent: 'North America', lat: 30.44, lng: -84.28 },
+  'Savannah': { continent: 'North America', lat: 32.08, lng: -81.09 },
+  'Phoenix': { continent: 'North America', lat: 33.45, lng: -112.07 },
+  'Little Rock': { continent: 'North America', lat: 34.75, lng: -92.29 },
+  'Tyler': { continent: 'North America', lat: 32.35, lng: -95.30 },
+  'Cranbrook': { continent: 'North America', lat: 49.51, lng: -115.77 },
+  'Winnipeg': { continent: 'North America', lat: 49.90, lng: -97.14 },
+  'Granby': { continent: 'North America', lat: 45.40, lng: -72.73 },
+  'Chicago': { continent: 'North America', lat: 41.88, lng: -87.63 },
+  'Lexington': { continent: 'North America', lat: 37.99, lng: -84.48 },
+  'Lincoln': { continent: 'North America', lat: 40.81, lng: -96.70 },
+  'Cary': { continent: 'North America', lat: 35.79, lng: -78.78 },
+  'Columbus': { continent: 'North America', lat: 39.96, lng: -82.99 },
+  'Charleston': { continent: 'North America', lat: 32.78, lng: -79.93 },
+  'Tiburon': { continent: 'North America', lat: 37.87, lng: -122.46 },
+  'Las Vegas': { continent: 'North America', lat: 36.17, lng: -115.14 },
+  'Calgary': { continent: 'North America', lat: 51.05, lng: -114.07 },
+  'Drummondville': { continent: 'North America', lat: 45.88, lng: -72.48 },
+  'Santo Domingo': { continent: 'North America', lat: 18.49, lng: -69.94 },
+  // South America
   'Buenos Aires': { continent: 'South America', lat: -34.60, lng: -58.38 },
   'Rio de Janeiro': { continent: 'South America', lat: -22.91, lng: -43.17 },
   'Santiago': { continent: 'South America', lat: -33.45, lng: -70.67 },
-  'Doha': { continent: 'Middle East', lat: 25.29, lng: 51.53 },
-  'Dubai': { continent: 'Middle East', lat: 25.20, lng: 55.27 },
+  'Punta del Este': { continent: 'South America', lat: -34.97, lng: -54.95 },
+  'Asunción': { continent: 'South America', lat: -25.26, lng: -57.58 },
+  'Tigre': { continent: 'South America', lat: -34.43, lng: -58.58 },
+  'São Leopoldo': { continent: 'South America', lat: -29.76, lng: -51.15 },
+  'Florianópolis': { continent: 'South America', lat: -27.60, lng: -48.55 },
+  'Porto Alegre': { continent: 'South America', lat: -30.03, lng: -51.23 },
+  'Santos': { continent: 'South America', lat: -23.96, lng: -46.33 },
+  'São Paulo': { continent: 'South America', lat: -23.55, lng: -46.63 },
+  'Campinas': { continent: 'South America', lat: -22.91, lng: -47.06 },
+  'Curitiba': { continent: 'South America', lat: -25.43, lng: -49.27 },
+  'San Miguel de Tucumán': { continent: 'South America', lat: -26.82, lng: -65.22 },
+  'Concepcion': { continent: 'South America', lat: -36.83, lng: -73.05 },
+  'Villa María': { continent: 'South America', lat: -32.41, lng: -63.24 },
+  'Antofagasta': { continent: 'South America', lat: -23.65, lng: -70.40 },
+  'Temuco': { continent: 'South America', lat: -38.74, lng: -72.60 },
+  'Ibagué': { continent: 'South America', lat: 4.44, lng: -75.24 },
+  'Bogotá': { continent: 'South America', lat: 4.71, lng: -74.07 },
+  'Lima': { continent: 'South America', lat: -12.05, lng: -77.04 },
+  'Santa Cruz': { continent: 'South America', lat: -17.78, lng: -63.18 },
+  'Guayaquil': { continent: 'South America', lat: -2.17, lng: -79.92 },
+  'Montevideo': { continent: 'South America', lat: -34.88, lng: -56.16 },
+  // Africa
   'Marrakech': { continent: 'Africa', lat: 31.63, lng: -8.00 },
+  'Kigali': { continent: 'Africa', lat: -1.94, lng: 30.06 },
+  'Tunis': { continent: 'Africa', lat: 36.81, lng: 10.17 },
 };
 
 export function calculateTravelDistance(fromCity: string, toCity: string): number {
   const from = CITY_DATA[fromCity];
   const to = CITY_DATA[toCity];
-  if (!from || !to) return 3000;
+  if (!from || !to) {
+    // If either city is unknown, estimate based on continent
+    return 2000; // generic mid-range distance
+  }
   const R = 6371;
   const dLat = (to.lat - from.lat) * Math.PI / 180;
   const dLng = (to.lng - from.lng) * Math.PI / 180;
@@ -347,9 +522,11 @@ export function calculateTravelDistance(fromCity: string, toCity: string): numbe
 
 export function getTravelCost(distance: number): number {
   if (distance < 500) return 500;
-  if (distance < 2000) return 1500;
+  if (distance < 1500) return 1200;
+  if (distance < 3000) return 2500;
   if (distance < 5000) return 3500;
-  if (distance < 10000) return 6000;
+  if (distance < 8000) return 5000;
+  if (distance < 12000) return 7000;
   return 9000;
 }
 
@@ -399,22 +576,12 @@ export function calculateFictionalRankingScore(attrs: CareerAttributes): number 
   );
 }
 
-/**
- * Converts a power score (0-100) to a fictional ranking position.
- * Lower ranking = better player.
- * New player (score ~25): rank ~350
- * Mid-level (score ~50): rank ~150
- * Elite (score ~85): rank ~29
- */
 export function powerScoreToFictionalRanking(score: number): number {
   const normalized = Math.max(0, Math.min(100, score)) / 100;
   const rank = Math.round(500 * Math.pow(1 - normalized, 1.5));
   return Math.max(1, rank);
 }
 
-/**
- * Get effective fictional ranking considering fatigue, form, injury modifiers.
- */
 export function getEffectiveFictionalRanking(player: CareerPlayer): number {
   let effectiveScore = player.fictionalRankingScore;
   if (player.fatigue > 60) effectiveScore -= (player.fatigue - 60) * 0.15;
@@ -425,9 +592,38 @@ export function getEffectiveFictionalRanking(player: CareerPlayer): number {
   return powerScoreToFictionalRanking(effectiveScore);
 }
 
-// Keep old function for backward compat
 export function scoreToFictionalRanking(score: number, _totalPlayers: number): number {
   return powerScoreToFictionalRanking(score);
+}
+
+/**
+ * Calculate the number of wins based on the round reached and the tournament draw size.
+ * E.g., in a 32-draw tournament: R32 loss = 0 wins, R16 loss = 1 win, QF loss = 2 wins, etc.
+ */
+export function calculateWinsFromRound(round: string, drawSize: number): number {
+  const roundOrder = ['R128', 'R64', 'R32', 'R16', 'Quarterfinal', 'Semifinal', 'Final', 'Winner'];
+  const roundIdx = roundOrder.indexOf(round);
+  if (roundIdx < 0) return 0;
+
+  // Determine the first round index based on draw size
+  let firstRoundIdx = 0;
+  if (drawSize <= 128) firstRoundIdx = roundOrder.indexOf('R128');
+  if (drawSize <= 64) firstRoundIdx = roundOrder.indexOf('R64');
+  if (drawSize <= 32) firstRoundIdx = roundOrder.indexOf('R32');
+  if (drawSize <= 16) firstRoundIdx = roundOrder.indexOf('R16');
+  if (drawSize <= 8) firstRoundIdx = roundOrder.indexOf('Quarterfinal');
+  if (drawSize <= 4) firstRoundIdx = roundOrder.indexOf('Semifinal');
+
+  // Wins = how many rounds beyond the first round the player reached
+  // If they lost in the first round, wins = 0
+  // If they are the Winner, they won every round
+  const isWinner = round === 'Winner';
+  if (isWinner) {
+    // Total rounds in tournament
+    return roundIdx - firstRoundIdx;
+  }
+  // They lost in this round, so they won (roundIdx - firstRoundIdx) rounds before losing
+  return Math.max(0, roundIdx - firstRoundIdx);
 }
 
 /**

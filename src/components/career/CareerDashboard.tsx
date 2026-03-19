@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CareerPlayer, TrainingType, TRAINING_OPTIONS, PRIZE_MONEY, CITY_DATA, calculateTravelDistance, getTravelCost, getTravelFatigue, powerScoreToFictionalRanking, CareerTournamentResult } from '@/data/careerData';
+import { CareerPlayer, TrainingType, TRAINING_OPTIONS, PRIZE_MONEY, CITY_DATA, calculateTravelDistance, getTravelCost, getTravelFatigue, powerScoreToFictionalRanking, CareerTournamentResult, TitleDetail } from '@/data/careerData';
 import { Tournament, Surface, getSurfaceEmoji, getCategoryColor } from '@/data/players';
 import { getCareerEligibleCategories, canEnterAsWildCard } from '@/lib/tournamentEntryLogic';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import {
   MapPin, Plane, Dumbbell, BedDouble, Trophy, TrendingUp, Heart, Zap, Activity,
-  AlertTriangle, Calendar, Play, FastForward, Lock, Globe
+  AlertTriangle, Calendar, Play, FastForward, Lock, Globe, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 interface Props {
@@ -25,16 +25,18 @@ interface Props {
   allTournaments: Tournament[];
   onSimulateOtherTournament: (tournamentId: string) => void;
   onSimulateAllOtherTournaments: () => void;
+  onEnterOtherTournament: (tournamentId: string) => void;
   tournamentHistory: CareerTournamentResult[];
 }
 
 const CareerDashboard: React.FC<Props> = ({
   player, currentWeek, currentSeason, weeklyActionTaken,
   onEnterTournament, onQuickSimTournament, onTrain, onRest, completedTournaments, allTournaments,
-  onSimulateOtherTournament, onSimulateAllOtherTournaments, tournamentHistory,
+  onSimulateOtherTournament, onSimulateAllOtherTournaments, onEnterOtherTournament, tournamentHistory,
 }) => {
   const [selectedTraining, setSelectedTraining] = useState<TrainingType>('serve');
   const [surfaceTarget, setSurfaceTarget] = useState<Surface>('Hard');
+  const [showTitles, setShowTitles] = useState(false);
 
   const eligibleCategories = useMemo(() => getCareerEligibleCategories(player.officialRanking), [player.officialRanking]);
 
@@ -170,7 +172,6 @@ const CareerDashboard: React.FC<Props> = ({
             Week {currentWeek} — Choose Your Action
           </h3>
 
-          {/* Status Messages */}
           {weeklyActionTaken && !careerPlayedThisWeek && (
             <div className="p-4 rounded-lg bg-primary/10 border border-primary/30 text-center mb-4">
               <p className="text-sm text-primary font-medium">✅ Action completed this week (trained/rested)</p>
@@ -181,7 +182,7 @@ const CareerDashboard: React.FC<Props> = ({
           {careerPlayedThisWeek && (
             <div className="p-4 rounded-lg bg-primary/10 border border-primary/30 text-center mb-4">
               <p className="text-sm text-primary font-medium">✅ Tournament completed this week</p>
-              <p className="text-xs text-muted-foreground mt-1">You can still simulate other tournaments below</p>
+              <p className="text-xs text-muted-foreground mt-1">You can still simulate or play other tournaments below</p>
             </div>
           )}
 
@@ -194,10 +195,9 @@ const CareerDashboard: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Career Player Actions (when not yet acted) */}
+          {/* Career Player Actions */}
           {!actionBlocked && !player.injured && (
             <div className="space-y-4">
-              {/* Available Tournaments */}
               {eligibleTournaments.length > 0 && (
                 <div>
                   <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
@@ -249,7 +249,6 @@ const CareerDashboard: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* Ineligible Tournaments */}
               {ineligibleTournaments.length > 0 && (
                 <div>
                   <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
@@ -312,7 +311,6 @@ const CareerDashboard: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Rest */}
               <Button variant="outline" className="w-full gap-2" onClick={handleRest}>
                 <BedDouble className="w-4 h-4" /> Rest This Week
               </Button>
@@ -344,9 +342,14 @@ const CareerDashboard: React.FC<Props> = ({
                           <span>{getSurfaceEmoji(t.surface)} {t.surface}</span>
                         </div>
                       </div>
-                      <Button size="sm" variant="outline" onClick={() => { onSimulateOtherTournament(t.id); toast.info(`${t.name} simulated!`); }} className="gap-1">
-                        <FastForward className="w-3 h-3" /> Sim
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => onEnterOtherTournament(t.id)} className="gap-1">
+                          <Play className="w-3 h-3" /> Play
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => { onSimulateOtherTournament(t.id); toast.info(`${t.name} simulated!`); }} className="gap-1">
+                          <FastForward className="w-3 h-3" /> Sim
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -385,7 +388,28 @@ const CareerDashboard: React.FC<Props> = ({
           <h3 className="font-display font-semibold text-foreground mb-3">📊 Quick Stats</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">W/L</span><span className="text-foreground">{player.stats.wins}-{player.stats.losses}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Titles</span><span className="text-foreground">{player.stats.titlesWon}</span></div>
+            <div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Titles</span>
+                <button 
+                  className="text-foreground flex items-center gap-1 hover:text-primary transition-colors"
+                  onClick={() => setShowTitles(!showTitles)}
+                >
+                  {player.stats.titlesWon}
+                  {player.stats.titlesWon > 0 && (showTitles ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                </button>
+              </div>
+              {showTitles && player.stats.titlesDetail && player.stats.titlesDetail.length > 0 && (
+                <div className="mt-1 space-y-1 pl-2 border-l-2 border-primary/30">
+                  {player.stats.titlesDetail.map((t: TitleDetail, i: number) => (
+                    <div key={i} className="text-xs text-muted-foreground">
+                      <span className={getCategoryColor(t.category) + ' !text-[9px] mr-1'}>{t.category}</span>
+                      {t.tournamentName} <span className="text-foreground/60">S{t.season}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex justify-between"><span className="text-muted-foreground">Tournaments</span><span className="text-foreground">{player.stats.tournamentsPlayed}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Best Ranking</span><span className="text-foreground">#{player.stats.bestRanking}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Dev Points</span><span className="text-primary">{player.developmentPoints}</span></div>
@@ -412,7 +436,6 @@ const CareerDashboard: React.FC<Props> = ({
           <p className="text-xs text-muted-foreground mt-1">{player.momentum}/10</p>
         </div>
 
-        {/* Active Sponsors */}
         {player.sponsors.length > 0 && (
           <div className="glass-card p-4">
             <h3 className="font-display font-semibold text-foreground mb-3">🤝 Sponsors</h3>
@@ -427,7 +450,6 @@ const CareerDashboard: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Recent Results */}
         <div className="glass-card p-4">
           <h3 className="font-display font-semibold text-foreground mb-3">📋 Recent</h3>
           {player.seasonHistory.length === 0 ? (
