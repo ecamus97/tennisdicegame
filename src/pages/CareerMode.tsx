@@ -241,6 +241,7 @@ const CareerMode = () => {
               allTournaments={career.allCareerTournaments}
               onSimulateOtherTournament={career.simulateOtherTournament}
               onSimulateAllOtherTournaments={career.simulateAllOtherTournaments}
+              onEnterOtherTournament={career.enterOtherTournament}
               tournamentHistory={career.tournamentHistory}
             />
           </TabsContent>
