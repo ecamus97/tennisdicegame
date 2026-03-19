@@ -403,7 +403,7 @@ const CareerDashboard: React.FC<Props> = ({
                 <div className="mt-1 space-y-1 pl-2 border-l-2 border-primary/30">
                   {player.stats.titlesDetail.map((t: TitleDetail, i: number) => (
                     <div key={i} className="text-xs text-muted-foreground">
-                      <span className={getCategoryColor(t.category) + ' !text-[9px] mr-1'}>{t.category}</span>
+                      <span className={getCategoryColor(t.category as any) + ' !text-[9px] mr-1'}>{t.category}</span>
                       {t.tournamentName} <span className="text-foreground/60">S{t.season}</span>
                     </div>
                   ))}
