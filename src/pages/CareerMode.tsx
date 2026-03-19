@@ -252,6 +252,7 @@ const CareerMode = () => {
             <CareerCalendar
               player={career.player}
               currentWeek={career.currentWeek}
+              currentSeason={career.currentSeason}
               completedTournaments={career.completedTournaments}
               allTournaments={career.allCareerTournaments}
               tournamentHistory={career.tournamentHistory}
