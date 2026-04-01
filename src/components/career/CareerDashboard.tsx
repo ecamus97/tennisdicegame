@@ -48,7 +48,7 @@ const CareerDashboard: React.FC<Props> = ({
   const actionBlocked = weeklyActionTaken || careerPlayedThisWeek;
 
   const allWeekTournaments = useMemo(() => {
-    return allTournaments.filter(t => t.week === currentWeek && !['Davis Cup', 'Laver Cup', 'ATP Finals'].includes(t.category));
+    return allTournaments.filter(t => t.week === currentWeek);
   }, [currentWeek, allTournaments]);
 
   const eligibleTournaments = useMemo(() => {
