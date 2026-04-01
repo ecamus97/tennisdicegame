@@ -169,6 +169,19 @@ export const getCareerEligibleCategories = (ranking: number): TournamentCategory
     categories.push("Grand Slam");
   }
 
+  // ATP Finals for Top 8
+  if (ranking <= 8) {
+    categories.push("ATP Finals");
+  }
+
+  // Laver Cup for Top 12
+  if (ranking <= 12) {
+    categories.push("Laver Cup");
+  }
+
+  // Davis Cup - available to all players
+  categories.push("Davis Cup");
+
   return categories;
 };
 
