@@ -48,7 +48,7 @@ const CareerDashboard: React.FC<Props> = ({
   const actionBlocked = weeklyActionTaken || careerPlayedThisWeek;
 
   const allWeekTournaments = useMemo(() => {
-    return allTournaments.filter(t => t.week === currentWeek && !['Davis Cup', 'Laver Cup', 'ATP Finals'].includes(t.category));
+    return allTournaments.filter(t => t.week === currentWeek);
   }, [currentWeek, allTournaments]);
 
   const eligibleTournaments = useMemo(() => {
@@ -362,7 +362,7 @@ const CareerDashboard: React.FC<Props> = ({
             <div className="mt-4 space-y-2">
               <h4 className="text-xs font-medium text-muted-foreground">✅ Completed This Week</h4>
               {completedThisWeek.map(t => {
-                const historyEntry = tournamentHistory.find(h => h.tournamentId === t.id);
+                const historyEntry = tournamentHistory.find(h => h.tournamentId === t.id && h.season === currentSeason);
                 return (
                   <div key={t.id} className="flex items-center justify-between text-xs p-2 rounded bg-muted/20">
                     <div className="flex items-center gap-2">
