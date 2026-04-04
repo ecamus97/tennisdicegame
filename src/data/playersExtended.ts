@@ -2,6 +2,7 @@
 // Country data for players 151-500
 
 import { Player, Surface, SurfaceAffinity, PlayerStats } from './players';
+import { INITIAL_RANKING_DATA, getSeason1DefensePoints } from './initialRankingData';
 
 interface PlayerEntry {
   rank: number;
