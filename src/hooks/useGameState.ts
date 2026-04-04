@@ -28,6 +28,29 @@ export interface GameState {
   completedTournaments: string[];
   tournamentHistory: TournamentResult[];
   currentDraw: TournamentDraw | null;
+  saveName?: string;
+}
+
+// Named save slots
+export interface SaveSlot {
+  name: string;
+  timestamp: number;
+  season: number;
+  week: number;
+}
+
+const STORAGE_KEY = 'tennis-dice-tour-state';
+const SAVE_SLOTS_KEY = 'tennis-dice-tour-saves';
+
+export function listSaveSlots(): SaveSlot[] {
+  try {
+    const raw = localStorage.getItem(SAVE_SLOTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveSlotsToStorage(slots: SaveSlot[]) {
+  localStorage.setItem(SAVE_SLOTS_KEY, JSON.stringify(slots));
 }
 
 export interface TournamentResult {
