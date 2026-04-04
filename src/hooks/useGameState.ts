@@ -70,7 +70,6 @@ export interface PlayerTournamentResult {
   round: string;
 }
 
-const STORAGE_KEY = 'tennis-dice-tour-state';
 
 const getInitialState = (): GameState => {
   const saved = localStorage.getItem(STORAGE_KEY);
