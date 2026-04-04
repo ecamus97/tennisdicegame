@@ -48,6 +48,26 @@ const allCareerTournaments: Tournament[] = [
 const allInitialPlayers: Player[] = [...initialPlayers, ...extendedPlayers];
 
 const CAREER_STORAGE_KEY = 'tennis-dice-tour-career';
+const CAREER_SAVE_SLOTS_KEY = 'tennis-dice-career-saves';
+
+export interface CareerSaveSlot {
+  name: string;
+  timestamp: number;
+  season: number;
+  week: number;
+  playerName: string;
+}
+
+export function listCareerSaveSlots(): CareerSaveSlot[] {
+  try {
+    const raw = localStorage.getItem(CAREER_SAVE_SLOTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveCareerSlotsToStorage(slots: CareerSaveSlot[]) {
+  localStorage.setItem(CAREER_SAVE_SLOTS_KEY, JSON.stringify(slots));
+}
 
 const getInitialCareerState = (): CareerState => {
   const saved = localStorage.getItem(CAREER_STORAGE_KEY);
