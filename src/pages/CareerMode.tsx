@@ -144,10 +144,14 @@ const CareerMode = () => {
                 </div>
               </div>
               <div className="w-px h-8 bg-border" />
-              <Button size="sm" variant="secondary" onClick={handleSave} className="gap-1">
-                <Save className="w-4 h-4" />
-                <span className="hidden sm:inline">Save</span>
-              </Button>
+              <SaveLoadDialog
+                currentSaveName={(career as any).saveName}
+                getSaveSlots={listCareerSaveSlots}
+                onSave={(name) => handleSave(name)}
+                onLoad={(name) => career.loadCareer(name)}
+                onDelete={(name) => career.deleteCareerSave(name)}
+                mode="career"
+              />
               <Button size="sm" variant="outline" onClick={handleAdvanceWeek} className="gap-1">
                 <ChevronRight className="w-4 h-4" />
                 <span className="hidden sm:inline">Next Week</span>
