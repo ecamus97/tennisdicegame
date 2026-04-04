@@ -16,6 +16,23 @@ import { challengerTournaments, ChallengerTournament, getChallengerMoneyForRound
 import { playMatch } from '@/lib/matchEngine';
 import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard, getEligibleRankingRange } from '@/lib/tournamentEntryLogic';
 import { TournamentDraw } from '@/hooks/useGameState';
+import { processSeasonTransition } from '@/lib/retirementLogic';
+  CareerState, CareerPlayer, CareerAttributes, Archetype, TrainingType,
+  BASE_ATTRIBUTES, ARCHETYPE_BONUSES, ATTRIBUTE_MAX,
+  calculateFictionalRankingScore, powerScoreToFictionalRanking, getEffectiveFictionalRanking,
+  getXpForLevel, getDPCost, getDefaultObjectives, careerPlayerToPlayer,
+  PRIZE_MONEY, CITY_DATA, calculateTravelDistance, getTravelCost, getTravelFatigue,
+  TRAINING_OPTIONS, CAREER_PLAYER_ID, getMoneyForRound, calculateWinsFromRound,
+  ActiveSponsor, Sponsor, ActiveStaff, StaffMember,
+  AVAILABLE_SPONSORS, AVAILABLE_STAFF, CareerTournamentResult, TitleDetail,
+  getContinentFromCountry,
+} from '@/data/careerData';
+import { tournaments, Tournament, Surface, Player, initialPlayers } from '@/data/players';
+import { extendedPlayers } from '@/data/playersExtended';
+import { challengerTournaments, ChallengerTournament, getChallengerMoneyForRound } from '@/data/challengerTournaments';
+import { playMatch } from '@/lib/matchEngine';
+import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard, getEligibleRankingRange } from '@/lib/tournamentEntryLogic';
+import { TournamentDraw } from '@/hooks/useGameState';
 
 // Combine all ATP + Challenger tournaments into a unified list for Career Mode
 const allCareerTournaments: Tournament[] = [
