@@ -21,6 +21,7 @@ export interface Player {
   name: string;
   country: string;
   countryCode: string;
+  age: number;
   officialRanking: number;
   fictionalRanking: number;
   points: number; // Official ranking points (rolling 52-week)
@@ -30,6 +31,7 @@ export interface Player {
   injuryWeeksRemaining: number;
   surfaceAffinity: SurfaceAffinity;
   stats: PlayerStats;
+  retired?: boolean;
 }
 
 // Country code helper
