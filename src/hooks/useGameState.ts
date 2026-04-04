@@ -76,7 +76,15 @@ const getInitialState = (): GameState => {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
     try {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      // Ensure age field exists
+      if (parsed.players) {
+        parsed.players = parsed.players.map((p: Player) => ({
+          ...p,
+          age: p.age || 25,
+        }));
+      }
+      return parsed;
     } catch {
       console.error('Failed to parse saved state');
     }
