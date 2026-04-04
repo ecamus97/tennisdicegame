@@ -157,31 +157,40 @@ export const useGameState = () => {
     setState(prev => {
       const newWeek = prev.currentWeek >= 52 ? 1 : prev.currentWeek + 1;
       const newSeason = prev.currentWeek >= 52 ? prev.currentSeason + 1 : prev.currentSeason;
+      const isNewSeason = newWeek === 1 && newSeason > prev.currentSeason;
       
-      // When advancing week, update official rankings and handle injuries
-      const updatedPlayers = prev.players.map(player => {
-        // First update injury recovery
+      let updatedPlayers = prev.players.map(player => {
         let updatedPlayer = updateInjuryRecovery(player);
-        
-        // Chance for new injury
         updatedPlayer = generateRandomInjury(updatedPlayer);
         
-        // Deduct points from previous year for this week
-        const pointsToDeduct = updatedPlayer.previousYearPoints[newWeek - 1] || 0;
+        // Season transition: swap previousYearPoints with current year's earned points
+        if (isNewSeason) {
+          // The current previousYearPoints holds season 1 defense data (or last year's earned).
+          // livePoints tracks this year's earnings. previousYearPoints was used for defense.
+          // Now: previous year = what we actually earned per week this year
+          const earnedThisYear = [...updatedPlayer.previousYearPoints]; // will be replaced below
+          return {
+            ...updatedPlayer,
+            age: updatedPlayer.age + 1,
+            previousYearPoints: distributePointsToWeeks(updatedPlayer.livePoints),
+            livePoints: 0,
+          };
+        }
         
-        // Calculate new official points
+        // Weekly point defense (deduct previous year's points for this week)
+        const pointsToDeduct = updatedPlayer.previousYearPoints[newWeek - 1] || 0;
         const newOfficialPoints = Math.max(0, updatedPlayer.points - pointsToDeduct);
         
         return {
           ...updatedPlayer,
           points: newOfficialPoints,
-          // If we're starting a new season, reset previous year points
-          ...(newWeek === 1 && newSeason > prev.currentSeason ? {
-            previousYearPoints: distributePointsToWeeks(updatedPlayer.livePoints),
-            livePoints: 0,
-          } : {}),
         };
       });
+
+      // Retirement and new player generation at season end
+      if (isNewSeason) {
+        updatedPlayers = processSeasonTransition(updatedPlayers);
+      }
 
       // Re-rank players by official points
       const rankedPlayers = [...updatedPlayers]
@@ -196,8 +205,7 @@ export const useGameState = () => {
         currentWeek: newWeek,
         currentSeason: newSeason,
         players: rankedPlayers,
-        currentDraw: null, // Clear draw when advancing week
-        // Reset completed tournaments at season start
+        currentDraw: null,
         completedTournaments: newWeek === 1 ? [] : prev.completedTournaments,
       };
     });
