@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { tournaments, Tournament, Player } from "@/data/players";
-import { useGameState } from "@/hooks/useGameState";
+import { useGameState, listSaveSlots } from "@/hooks/useGameState";
+import SaveLoadDialog from "@/components/SaveLoadDialog";
 import RankingsView from "@/components/RankingsView";
 import CalendarView from "@/components/CalendarView";
 import CurrentWeekView from "@/components/CurrentWeekView";
@@ -37,6 +38,8 @@ const Index = () => {
     updateSurfaceAffinity,
     recordMatchResult,
     saveGame,
+    loadGame,
+    deleteSave,
     saveCurrentDraw,
   } = useGameState();
   
@@ -90,8 +93,8 @@ const Index = () => {
     toast.success("Tournament results saved! Points have been awarded.");
   };
 
-  const handleSaveGame = () => {
-    saveGame();
+  const handleSaveGame = (name?: string) => {
+    saveGame(name);
     toast.success("Game progress saved!");
   };
 
@@ -149,15 +152,13 @@ const Index = () => {
                     <span className="hidden sm:inline">Career</span>
                   </Button>
                 </Link>
-                <Button 
-                  size="sm" 
-                  variant="secondary" 
-                  onClick={handleSaveGame}
-                  className="gap-1"
-                >
-                  <Save className="w-4 h-4" />
-                  <span className="hidden sm:inline">Save</span>
-                </Button>
+                <SaveLoadDialog
+                  getSaveSlots={listSaveSlots}
+                  onSave={(name) => handleSaveGame(name)}
+                  onLoad={(name) => loadGame(name)}
+                  onDelete={(name) => deleteSave(name)}
+                  mode="tour"
+                />
                 <Button 
                   size="sm" 
                   variant="outline" 

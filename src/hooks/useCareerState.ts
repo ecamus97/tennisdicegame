@@ -16,6 +16,7 @@ import { challengerTournaments, ChallengerTournament, getChallengerMoneyForRound
 import { playMatch } from '@/lib/matchEngine';
 import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard, getEligibleRankingRange } from '@/lib/tournamentEntryLogic';
 import { TournamentDraw } from '@/hooks/useGameState';
+import { processSeasonTransition } from '@/lib/retirementLogic';
 
 // Combine all ATP + Challenger tournaments into a unified list for Career Mode
 const allCareerTournaments: Tournament[] = [
@@ -47,6 +48,26 @@ const allCareerTournaments: Tournament[] = [
 const allInitialPlayers: Player[] = [...initialPlayers, ...extendedPlayers];
 
 const CAREER_STORAGE_KEY = 'tennis-dice-tour-career';
+const CAREER_SAVE_SLOTS_KEY = 'tennis-dice-career-saves';
+
+export interface CareerSaveSlot {
+  name: string;
+  timestamp: number;
+  season: number;
+  week: number;
+  playerName: string;
+}
+
+export function listCareerSaveSlots(): CareerSaveSlot[] {
+  try {
+    const raw = localStorage.getItem(CAREER_SAVE_SLOTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveCareerSlotsToStorage(slots: CareerSaveSlot[]) {
+  localStorage.setItem(CAREER_SAVE_SLOTS_KEY, JSON.stringify(slots));
+}
 
 const getInitialCareerState = (): CareerState => {
   const saved = localStorage.getItem(CAREER_STORAGE_KEY);
@@ -874,12 +895,20 @@ export const useCareerState = () => {
         p.livePoints = 0;
         p.form = Math.max(-10, p.form - 3);
 
-        // AI season transition
-        updatedPlayers = updatedPlayers.map(player => ({
-          ...player,
-          previousYearPoints: [...player.previousYearPoints],
-          livePoints: 0,
-        }));
+        // AI season transition - set previousYearPoints to this year's earned points, reset livePoints
+        updatedPlayers = updatedPlayers.map(player => {
+          // Build per-week points array from what was earned this year
+          const newPrev = [...player.previousYearPoints]; // already accumulated during the season
+          return {
+            ...player,
+            age: player.age + 1,
+            previousYearPoints: newPrev,
+            livePoints: 0,
+          };
+        });
+
+        // Process retirements and new player generation
+        updatedPlayers = processSeasonTransition(updatedPlayers);
       }
 
       // Weekly point defense
@@ -1040,9 +1069,51 @@ export const useCareerState = () => {
     });
   }, []);
 
-  const saveCareer = useCallback(() => {
-    localStorage.setItem(CAREER_STORAGE_KEY, JSON.stringify(state));
+  const saveCareer = useCallback((name?: string) => {
+    const saveName = name || 'Default';
+    const stateToSave = { ...state, saveName };
+    const key = `${CAREER_STORAGE_KEY}-${saveName}`;
+    localStorage.setItem(key, JSON.stringify(stateToSave));
+    localStorage.setItem(CAREER_STORAGE_KEY, JSON.stringify(stateToSave));
+
+    const slots = listCareerSaveSlots();
+    const existing = slots.findIndex(s => s.name === saveName);
+    const playerName = state.player ? `${state.player.firstName} ${state.player.lastName}` : 'Unknown';
+    const slot: CareerSaveSlot = { name: saveName, timestamp: Date.now(), season: state.currentSeason, week: state.currentWeek, playerName };
+    if (existing >= 0) slots[existing] = slot;
+    else slots.push(slot);
+    saveCareerSlotsToStorage(slots);
   }, [state]);
+
+  const loadCareer = useCallback((name: string) => {
+    const key = `${CAREER_STORAGE_KEY}-${name}`;
+    const saved = localStorage.getItem(key);
+    if (!saved) return false;
+    try {
+      const parsed = JSON.parse(saved);
+      if (!parsed.allPlayers || parsed.allPlayers.length < 200) {
+        parsed.allPlayers = allInitialPlayers.map(p => ({ ...p }));
+      }
+      parsed.allPlayers = parsed.allPlayers.map((p: Player) => ({ ...p, age: p.age || 25 }));
+      if (parsed.player) {
+        if (!parsed.player.sponsors) parsed.player.sponsors = [];
+        if (!parsed.player.staff) parsed.player.staff = [];
+        if (parsed.player.officialPoints === undefined) parsed.player.officialPoints = parsed.player.livePoints || 0;
+        if (!parsed.player.currentYearWeeklyPoints) parsed.player.currentYearWeeklyPoints = new Array(52).fill(0);
+        if (!parsed.player.stats.titlesDetail) parsed.player.stats.titlesDetail = [];
+        parsed.player.fictionalRankingScore = calculateFictionalRankingScore(parsed.player.attributes);
+      }
+      setState(parsed);
+      localStorage.setItem(CAREER_STORAGE_KEY, saved);
+      return true;
+    } catch { return false; }
+  }, []);
+
+  const deleteCareerSave = useCallback((name: string) => {
+    localStorage.removeItem(`${CAREER_STORAGE_KEY}-${name}`);
+    const slots = listCareerSaveSlots().filter(s => s.name !== name);
+    saveCareerSlotsToStorage(slots);
+  }, []);
 
   return {
     ...state,
@@ -1061,6 +1132,8 @@ export const useCareerState = () => {
     advanceWeek,
     resetCareer,
     saveCareer,
+    loadCareer,
+    deleteCareerSave,
     signSponsor,
     cancelSponsor,
     hireStaff,

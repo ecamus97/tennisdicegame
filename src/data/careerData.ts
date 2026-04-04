@@ -636,6 +636,7 @@ export function careerPlayerToPlayer(cp: CareerPlayer): Player {
     name: `${cp.firstName} ${cp.lastName}`,
     country: cp.nationality,
     countryCode: cp.countryCode,
+    age: cp.age,
     officialRanking: cp.officialRanking,
     fictionalRanking,
     points: cp.officialPoints,

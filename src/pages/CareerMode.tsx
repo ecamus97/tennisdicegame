@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useCareerState } from '@/hooks/useCareerState';
+import { useCareerState, listCareerSaveSlots } from '@/hooks/useCareerState';
 import CareerCreation from '@/components/career/CareerCreation';
 import CareerDashboard from '@/components/career/CareerDashboard';
 import CareerCalendar from '@/components/career/CareerCalendar';
@@ -12,6 +12,7 @@ import CareerRankings from '@/components/career/CareerRankings';
 import CareerSponsors from '@/components/career/CareerSponsors';
 import CareerStaff from '@/components/career/CareerStaff';
 import CurrentWeekView from '@/components/CurrentWeekView';
+import SaveLoadDialog from '@/components/SaveLoadDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import {
@@ -100,8 +101,8 @@ const CareerMode = () => {
     toast.info(`Advanced to Week ${career.currentWeek >= 52 ? 1 : career.currentWeek + 1}`);
   };
 
-  const handleSave = () => {
-    career.saveCareer();
+  const handleSave = (name?: string) => {
+    career.saveCareer(name);
     toast.success('Career saved!');
   };
 
@@ -143,10 +144,14 @@ const CareerMode = () => {
                 </div>
               </div>
               <div className="w-px h-8 bg-border" />
-              <Button size="sm" variant="secondary" onClick={handleSave} className="gap-1">
-                <Save className="w-4 h-4" />
-                <span className="hidden sm:inline">Save</span>
-              </Button>
+              <SaveLoadDialog
+                currentSaveName={(career as any).saveName}
+                getSaveSlots={listCareerSaveSlots}
+                onSave={(name) => handleSave(name)}
+                onLoad={(name) => career.loadCareer(name)}
+                onDelete={(name) => career.deleteCareerSave(name)}
+                mode="career"
+              />
               <Button size="sm" variant="outline" onClick={handleAdvanceWeek} className="gap-1">
                 <ChevronRight className="w-4 h-4" />
                 <span className="hidden sm:inline">Next Week</span>

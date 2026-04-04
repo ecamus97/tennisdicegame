@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Player, Tournament, initialPlayers, tournaments, Surface, SurfaceAffinity } from '@/data/players';
+import { processSeasonTransition } from '@/lib/retirementLogic';
 import { MatchResult } from '@/lib/matchEngine';
 
 // Stored match in a draw
@@ -27,6 +28,29 @@ export interface GameState {
   completedTournaments: string[];
   tournamentHistory: TournamentResult[];
   currentDraw: TournamentDraw | null;
+  saveName?: string;
+}
+
+// Named save slots
+export interface SaveSlot {
+  name: string;
+  timestamp: number;
+  season: number;
+  week: number;
+}
+
+const STORAGE_KEY = 'tennis-dice-tour-state';
+const SAVE_SLOTS_KEY = 'tennis-dice-tour-saves';
+
+export function listSaveSlots(): SaveSlot[] {
+  try {
+    const raw = localStorage.getItem(SAVE_SLOTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveSlotsToStorage(slots: SaveSlot[]) {
+  localStorage.setItem(SAVE_SLOTS_KEY, JSON.stringify(slots));
 }
 
 export interface TournamentResult {
@@ -46,13 +70,20 @@ export interface PlayerTournamentResult {
   round: string;
 }
 
-const STORAGE_KEY = 'tennis-dice-tour-state';
 
 const getInitialState = (): GameState => {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
     try {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      // Ensure age field exists
+      if (parsed.players) {
+        parsed.players = parsed.players.map((p: Player) => ({
+          ...p,
+          age: p.age || 25,
+        }));
+      }
+      return parsed;
     } catch {
       console.error('Failed to parse saved state');
     }
@@ -126,31 +157,40 @@ export const useGameState = () => {
     setState(prev => {
       const newWeek = prev.currentWeek >= 52 ? 1 : prev.currentWeek + 1;
       const newSeason = prev.currentWeek >= 52 ? prev.currentSeason + 1 : prev.currentSeason;
+      const isNewSeason = newWeek === 1 && newSeason > prev.currentSeason;
       
-      // When advancing week, update official rankings and handle injuries
-      const updatedPlayers = prev.players.map(player => {
-        // First update injury recovery
+      let updatedPlayers = prev.players.map(player => {
         let updatedPlayer = updateInjuryRecovery(player);
-        
-        // Chance for new injury
         updatedPlayer = generateRandomInjury(updatedPlayer);
         
-        // Deduct points from previous year for this week
-        const pointsToDeduct = updatedPlayer.previousYearPoints[newWeek - 1] || 0;
+        // Season transition: swap previousYearPoints with current year's earned points
+        if (isNewSeason) {
+          // The current previousYearPoints holds season 1 defense data (or last year's earned).
+          // livePoints tracks this year's earnings. previousYearPoints was used for defense.
+          // Now: previous year = what we actually earned per week this year
+          const earnedThisYear = [...updatedPlayer.previousYearPoints]; // will be replaced below
+          return {
+            ...updatedPlayer,
+            age: updatedPlayer.age + 1,
+            previousYearPoints: distributePointsToWeeks(updatedPlayer.livePoints),
+            livePoints: 0,
+          };
+        }
         
-        // Calculate new official points
+        // Weekly point defense (deduct previous year's points for this week)
+        const pointsToDeduct = updatedPlayer.previousYearPoints[newWeek - 1] || 0;
         const newOfficialPoints = Math.max(0, updatedPlayer.points - pointsToDeduct);
         
         return {
           ...updatedPlayer,
           points: newOfficialPoints,
-          // If we're starting a new season, reset previous year points
-          ...(newWeek === 1 && newSeason > prev.currentSeason ? {
-            previousYearPoints: distributePointsToWeeks(updatedPlayer.livePoints),
-            livePoints: 0,
-          } : {}),
         };
       });
+
+      // Retirement and new player generation at season end
+      if (isNewSeason) {
+        updatedPlayers = processSeasonTransition(updatedPlayers);
+      }
 
       // Re-rank players by official points
       const rankedPlayers = [...updatedPlayers]
@@ -165,8 +205,7 @@ export const useGameState = () => {
         currentWeek: newWeek,
         currentSeason: newSeason,
         players: rankedPlayers,
-        currentDraw: null, // Clear draw when advancing week
-        // Reset completed tournaments at season start
+        currentDraw: null,
         completedTournaments: newWeek === 1 ? [] : prev.completedTournaments,
       };
     });
@@ -360,10 +399,47 @@ export const useGameState = () => {
     });
   }, []);
 
-  // Manual save game
-  const saveGame = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  // Manual save game (with optional name)
+  const saveGame = useCallback((name?: string) => {
+    const saveName = name || state.saveName || 'Default';
+    const stateToSave = { ...state, saveName };
+    const key = `${STORAGE_KEY}-${saveName}`;
+    localStorage.setItem(key, JSON.stringify(stateToSave));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+
+    // Update save slots list
+    const slots = listSaveSlots();
+    const existing = slots.findIndex(s => s.name === saveName);
+    const slot: SaveSlot = { name: saveName, timestamp: Date.now(), season: state.currentSeason, week: state.currentWeek };
+    if (existing >= 0) slots[existing] = slot;
+    else slots.push(slot);
+    saveSlotsToStorage(slots);
+
+    setState(stateToSave);
   }, [state]);
+
+  // Load a named save
+  const loadGame = useCallback((name: string) => {
+    const key = `${STORAGE_KEY}-${name}`;
+    const saved = localStorage.getItem(key);
+    if (!saved) return false;
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed.players) {
+        parsed.players = parsed.players.map((p: Player) => ({ ...p, age: p.age || 25 }));
+      }
+      setState(parsed);
+      localStorage.setItem(STORAGE_KEY, saved);
+      return true;
+    } catch { return false; }
+  }, []);
+
+  // Delete a save slot
+  const deleteSave = useCallback((name: string) => {
+    localStorage.removeItem(`${STORAGE_KEY}-${name}`);
+    const slots = listSaveSlots().filter(s => s.name !== name);
+    saveSlotsToStorage(slots);
+  }, []);
 
   // Get players sorted by live ranking
   const getPlayersByLiveRanking = useCallback(() => {
@@ -384,6 +460,8 @@ export const useGameState = () => {
     recordMatchResult,
     resetGame,
     saveGame,
+    loadGame,
+    deleteSave,
     saveCurrentDraw,
     clearCurrentDraw,
     getPlayersByLiveRanking,
@@ -393,10 +471,14 @@ export const useGameState = () => {
   };
 };
 
-// Helper to distribute total points across 52 weeks (simplified - just puts all in week 1)
-// In a real implementation, this would track actual weekly results
+// Helper to distribute total points across 52 weeks
 function distributePointsToWeeks(totalPoints: number): number[] {
   const weeks = new Array(52).fill(0);
-  weeks[0] = totalPoints; // Simplified - in reality, would track per-tournament
+  // Distribute evenly with remainder in early weeks
+  const perWeek = Math.floor(totalPoints / 52);
+  const remainder = totalPoints - perWeek * 52;
+  for (let i = 0; i < 52; i++) {
+    weeks[i] = perWeek + (i < remainder ? 1 : 0);
+  }
   return weeks;
 }

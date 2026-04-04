@@ -2,6 +2,7 @@
 // Country data for players 151-500
 
 import { Player, Surface, SurfaceAffinity, PlayerStats } from './players';
+import { INITIAL_RANKING_DATA, getSeason1DefensePoints } from './initialRankingData';
 
 interface PlayerEntry {
   rank: number;
@@ -374,18 +375,25 @@ const defaultAffinity: SurfaceAffinity = { Hard: 0, Clay: 0, Grass: 0 };
 
 // Generate Player objects for players 151-503
 // IDs start from 151 (to follow the existing 1-150 range)
-export const extendedPlayers: Player[] = extendedPlayerEntries.map((entry, _index) => ({
-  id: entry.rank, // Use ranking as ID to avoid conflicts
-  name: entry.name,
-  country: entry.country,
-  countryCode: entry.countryCode,
-  officialRanking: entry.rank,
-  fictionalRanking: entry.rank,
-  points: 0,
-  livePoints: 0,
-  previousYearPoints: new Array(52).fill(0),
-  injured: false,
-  injuryWeeksRemaining: 0,
-  surfaceAffinity: { ...defaultAffinity },
-  stats: { ...defaultStats, surfaceWins: { Hard: 0, Clay: 0, Grass: 0 }, surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 } },
-}));
+export const extendedPlayers: Player[] = extendedPlayerEntries.map((entry, _index) => {
+  const rankingData = INITIAL_RANKING_DATA[entry.name];
+  const points = rankingData?.points || 0;
+  const age = rankingData?.age || 25;
+  const defensePoints = getSeason1DefensePoints(entry.name, points);
+  return {
+    id: entry.rank, // Use ranking as ID to avoid conflicts
+    name: entry.name,
+    country: entry.country,
+    countryCode: entry.countryCode,
+    age,
+    officialRanking: entry.rank,
+    fictionalRanking: entry.rank,
+    points,
+    livePoints: 0,
+    previousYearPoints: defensePoints,
+    injured: false,
+    injuryWeeksRemaining: 0,
+    surfaceAffinity: { ...defaultAffinity },
+    stats: { ...defaultStats, surfaceWins: { Hard: 0, Clay: 0, Grass: 0 }, surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 } },
+  };
+});
