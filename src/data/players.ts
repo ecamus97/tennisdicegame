@@ -1,3 +1,5 @@
+import { INITIAL_RANKING_DATA, getSeason1DefensePoints } from './initialRankingData';
+
 export type Surface = "Hard" | "Clay" | "Grass";
 
 export interface SurfaceAffinity {
