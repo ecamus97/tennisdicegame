@@ -93,8 +93,8 @@ const Index = () => {
     toast.success("Tournament results saved! Points have been awarded.");
   };
 
-  const handleSaveGame = () => {
-    saveGame();
+  const handleSaveGame = (name?: string) => {
+    saveGame(name);
     toast.success("Game progress saved!");
   };
 
