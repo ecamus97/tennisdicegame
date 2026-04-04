@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useCareerState } from '@/hooks/useCareerState';
+import { useCareerState, listCareerSaveSlots } from '@/hooks/useCareerState';
 import CareerCreation from '@/components/career/CareerCreation';
 import CareerDashboard from '@/components/career/CareerDashboard';
 import CareerCalendar from '@/components/career/CareerCalendar';
@@ -12,6 +12,7 @@ import CareerRankings from '@/components/career/CareerRankings';
 import CareerSponsors from '@/components/career/CareerSponsors';
 import CareerStaff from '@/components/career/CareerStaff';
 import CurrentWeekView from '@/components/CurrentWeekView';
+import SaveLoadDialog from '@/components/SaveLoadDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import {
