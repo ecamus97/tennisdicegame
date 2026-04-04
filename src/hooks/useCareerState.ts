@@ -1069,9 +1069,51 @@ export const useCareerState = () => {
     });
   }, []);
 
-  const saveCareer = useCallback(() => {
-    localStorage.setItem(CAREER_STORAGE_KEY, JSON.stringify(state));
+  const saveCareer = useCallback((name?: string) => {
+    const saveName = name || 'Default';
+    const stateToSave = { ...state, saveName };
+    const key = `${CAREER_STORAGE_KEY}-${saveName}`;
+    localStorage.setItem(key, JSON.stringify(stateToSave));
+    localStorage.setItem(CAREER_STORAGE_KEY, JSON.stringify(stateToSave));
+
+    const slots = listCareerSaveSlots();
+    const existing = slots.findIndex(s => s.name === saveName);
+    const playerName = state.player ? `${state.player.firstName} ${state.player.lastName}` : 'Unknown';
+    const slot: CareerSaveSlot = { name: saveName, timestamp: Date.now(), season: state.currentSeason, week: state.currentWeek, playerName };
+    if (existing >= 0) slots[existing] = slot;
+    else slots.push(slot);
+    saveCareerSlotsToStorage(slots);
   }, [state]);
+
+  const loadCareer = useCallback((name: string) => {
+    const key = `${CAREER_STORAGE_KEY}-${name}`;
+    const saved = localStorage.getItem(key);
+    if (!saved) return false;
+    try {
+      const parsed = JSON.parse(saved);
+      if (!parsed.allPlayers || parsed.allPlayers.length < 200) {
+        parsed.allPlayers = allInitialPlayers.map(p => ({ ...p }));
+      }
+      parsed.allPlayers = parsed.allPlayers.map((p: Player) => ({ ...p, age: p.age || 25 }));
+      if (parsed.player) {
+        if (!parsed.player.sponsors) parsed.player.sponsors = [];
+        if (!parsed.player.staff) parsed.player.staff = [];
+        if (parsed.player.officialPoints === undefined) parsed.player.officialPoints = parsed.player.livePoints || 0;
+        if (!parsed.player.currentYearWeeklyPoints) parsed.player.currentYearWeeklyPoints = new Array(52).fill(0);
+        if (!parsed.player.stats.titlesDetail) parsed.player.stats.titlesDetail = [];
+        parsed.player.fictionalRankingScore = calculateFictionalRankingScore(parsed.player.attributes);
+      }
+      setState(parsed);
+      localStorage.setItem(CAREER_STORAGE_KEY, saved);
+      return true;
+    } catch { return false; }
+  }, []);
+
+  const deleteCareerSave = useCallback((name: string) => {
+    localStorage.removeItem(`${CAREER_STORAGE_KEY}-${name}`);
+    const slots = listCareerSaveSlots().filter(s => s.name !== name);
+    saveCareerSlotsToStorage(slots);
+  }, []);
 
   return {
     ...state,
