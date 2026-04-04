@@ -16,6 +16,7 @@ import { challengerTournaments, ChallengerTournament, getChallengerMoneyForRound
 import { playMatch } from '@/lib/matchEngine';
 import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard, getEligibleRankingRange } from '@/lib/tournamentEntryLogic';
 import { TournamentDraw } from '@/hooks/useGameState';
+import { processSeasonTransition } from '@/lib/retirementLogic';
 
 // Combine all ATP + Challenger tournaments into a unified list for Career Mode
 const allCareerTournaments: Tournament[] = [
