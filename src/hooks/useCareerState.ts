@@ -875,12 +875,20 @@ export const useCareerState = () => {
         p.livePoints = 0;
         p.form = Math.max(-10, p.form - 3);
 
-        // AI season transition
-        updatedPlayers = updatedPlayers.map(player => ({
-          ...player,
-          previousYearPoints: [...player.previousYearPoints],
-          livePoints: 0,
-        }));
+        // AI season transition - set previousYearPoints to this year's earned points, reset livePoints
+        updatedPlayers = updatedPlayers.map(player => {
+          // Build per-week points array from what was earned this year
+          const newPrev = [...player.previousYearPoints]; // already accumulated during the season
+          return {
+            ...player,
+            age: player.age + 1,
+            previousYearPoints: newPrev,
+            livePoints: 0,
+          };
+        });
+
+        // Process retirements and new player generation
+        updatedPlayers = processSeasonTransition(updatedPlayers);
       }
 
       // Weekly point defense
