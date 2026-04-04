@@ -101,8 +101,8 @@ const CareerMode = () => {
     toast.info(`Advanced to Week ${career.currentWeek >= 52 ? 1 : career.currentWeek + 1}`);
   };
 
-  const handleSave = () => {
-    career.saveCareer();
+  const handleSave = (name?: string) => {
+    career.saveCareer(name);
     toast.success('Career saved!');
   };
 
