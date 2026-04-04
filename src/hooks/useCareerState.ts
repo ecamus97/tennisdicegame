@@ -1132,6 +1132,8 @@ export const useCareerState = () => {
     advanceWeek,
     resetCareer,
     saveCareer,
+    loadCareer,
+    deleteCareerSave,
     signSponsor,
     cancelSponsor,
     hireStaff,
