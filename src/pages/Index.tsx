@@ -38,6 +38,8 @@ const Index = () => {
     updateSurfaceAffinity,
     recordMatchResult,
     saveGame,
+    loadGame,
+    deleteSave,
     saveCurrentDraw,
   } = useGameState();
   
