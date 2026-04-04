@@ -399,10 +399,47 @@ export const useGameState = () => {
     });
   }, []);
 
-  // Manual save game
-  const saveGame = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  // Manual save game (with optional name)
+  const saveGame = useCallback((name?: string) => {
+    const saveName = name || state.saveName || 'Default';
+    const stateToSave = { ...state, saveName };
+    const key = `${STORAGE_KEY}-${saveName}`;
+    localStorage.setItem(key, JSON.stringify(stateToSave));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+
+    // Update save slots list
+    const slots = listSaveSlots();
+    const existing = slots.findIndex(s => s.name === saveName);
+    const slot: SaveSlot = { name: saveName, timestamp: Date.now(), season: state.currentSeason, week: state.currentWeek };
+    if (existing >= 0) slots[existing] = slot;
+    else slots.push(slot);
+    saveSlotsToStorage(slots);
+
+    setState(stateToSave);
   }, [state]);
+
+  // Load a named save
+  const loadGame = useCallback((name: string) => {
+    const key = `${STORAGE_KEY}-${name}`;
+    const saved = localStorage.getItem(key);
+    if (!saved) return false;
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed.players) {
+        parsed.players = parsed.players.map((p: Player) => ({ ...p, age: p.age || 25 }));
+      }
+      setState(parsed);
+      localStorage.setItem(STORAGE_KEY, saved);
+      return true;
+    } catch { return false; }
+  }, []);
+
+  // Delete a save slot
+  const deleteSave = useCallback((name: string) => {
+    localStorage.removeItem(`${STORAGE_KEY}-${name}`);
+    const slots = listSaveSlots().filter(s => s.name !== name);
+    saveSlotsToStorage(slots);
+  }, []);
 
   // Get players sorted by live ranking
   const getPlayersByLiveRanking = useCallback(() => {
@@ -423,6 +460,8 @@ export const useGameState = () => {
     recordMatchResult,
     resetGame,
     saveGame,
+    loadGame,
+    deleteSave,
     saveCurrentDraw,
     clearCurrentDraw,
     getPlayersByLiveRanking,
@@ -432,10 +471,14 @@ export const useGameState = () => {
   };
 };
 
-// Helper to distribute total points across 52 weeks (simplified - just puts all in week 1)
-// In a real implementation, this would track actual weekly results
+// Helper to distribute total points across 52 weeks
 function distributePointsToWeeks(totalPoints: number): number[] {
   const weeks = new Array(52).fill(0);
-  weeks[0] = totalPoints; // Simplified - in reality, would track per-tournament
+  // Distribute evenly with remainder in early weeks
+  const perWeek = Math.floor(totalPoints / 52);
+  const remainder = totalPoints - perWeek * 52;
+  for (let i = 0; i < 52; i++) {
+    weeks[i] = perWeek + (i < remainder ? 1 : 0);
+  }
   return weeks;
 }
