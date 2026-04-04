@@ -347,19 +347,24 @@ const playerNames = [
   "Titouan Droguet",
 ];
 
-// Generate initial players with 0 points
+// Generate initial players with real points and ages from ranking data
 export const initialPlayers: Player[] = playerNames.map((name, index) => {
   const { country, countryCode } = getCountryData(name);
+  const rankingData = INITIAL_RANKING_DATA[name];
+  const points = rankingData?.points || 0;
+  const age = rankingData?.age || 25;
+  const defensePoints = getSeason1DefensePoints(name, points);
   return {
     id: index + 1,
     name,
     country,
     countryCode,
+    age,
     officialRanking: index + 1,
     fictionalRanking: index + 1,
-    points: 0,
+    points,
     livePoints: 0,
-    previousYearPoints: new Array(52).fill(0),
+    previousYearPoints: defensePoints,
     injured: false,
     injuryWeeksRemaining: 0,
     surfaceAffinity: { Hard: 0, Clay: 0, Grass: 0 },
