@@ -25,10 +25,12 @@ export interface Player {
   countryCode: string;
   age: number;
   officialRanking: number;
+  previousRanking: number; // ranking at start of week (for showing change)
   fictionalRanking: number;
   points: number; // Official ranking points (rolling 52-week)
   livePoints: number; // Points earned in current year only
   previousYearPoints: number[]; // Points from previous year per week (52 weeks)
+  weeklyDefensePoints: number; // Points being defended this week
   injured: boolean;
   injuryWeeksRemaining: number;
   surfaceAffinity: SurfaceAffinity;
