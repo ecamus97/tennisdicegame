@@ -666,15 +666,23 @@ export const SEASON1_DEFENSE_DATA: Record<string, number[]> = {
 };
 
 // Get defense points for a player in season 1
-// Top 150: use actual data, 151-500: distribute linearly
+// Top 150: use actual weekly data + linearly distribute any remainder (totalPoints - sum of weekly)
+// 151-500: distribute all points linearly across 52 weeks
 export function getSeason1DefensePoints(playerName: string, totalPoints: number): number[] {
   const specific = SEASON1_DEFENSE_DATA[playerName];
-  if (specific) return specific;
+  if (specific) {
+    const sumSpecific = specific.reduce((a, b) => a + b, 0);
+    const remainder = totalPoints - sumSpecific;
+    if (remainder <= 0) return [...specific]; // weekly data covers all or more
+    // Distribute remainder linearly across 52 weeks
+    const perWeek = Math.floor(remainder / 52);
+    const extra = remainder - perWeek * 52;
+    return specific.map((v, i) => v + perWeek + (i < extra ? 1 : 0));
+  }
   // Linear distribution for players 151-500
   const perWeek = Math.floor(totalPoints / 52);
-  const remainder = totalPoints - perWeek * 52;
+  const extra = totalPoints - perWeek * 52;
   const weeks = new Array(52).fill(perWeek);
-  // Distribute remainder across first N weeks
-  for (let i = 0; i < remainder; i++) weeks[i]++;
+  for (let i = 0; i < extra; i++) weeks[i]++;
   return weeks;
 }
