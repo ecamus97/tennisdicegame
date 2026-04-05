@@ -81,6 +81,8 @@ const getInitialState = (): GameState => {
         parsed.players = parsed.players.map((p: Player) => ({
           ...p,
           age: p.age || 25,
+          previousRanking: p.previousRanking || p.officialRanking,
+          weeklyDefensePoints: p.weeklyDefensePoints || 0,
         }));
       }
       return parsed;
