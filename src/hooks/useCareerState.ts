@@ -1092,7 +1092,7 @@ export const useCareerState = () => {
       if (!parsed.allPlayers || parsed.allPlayers.length < 200) {
         parsed.allPlayers = allInitialPlayers.map(p => ({ ...p }));
       }
-      parsed.allPlayers = parsed.allPlayers.map((p: Player) => ({ ...p, age: p.age || 25 }));
+      parsed.allPlayers = parsed.allPlayers.map((p: Player) => ({ ...p, age: p.age || 25, previousRanking: p.previousRanking || p.officialRanking, weeklyDefensePoints: p.weeklyDefensePoints || 0 }));
       if (parsed.player) {
         if (!parsed.player.sponsors) parsed.player.sponsors = [];
         if (!parsed.player.staff) parsed.player.staff = [];
