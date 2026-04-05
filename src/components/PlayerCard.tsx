@@ -24,6 +24,13 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 }) => {
   const rank = displayRank ?? player.officialRanking;
   const points = rankingType === "live" ? player.livePoints : player.points;
+  const rankingDrop = (player.previousRanking && player.previousRanking < player.officialRanking)
+    ? player.officialRanking - player.previousRanking
+    : 0;
+  const rankingRise = (player.previousRanking && player.previousRanking > player.officialRanking)
+    ? player.previousRanking - player.officialRanking
+    : 0;
+  const defensePoints = player.weeklyDefensePoints || 0;
 
   const getRankingBadge = (rank: number) => {
     if (rank === 1) return "bg-medal-gold text-primary-foreground";
@@ -44,9 +51,17 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         onClick={onClick}
       >
         {showRanking && (
-          <span className={`${getRankingBadge(rank)} px-2 py-0.5 rounded text-xs font-bold min-w-[2rem] text-center`}>
-            {rank}
-          </span>
+          <div className="flex items-center gap-1">
+            <span className={`${getRankingBadge(rank)} px-2 py-0.5 rounded text-xs font-bold min-w-[2rem] text-center`}>
+              {rank}
+            </span>
+            {rankingDrop > 0 && (
+              <span className="text-[10px] font-bold text-red-500">▼{rankingDrop}</span>
+            )}
+            {rankingRise > 0 && (
+              <span className="text-[10px] font-bold text-green-500">▲{rankingRise}</span>
+            )}
+          </div>
         )}
         <span className="text-xs font-medium text-muted-foreground">{player.countryCode}</span>
         <span className={`font-medium truncate ${isWinner ? "text-primary" : "text-foreground"}`}>
@@ -56,7 +71,12 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
           <span className="text-destructive text-xs">🤕</span>
         )}
         {showPoints && (
-          <span className="ml-auto text-xs text-muted-foreground">{points.toLocaleString()} pts</span>
+          <div className="ml-auto flex items-center gap-1 shrink-0">
+            <span className="text-xs text-muted-foreground">{points.toLocaleString()} pts</span>
+            {defensePoints > 0 && rankingType === "official" && (
+              <span className="text-[10px] font-bold text-red-500">(-{defensePoints})</span>
+            )}
+          </div>
         )}
       </div>
     );
@@ -73,8 +93,16 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
     >
       <div className="flex items-start gap-3">
         {showRanking && (
-          <div className={`${getRankingBadge(rank)} px-3 py-1 rounded-lg text-sm font-bold`}>
-            #{rank}
+          <div className="flex flex-col items-center gap-0.5">
+            <div className={`${getRankingBadge(rank)} px-3 py-1 rounded-lg text-sm font-bold`}>
+              #{rank}
+            </div>
+            {rankingDrop > 0 && (
+              <span className="text-[10px] font-bold text-red-500">▼{rankingDrop}</span>
+            )}
+            {rankingRise > 0 && (
+              <span className="text-[10px] font-bold text-green-500">▲{rankingRise}</span>
+            )}
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -86,10 +114,13 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             {player.name}
           </h3>
           {showPoints && (
-            <div className="text-sm text-muted-foreground mt-1">
+            <div className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
               <span>{points.toLocaleString()} pts</span>
+              {defensePoints > 0 && rankingType === "official" && (
+                <span className="text-red-500 font-bold text-xs">(-{defensePoints})</span>
+              )}
               {rankingType === "official" && player.livePoints > 0 && (
-                <span className="ml-2 text-primary">({player.livePoints.toLocaleString()} this year)</span>
+                <span className="text-primary">({player.livePoints.toLocaleString()} this year)</span>
               )}
             </div>
           )}
