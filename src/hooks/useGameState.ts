@@ -427,7 +427,7 @@ export const useGameState = () => {
     try {
       const parsed = JSON.parse(saved);
       if (parsed.players) {
-        parsed.players = parsed.players.map((p: Player) => ({ ...p, age: p.age || 25 }));
+        parsed.players = parsed.players.map((p: Player) => ({ ...p, age: p.age || 25, previousRanking: p.previousRanking || p.officialRanking, weeklyDefensePoints: p.weeklyDefensePoints || 0 }));
       }
       setState(parsed);
       localStorage.setItem(STORAGE_KEY, saved);

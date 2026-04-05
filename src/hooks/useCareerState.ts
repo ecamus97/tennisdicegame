@@ -911,17 +911,15 @@ export const useCareerState = () => {
         updatedPlayers = processSeasonTransition(updatedPlayers);
       }
 
-      // Weekly point defense
+      // Weekly point defense - always apply
       const weekToDefend = newWeek - 1;
-      if (newSeason > 1 || prev.currentSeason > 1) {
-        const careerDefended = p.previousYearPoints[weekToDefend] || 0;
-        p.officialPoints = Math.max(0, p.officialPoints - careerDefended);
+      const careerDefended = p.previousYearPoints[weekToDefend] || 0;
+      p.officialPoints = Math.max(0, p.officialPoints - careerDefended);
 
-        updatedPlayers = updatedPlayers.map(player => {
-          const defended = player.previousYearPoints[weekToDefend] || 0;
-          return { ...player, points: Math.max(0, player.points - defended) };
-        });
-      }
+      updatedPlayers = updatedPlayers.map(player => {
+        const defended = player.previousYearPoints[weekToDefend] || 0;
+        return { ...player, points: Math.max(0, player.points - defended), weeklyDefensePoints: defended, previousRanking: player.officialRanking };
+      });
 
       // Recalculate rankings
       const { players: ranked, careerRanking } = recalculateRankings(updatedPlayers, p);
