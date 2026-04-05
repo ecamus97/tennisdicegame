@@ -381,16 +381,18 @@ export const extendedPlayers: Player[] = extendedPlayerEntries.map((entry, _inde
   const age = rankingData?.age || 25;
   const defensePoints = getSeason1DefensePoints(entry.name, points);
   return {
-    id: entry.rank, // Use ranking as ID to avoid conflicts
+    id: entry.rank,
     name: entry.name,
     country: entry.country,
     countryCode: entry.countryCode,
     age,
     officialRanking: entry.rank,
+    previousRanking: entry.rank,
     fictionalRanking: entry.rank,
     points,
     livePoints: 0,
     previousYearPoints: defensePoints,
+    weeklyDefensePoints: 0,
     injured: false,
     injuryWeeksRemaining: 0,
     surfaceAffinity: { ...defaultAffinity },

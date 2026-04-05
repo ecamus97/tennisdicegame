@@ -55,10 +55,12 @@ function generateNewPlayer(ranking: number): Player {
     countryCode: country.code,
     age,
     officialRanking: ranking,
+    previousRanking: ranking,
     fictionalRanking: ranking,
-    points: Math.max(0, Math.floor(Math.random() * 50 + 30)), // Small starting points
+    points: Math.max(0, Math.floor(Math.random() * 50 + 30)),
     livePoints: 0,
     previousYearPoints: new Array(52).fill(0),
+    weeklyDefensePoints: 0,
     injured: false,
     injuryWeeksRemaining: 0,
     surfaceAffinity: { Hard: 0, Clay: 0, Grass: 0 },

@@ -25,10 +25,12 @@ export interface Player {
   countryCode: string;
   age: number;
   officialRanking: number;
+  previousRanking: number; // ranking at start of week (for showing change)
   fictionalRanking: number;
   points: number; // Official ranking points (rolling 52-week)
   livePoints: number; // Points earned in current year only
   previousYearPoints: number[]; // Points from previous year per week (52 weeks)
+  weeklyDefensePoints: number; // Points being defended this week
   injured: boolean;
   injuryWeeksRemaining: number;
   surfaceAffinity: SurfaceAffinity;
@@ -361,10 +363,12 @@ export const initialPlayers: Player[] = playerNames.map((name, index) => {
     countryCode,
     age,
     officialRanking: index + 1,
+    previousRanking: index + 1,
     fictionalRanking: index + 1,
     points,
     livePoints: 0,
     previousYearPoints: defensePoints,
+    weeklyDefensePoints: 0,
     injured: false,
     injuryWeeksRemaining: 0,
     surfaceAffinity: { Hard: 0, Clay: 0, Grass: 0 },
