@@ -638,10 +638,12 @@ export function careerPlayerToPlayer(cp: CareerPlayer): Player {
     countryCode: cp.countryCode,
     age: cp.age,
     officialRanking: cp.officialRanking,
+    previousRanking: cp.officialRanking,
     fictionalRanking,
     points: cp.officialPoints,
     livePoints: cp.livePoints,
     previousYearPoints: cp.previousYearPoints,
+    weeklyDefensePoints: 0,
     injured: cp.injured,
     injuryWeeksRemaining: cp.injuryWeeksRemaining,
     surfaceAffinity: {
