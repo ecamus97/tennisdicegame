@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Player, Tournament, initialPlayers, tournaments, Surface, SurfaceAffinity } from '@/data/players';
-import { processSeasonTransition } from '@/lib/retirementLogic';
+import { processSeasonTransition, SeasonTransitionResult } from '@/lib/retirementLogic';
 import { MatchResult } from '@/lib/matchEngine';
 
 // Stored match in a draw
@@ -21,6 +21,15 @@ export interface TournamentDraw {
   entrantIds: number[];
 }
 
+export interface SeasonSummaryData {
+  season: number;
+  topRanking: { name: string; points: number }[];
+  grandSlamWinners: { tournament: string; winner: string }[];
+  masters1000Winners: { tournament: string; winner: string }[];
+  retiredPlayers: string[];
+  newPlayers: string[];
+}
+
 export interface GameState {
   players: Player[];
   currentWeek: number;
@@ -29,6 +38,7 @@ export interface GameState {
   tournamentHistory: TournamentResult[];
   currentDraw: TournamentDraw | null;
   saveName?: string;
+  seasonSummary?: SeasonSummaryData | null;
 }
 
 // Named save slots
@@ -76,13 +86,13 @@ const getInitialState = (): GameState => {
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      // Ensure age field exists
       if (parsed.players) {
         parsed.players = parsed.players.map((p: Player) => ({
           ...p,
           age: p.age || 25,
           previousRanking: p.previousRanking || p.officialRanking,
           weeklyDefensePoints: p.weeklyDefensePoints || 0,
+          currentYearWeeklyPoints: p.currentYearWeeklyPoints || new Array(52).fill(0),
         }));
       }
       return parsed;
@@ -165,32 +175,42 @@ export const useGameState = () => {
         let updatedPlayer = updateInjuryRecovery(player);
         updatedPlayer = generateRandomInjury(updatedPlayer);
         
-        // Season transition
-        if (isNewSeason) {
-          return {
-            ...updatedPlayer,
-            age: updatedPlayer.age + 1,
-            previousYearPoints: distributePointsToWeeks(updatedPlayer.livePoints),
-            livePoints: 0,
-            weeklyDefensePoints: 0,
-          };
-        }
-        
-        // Weekly point defense - always apply (season 1 uses real data, season 2+ uses earned data)
-        const pointsToDeduct = updatedPlayer.previousYearPoints[newWeek - 1] || 0;
+        // Weekly point defense - deduct CURRENT week's defense before advancing
+        const weekIndex = prev.currentWeek - 1; // 0-based index for current week
+        const pointsToDeduct = updatedPlayer.previousYearPoints[weekIndex] || 0;
         const newOfficialPoints = Math.max(0, updatedPlayer.points - pointsToDeduct);
         
-        return {
+        updatedPlayer = {
           ...updatedPlayer,
           points: newOfficialPoints,
           weeklyDefensePoints: pointsToDeduct,
           previousRanking: updatedPlayer.officialRanking,
         };
+
+        // Season transition
+        if (isNewSeason) {
+          return {
+            ...updatedPlayer,
+            age: updatedPlayer.age + 1,
+            previousYearPoints: [...updatedPlayer.currentYearWeeklyPoints],
+            currentYearWeeklyPoints: new Array(52).fill(0),
+            points: updatedPlayer.livePoints, // Reset to only earned points
+            livePoints: 0,
+            weeklyDefensePoints: 0,
+          };
+        }
+        
+        return updatedPlayer;
       });
 
       // Retirement and new player generation at season end
+      let retiredNames: string[] = [];
+      let newPlayerNames: string[] = [];
       if (isNewSeason) {
-        updatedPlayers = processSeasonTransition(updatedPlayers);
+        const result = processSeasonTransition(updatedPlayers);
+        updatedPlayers = result.players;
+        retiredNames = result.retiredNames;
+        newPlayerNames = result.newPlayerNames;
       }
 
       // Re-rank players by official points
@@ -201,6 +221,26 @@ export const useGameState = () => {
           officialRanking: index + 1,
         }));
 
+      // Build season summary if transitioning
+      let seasonSummary: SeasonSummaryData | null = null;
+      if (isNewSeason) {
+        const gs = tournaments.filter(t => t.category === 'Grand Slam');
+        const m1000 = tournaments.filter(t => t.category === 'Masters 1000');
+        const prevSeason = prev.currentSeason;
+        const getWinners = (tList: typeof tournaments) => tList.map(t => {
+          const hist = prev.tournamentHistory.find(h => h.tournamentId === t.id && h.season === prevSeason);
+          return { tournament: t.name, winner: hist?.winnerName || 'N/A' };
+        });
+        seasonSummary = {
+          season: prevSeason,
+          topRanking: rankedPlayers.slice(0, 10).map(p => ({ name: p.name, points: p.points })),
+          grandSlamWinners: getWinners(gs),
+          masters1000Winners: getWinners(m1000),
+          retiredPlayers: retiredNames,
+          newPlayers: newPlayerNames,
+        };
+      }
+
       return {
         ...prev,
         currentWeek: newWeek,
@@ -208,6 +248,7 @@ export const useGameState = () => {
         players: rankedPlayers,
         currentDraw: null,
         completedTournaments: newWeek === 1 ? [] : prev.completedTournaments,
+        seasonSummary,
       };
     });
   }, []);
@@ -247,8 +288,8 @@ export const useGameState = () => {
 
         const newLivePoints = player.livePoints + result.points;
         const newOfficialPoints = player.points + result.points;
-        const newPrevYearPoints = [...player.previousYearPoints];
-        newPrevYearPoints[prev.currentWeek - 1] = (newPrevYearPoints[prev.currentWeek - 1] || 0) + result.points;
+        const newCurrentYearPoints = [...player.currentYearWeeklyPoints];
+        newCurrentYearPoints[prev.currentWeek - 1] = (newCurrentYearPoints[prev.currentWeek - 1] || 0) + result.points;
 
         // Calculate stats
         const wins = getWinsFromRound(result.round, playerLimit);
@@ -268,7 +309,7 @@ export const useGameState = () => {
           ...player,
           livePoints: newLivePoints,
           points: newOfficialPoints,
-          previousYearPoints: newPrevYearPoints,
+          currentYearWeeklyPoints: newCurrentYearPoints,
           stats: {
             ...stats,
             wins: stats.wins + wins,
@@ -372,6 +413,11 @@ export const useGameState = () => {
     }));
   }, []);
 
+  // Dismiss season summary
+  const dismissSeasonSummary = useCallback(() => {
+    setState(prev => ({ ...prev, seasonSummary: null }));
+  }, []);
+
   // Save current draw
   const saveCurrentDraw = useCallback((draw: TournamentDraw) => {
     setState(prev => ({
@@ -469,6 +515,7 @@ export const useGameState = () => {
     getPlayersByOfficialRanking,
     injurePlayer,
     healPlayer,
+    dismissSeasonSummary,
   };
 };
 

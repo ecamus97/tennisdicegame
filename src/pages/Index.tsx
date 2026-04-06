@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { tournaments, Tournament, Player } from "@/data/players";
 import { useGameState, listSaveSlots } from "@/hooks/useGameState";
 import SaveLoadDialog from "@/components/SaveLoadDialog";
+import SeasonSummaryDialog from "@/components/SeasonSummaryDialog";
 import RankingsView from "@/components/RankingsView";
 import CalendarView from "@/components/CalendarView";
 import CurrentWeekView from "@/components/CurrentWeekView";
@@ -41,6 +42,8 @@ const Index = () => {
     loadGame,
     deleteSave,
     saveCurrentDraw,
+    seasonSummary,
+    dismissSeasonSummary,
   } = useGameState();
   
   // Get all tournaments for a given week
@@ -426,6 +429,15 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      {/* Season Summary Dialog */}
+      {seasonSummary && (
+        <SeasonSummaryDialog
+          open={!!seasonSummary}
+          onClose={dismissSeasonSummary}
+          data={seasonSummary}
+        />
+      )}
 
       {/* Player Detail Dialog */}
       <PlayerDetailDialog

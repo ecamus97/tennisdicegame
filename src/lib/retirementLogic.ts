@@ -60,6 +60,7 @@ function generateNewPlayer(ranking: number): Player {
     points: Math.max(0, Math.floor(Math.random() * 50 + 30)),
     livePoints: 0,
     previousYearPoints: new Array(52).fill(0),
+    currentYearWeeklyPoints: new Array(52).fill(0),
     weeklyDefensePoints: 0,
     injured: false,
     injuryWeeksRemaining: 0,
@@ -73,31 +74,42 @@ function generateNewPlayer(ranking: number): Player {
   };
 }
 
+export interface SeasonTransitionResult {
+  players: Player[];
+  retiredNames: string[];
+  newPlayerNames: string[];
+}
+
 /**
  * Process end-of-season retirements and generate replacement players.
- * Players age +1 and some retire based on age probability.
- * New young players are generated to replace them.
+ * Returns updated players along with retired and new player names.
  */
-export function processSeasonTransition(players: Player[]): Player[] {
+export function processSeasonTransition(players: Player[]): SeasonTransitionResult {
   const updated: Player[] = [];
-  const retiredCount: number[] = [];
+  const retiredNames: string[] = [];
 
   for (const player of players) {
-    const aged = { ...player, age: player.age + 1 };
-    const retireChance = getRetirementProbability(aged.age);
+    const retireChance = getRetirementProbability(player.age);
     if (retireChance > 0 && Math.random() < retireChance) {
-      retiredCount.push(aged.officialRanking);
+      retiredNames.push(player.name);
     } else {
-      updated.push(aged);
+      updated.push(player);
     }
   }
 
   // Generate replacements
-  for (let i = 0; i < retiredCount.length; i++) {
-    updated.push(generateNewPlayer(490 + i));
+  const newPlayerNames: string[] = [];
+  for (let i = 0; i < retiredNames.length; i++) {
+    const newPlayer = generateNewPlayer(490 + i);
+    updated.push(newPlayer);
+    newPlayerNames.push(newPlayer.name);
   }
 
   // Re-rank
   updated.sort((a, b) => b.points - a.points);
-  return updated.map((p, idx) => ({ ...p, officialRanking: idx + 1 }));
+  return {
+    players: updated.map((p, idx) => ({ ...p, officialRanking: idx + 1 })),
+    retiredNames,
+    newPlayerNames,
+  };
 }

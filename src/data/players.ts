@@ -29,7 +29,8 @@ export interface Player {
   fictionalRanking: number;
   points: number; // Official ranking points (rolling 52-week)
   livePoints: number; // Points earned in current year only
-  previousYearPoints: number[]; // Points from previous year per week (52 weeks)
+  previousYearPoints: number[]; // Points to defend per week (52 weeks)
+  currentYearWeeklyPoints: number[]; // Points earned this year per week (for next season defense)
   weeklyDefensePoints: number; // Points being defended this week
   injured: boolean;
   injuryWeeksRemaining: number;
@@ -368,6 +369,7 @@ export const initialPlayers: Player[] = playerNames.map((name, index) => {
     points,
     livePoints: 0,
     previousYearPoints: defensePoints,
+    currentYearWeeklyPoints: new Array(52).fill(0),
     weeklyDefensePoints: 0,
     injured: false,
     injuryWeeksRemaining: 0,

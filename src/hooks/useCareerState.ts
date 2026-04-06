@@ -8,7 +8,7 @@ import {
   TRAINING_OPTIONS, CAREER_PLAYER_ID, getMoneyForRound, calculateWinsFromRound,
   ActiveSponsor, Sponsor, ActiveStaff, StaffMember,
   AVAILABLE_SPONSORS, AVAILABLE_STAFF, CareerTournamentResult, TitleDetail,
-  getContinentFromCountry,
+  getContinentFromCountry, CareerSeasonSummaryData,
 } from '@/data/careerData';
 import { tournaments, Tournament, Surface, Player, initialPlayers } from '@/data/players';
 import { extendedPlayers } from '@/data/playersExtended';
@@ -77,6 +77,11 @@ const getInitialCareerState = (): CareerState => {
       if (!parsed.allPlayers || parsed.allPlayers.length < 200) {
         parsed.allPlayers = allInitialPlayers.map(p => ({ ...p }));
       }
+      // Migrate allPlayers to include currentYearWeeklyPoints
+      parsed.allPlayers = parsed.allPlayers.map((p: Player) => ({
+        ...p,
+        currentYearWeeklyPoints: p.currentYearWeeklyPoints || new Array(52).fill(0),
+      }));
       if (parsed.activeTournament === undefined) parsed.activeTournament = null;
       if (!parsed.tournamentHistory) parsed.tournamentHistory = [];
       if (!parsed.currentDraw) parsed.currentDraw = null;
@@ -459,13 +464,13 @@ export const useCareerState = () => {
       let updatedAllPlayers = prev.allPlayers.map(player => {
         const result = results.find(r => r.playerId === player.id);
         if (!result) return player;
-        const newPrevYear = [...player.previousYearPoints];
-        newPrevYear[prev.currentWeek - 1] = (newPrevYear[prev.currentWeek - 1] || 0) + result.points;
+        const newCurrentYear = [...player.currentYearWeeklyPoints];
+        newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
         return {
           ...player,
           livePoints: player.livePoints + result.points,
           points: player.points + result.points,
-          previousYearPoints: newPrevYear,
+          currentYearWeeklyPoints: newCurrentYear,
         };
       });
 
@@ -639,9 +644,9 @@ export const useCareerState = () => {
       let updatedPlayers = prev.allPlayers.map(player => {
         const result = results.find(r => r.playerId === player.id);
         if (!result) return player;
-        const newPrev = [...player.previousYearPoints];
-        newPrev[prev.currentWeek - 1] = (newPrev[prev.currentWeek - 1] || 0) + result.points;
-        return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, previousYearPoints: newPrev };
+        const newCurrentYear = [...player.currentYearWeeklyPoints];
+        newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
+        return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, currentYearWeeklyPoints: newCurrentYear };
       });
 
       const { players: ranked, careerRanking } = recalculateRankings(updatedPlayers, p);
@@ -793,9 +798,9 @@ export const useCareerState = () => {
         updatedPlayers = updatedPlayers.map(player => {
           const result = sim.results.find(r => r.playerId === player.id);
           if (!result) return player;
-          const newPrev = [...player.previousYearPoints];
-          newPrev[prev.currentWeek - 1] = (newPrev[prev.currentWeek - 1] || 0) + result.points;
-          return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, previousYearPoints: newPrev };
+          const newCurrentYear = [...player.currentYearWeeklyPoints];
+          newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
+          return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, currentYearWeeklyPoints: newCurrentYear };
         });
 
         newCompleted.push(t.id);
@@ -885,6 +890,7 @@ export const useCareerState = () => {
       // Season transition
       let newSeason = prev.currentSeason;
       let newWeek = prev.currentWeek + 1;
+      let transitionResult: { retiredNames: string[]; newPlayerNames: string[] } | null = null;
 
       if (newWeek > 52) {
         newWeek = 1;
@@ -895,24 +901,22 @@ export const useCareerState = () => {
         p.livePoints = 0;
         p.form = Math.max(-10, p.form - 3);
 
-        // AI season transition - set previousYearPoints to this year's earned points, reset livePoints
-        updatedPlayers = updatedPlayers.map(player => {
-          // Build per-week points array from what was earned this year
-          const newPrev = [...player.previousYearPoints]; // already accumulated during the season
-          return {
-            ...player,
-            age: player.age + 1,
-            previousYearPoints: newPrev,
-            livePoints: 0,
-          };
-        });
+        updatedPlayers = updatedPlayers.map(player => ({
+          ...player,
+          age: player.age + 1,
+          previousYearPoints: [...player.currentYearWeeklyPoints],
+          currentYearWeeklyPoints: new Array(52).fill(0),
+          points: player.livePoints,
+          livePoints: 0,
+        }));
 
-        // Process retirements and new player generation
-        updatedPlayers = processSeasonTransition(updatedPlayers);
+        const result = processSeasonTransition(updatedPlayers);
+        updatedPlayers = result.players;
+        transitionResult = result;
       }
 
-      // Weekly point defense - always apply
-      const weekToDefend = newWeek - 1;
+      // Weekly point defense - deduct CURRENT week's defense before advancing
+      const weekToDefend = prev.currentWeek - 1; // 0-based index for current week
       const careerDefended = p.previousYearPoints[weekToDefend] || 0;
       p.officialPoints = Math.max(0, p.officialPoints - careerDefended);
 
@@ -942,6 +946,26 @@ export const useCareerState = () => {
         p.stats = { ...p.stats, bestRanking: p.officialRanking };
       }
 
+      // Build season summary if transitioning
+      let seasonSummary: CareerSeasonSummaryData | null = null;
+      if (newWeek === 1) {
+        const prevSeason = prev.currentSeason;
+        const gs = allCareerTournaments.filter(t => t.category === 'Grand Slam');
+        const m1000 = allCareerTournaments.filter(t => t.category === 'Masters 1000');
+        const getWinners = (tList: typeof allCareerTournaments) => tList.map(t => {
+          const hist = newHistory.find(h => h.tournamentId === t.id && h.season === prevSeason);
+          return { tournament: t.name, winner: hist?.winnerName || 'N/A' };
+        });
+        seasonSummary = {
+          season: prevSeason,
+          topRanking: ranked.slice(0, 10).map(pl => ({ name: pl.name, points: pl.points })),
+          grandSlamWinners: getWinners(gs),
+          masters1000Winners: getWinners(m1000),
+          retiredPlayers: transitionResult?.retiredNames || [],
+          newPlayers: transitionResult?.newPlayerNames || [],
+        };
+      }
+
       return {
         ...prev,
         player: p,
@@ -953,6 +977,7 @@ export const useCareerState = () => {
         weeklyActionTaken: false,
         activeTournament: null,
         currentDraw: null,
+        seasonSummary,
       };
     });
   }, []);
@@ -970,9 +995,9 @@ export const useCareerState = () => {
       let updatedPlayers = prev.allPlayers.map(player => {
         const result = sim.results.find(r => r.playerId === player.id);
         if (!result) return player;
-        const newPrev = [...player.previousYearPoints];
-        newPrev[prev.currentWeek - 1] = (newPrev[prev.currentWeek - 1] || 0) + result.points;
-        return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, previousYearPoints: newPrev };
+        const newCurrentYear = [...player.currentYearWeeklyPoints];
+        newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
+        return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, currentYearWeeklyPoints: newCurrentYear };
       });
 
       const p = { ...prev.player };
@@ -1051,6 +1076,10 @@ export const useCareerState = () => {
         tournamentHistory: newHistory,
       };
     });
+  }, []);
+
+  const dismissSeasonSummary = useCallback(() => {
+    setState(prev => ({ ...prev, seasonSummary: null }));
   }, []);
 
   // Enter a non-career tournament for playing with dice (spectator mode)
@@ -1139,5 +1168,6 @@ export const useCareerState = () => {
     simulateOtherTournament,
     simulateAllOtherTournaments,
     enterOtherTournament,
+    dismissSeasonSummary,
   };
 };

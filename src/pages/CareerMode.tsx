@@ -12,6 +12,7 @@ import CareerRankings from '@/components/career/CareerRankings';
 import CareerSponsors from '@/components/career/CareerSponsors';
 import CareerStaff from '@/components/career/CareerStaff';
 import CurrentWeekView from '@/components/CurrentWeekView';
+import SeasonSummaryDialog from '@/components/SeasonSummaryDialog';
 import SaveLoadDialog from '@/components/SaveLoadDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -304,6 +305,15 @@ const CareerMode = () => {
             <CareerObjectives player={career.player} />
           </TabsContent>
         </Tabs>
+
+        {/* Season Summary Dialog */}
+        {career.seasonSummary && (
+          <SeasonSummaryDialog
+            open={!!career.seasonSummary}
+            onClose={career.dismissSeasonSummary}
+            data={career.seasonSummary}
+          />
+        )}
       </main>
     </div>
   );

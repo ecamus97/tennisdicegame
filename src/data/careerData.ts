@@ -172,6 +172,15 @@ export interface CareerTournamentResult {
   results: { playerId: number; points: number; round: string }[];
 }
 
+export interface CareerSeasonSummaryData {
+  season: number;
+  topRanking: { name: string; points: number }[];
+  grandSlamWinners: { tournament: string; winner: string }[];
+  masters1000Winners: { tournament: string; winner: string }[];
+  retiredPlayers: string[];
+  newPlayers: string[];
+}
+
 export interface CareerState {
   player: CareerPlayer | null;
   allPlayers: Player[];
@@ -183,6 +192,7 @@ export interface CareerState {
   weeklyActionTaken: boolean;
   activeTournament: string | null;
   currentDraw: any | null;
+  seasonSummary?: CareerSeasonSummaryData | null;
 }
 
 // ==================== CONSTANTS ====================
@@ -643,6 +653,7 @@ export function careerPlayerToPlayer(cp: CareerPlayer): Player {
     points: cp.officialPoints,
     livePoints: cp.livePoints,
     previousYearPoints: cp.previousYearPoints,
+    currentYearWeeklyPoints: cp.currentYearWeeklyPoints || new Array(52).fill(0),
     weeklyDefensePoints: 0,
     injured: cp.injured,
     injuryWeeksRemaining: cp.injuryWeeksRemaining,

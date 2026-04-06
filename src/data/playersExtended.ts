@@ -392,6 +392,7 @@ export const extendedPlayers: Player[] = extendedPlayerEntries.map((entry, _inde
     points,
     livePoints: 0,
     previousYearPoints: defensePoints,
+    currentYearWeeklyPoints: new Array(52).fill(0),
     weeklyDefensePoints: 0,
     injured: false,
     injuryWeeksRemaining: 0,
