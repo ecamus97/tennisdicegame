@@ -948,6 +948,26 @@ export const useCareerState = () => {
         p.stats = { ...p.stats, bestRanking: p.officialRanking };
       }
 
+      // Build season summary if transitioning
+      let seasonSummary: CareerSeasonSummaryData | null = null;
+      if (newWeek === 1) {
+        const prevSeason = prev.currentSeason;
+        const gs = allCareerTournaments.filter(t => t.category === 'Grand Slam');
+        const m1000 = allCareerTournaments.filter(t => t.category === 'Masters 1000');
+        const getWinners = (tList: typeof allCareerTournaments) => tList.map(t => {
+          const hist = newHistory.find(h => h.tournamentId === t.id && h.season === prevSeason);
+          return { tournament: t.name, winner: hist?.winnerName || 'N/A' };
+        });
+        seasonSummary = {
+          season: prevSeason,
+          topRanking: ranked.slice(0, 10).map(pl => ({ name: pl.name, points: pl.points })),
+          grandSlamWinners: getWinners(gs),
+          masters1000Winners: getWinners(m1000),
+          retiredPlayers: transitionResult?.retiredNames || [],
+          newPlayers: transitionResult?.newPlayerNames || [],
+        };
+      }
+
       return {
         ...prev,
         player: p,
@@ -959,6 +979,7 @@ export const useCareerState = () => {
         weeklyActionTaken: false,
         activeTournament: null,
         currentDraw: null,
+        seasonSummary,
       };
     });
   }, []);
