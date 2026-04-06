@@ -273,7 +273,7 @@ export const useGameState = () => {
           ...player,
           livePoints: newLivePoints,
           points: newOfficialPoints,
-          previousYearPoints: newPrevYearPoints,
+          currentYearWeeklyPoints: newCurrentYearPoints,
           stats: {
             ...stats,
             wins: stats.wins + wins,
