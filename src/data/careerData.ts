@@ -643,6 +643,7 @@ export function careerPlayerToPlayer(cp: CareerPlayer): Player {
     points: cp.officialPoints,
     livePoints: cp.livePoints,
     previousYearPoints: cp.previousYearPoints,
+    currentYearWeeklyPoints: cp.currentYearWeeklyPoints || new Array(52).fill(0),
     weeklyDefensePoints: 0,
     injured: cp.injured,
     injuryWeeksRemaining: cp.injuryWeeksRemaining,

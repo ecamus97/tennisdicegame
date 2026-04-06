@@ -60,6 +60,7 @@ function generateNewPlayer(ranking: number): Player {
     points: Math.max(0, Math.floor(Math.random() * 50 + 30)),
     livePoints: 0,
     previousYearPoints: new Array(52).fill(0),
+    currentYearWeeklyPoints: new Array(52).fill(0),
     weeklyDefensePoints: 0,
     injured: false,
     injuryWeeksRemaining: 0,

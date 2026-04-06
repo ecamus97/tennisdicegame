@@ -369,6 +369,7 @@ export const initialPlayers: Player[] = playerNames.map((name, index) => {
     points,
     livePoints: 0,
     previousYearPoints: defensePoints,
+    currentYearWeeklyPoints: new Array(52).fill(0),
     weeklyDefensePoints: 0,
     injured: false,
     injuryWeeksRemaining: 0,
