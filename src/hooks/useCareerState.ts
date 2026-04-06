@@ -890,6 +890,7 @@ export const useCareerState = () => {
       // Season transition
       let newSeason = prev.currentSeason;
       let newWeek = prev.currentWeek + 1;
+      let transitionResult: { retiredNames: string[]; newPlayerNames: string[] } | null = null;
 
       if (newWeek > 52) {
         newWeek = 1;
@@ -900,21 +901,18 @@ export const useCareerState = () => {
         p.livePoints = 0;
         p.form = Math.max(-10, p.form - 3);
 
-        // AI season transition - set previousYearPoints from currentYearWeeklyPoints, reset
-        updatedPlayers = updatedPlayers.map(player => {
-          return {
-            ...player,
-            age: player.age + 1,
-            previousYearPoints: [...player.currentYearWeeklyPoints],
-            currentYearWeeklyPoints: new Array(52).fill(0),
-            points: player.livePoints, // Reset to only earned points
-            livePoints: 0,
-          };
-        });
+        updatedPlayers = updatedPlayers.map(player => ({
+          ...player,
+          age: player.age + 1,
+          previousYearPoints: [...player.currentYearWeeklyPoints],
+          currentYearWeeklyPoints: new Array(52).fill(0),
+          points: player.livePoints,
+          livePoints: 0,
+        }));
 
-        // Process retirements and new player generation
-        const transitionResult = processSeasonTransition(updatedPlayers);
-        updatedPlayers = transitionResult.players;
+        const result = processSeasonTransition(updatedPlayers);
+        updatedPlayers = result.players;
+        transitionResult = result;
       }
 
       // Weekly point defense - deduct CURRENT week's defense before advancing
