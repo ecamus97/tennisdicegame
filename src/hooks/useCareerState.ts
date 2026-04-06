@@ -793,9 +793,9 @@ export const useCareerState = () => {
         updatedPlayers = updatedPlayers.map(player => {
           const result = sim.results.find(r => r.playerId === player.id);
           if (!result) return player;
-          const newPrev = [...player.previousYearPoints];
-          newPrev[prev.currentWeek - 1] = (newPrev[prev.currentWeek - 1] || 0) + result.points;
-          return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, previousYearPoints: newPrev };
+          const newCurrentYear = [...player.currentYearWeeklyPoints];
+          newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
+          return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, currentYearWeeklyPoints: newCurrentYear };
         });
 
         newCompleted.push(t.id);
