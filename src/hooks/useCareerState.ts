@@ -1078,6 +1078,10 @@ export const useCareerState = () => {
     });
   }, []);
 
+  const dismissSeasonSummary = useCallback(() => {
+    setState(prev => ({ ...prev, seasonSummary: null }));
+  }, []);
+
   // Enter a non-career tournament for playing with dice (spectator mode)
   const enterOtherTournament = useCallback((tournamentId: string) => {
     setState(prev => ({ ...prev, activeTournament: `spectator-${tournamentId}`, currentDraw: null }));
