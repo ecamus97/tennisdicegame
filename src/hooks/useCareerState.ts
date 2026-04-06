@@ -1168,5 +1168,6 @@ export const useCareerState = () => {
     simulateOtherTournament,
     simulateAllOtherTournaments,
     enterOtherTournament,
+    dismissSeasonSummary,
   };
 };
