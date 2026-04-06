@@ -165,27 +165,32 @@ export const useGameState = () => {
         let updatedPlayer = updateInjuryRecovery(player);
         updatedPlayer = generateRandomInjury(updatedPlayer);
         
-        // Season transition
-        if (isNewSeason) {
-          return {
-            ...updatedPlayer,
-            age: updatedPlayer.age + 1,
-            previousYearPoints: distributePointsToWeeks(updatedPlayer.livePoints),
-            livePoints: 0,
-            weeklyDefensePoints: 0,
-          };
-        }
-        
-        // Weekly point defense - always apply (season 1 uses real data, season 2+ uses earned data)
-        const pointsToDeduct = updatedPlayer.previousYearPoints[newWeek - 1] || 0;
+        // Weekly point defense - deduct CURRENT week's defense before advancing
+        const weekIndex = prev.currentWeek - 1; // 0-based index for current week
+        const pointsToDeduct = updatedPlayer.previousYearPoints[weekIndex] || 0;
         const newOfficialPoints = Math.max(0, updatedPlayer.points - pointsToDeduct);
         
-        return {
+        updatedPlayer = {
           ...updatedPlayer,
           points: newOfficialPoints,
           weeklyDefensePoints: pointsToDeduct,
           previousRanking: updatedPlayer.officialRanking,
         };
+
+        // Season transition
+        if (isNewSeason) {
+          return {
+            ...updatedPlayer,
+            age: updatedPlayer.age + 1,
+            previousYearPoints: [...updatedPlayer.currentYearWeeklyPoints],
+            currentYearWeeklyPoints: new Array(52).fill(0),
+            points: updatedPlayer.livePoints, // Reset to only earned points
+            livePoints: 0,
+            weeklyDefensePoints: 0,
+          };
+        }
+        
+        return updatedPlayer;
       });
 
       // Retirement and new player generation at season end
