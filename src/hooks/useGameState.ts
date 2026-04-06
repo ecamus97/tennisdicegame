@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Player, Tournament, initialPlayers, tournaments, Surface, SurfaceAffinity } from '@/data/players';
-import { processSeasonTransition } from '@/lib/retirementLogic';
+import { processSeasonTransition, SeasonTransitionResult } from '@/lib/retirementLogic';
 import { MatchResult } from '@/lib/matchEngine';
 
 // Stored match in a draw
