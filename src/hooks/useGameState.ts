@@ -515,6 +515,7 @@ export const useGameState = () => {
     getPlayersByOfficialRanking,
     injurePlayer,
     healPlayer,
+    dismissSeasonSummary,
   };
 };
 
