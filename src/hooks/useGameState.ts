@@ -21,6 +21,15 @@ export interface TournamentDraw {
   entrantIds: number[];
 }
 
+export interface SeasonSummaryData {
+  season: number;
+  topRanking: { name: string; points: number }[];
+  grandSlamWinners: { tournament: string; winner: string }[];
+  masters1000Winners: { tournament: string; winner: string }[];
+  retiredPlayers: string[];
+  newPlayers: string[];
+}
+
 export interface GameState {
   players: Player[];
   currentWeek: number;
@@ -29,6 +38,7 @@ export interface GameState {
   tournamentHistory: TournamentResult[];
   currentDraw: TournamentDraw | null;
   saveName?: string;
+  seasonSummary?: SeasonSummaryData | null;
 }
 
 // Named save slots
