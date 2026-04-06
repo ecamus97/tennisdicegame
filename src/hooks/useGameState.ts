@@ -76,13 +76,13 @@ const getInitialState = (): GameState => {
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      // Ensure age field exists
       if (parsed.players) {
         parsed.players = parsed.players.map((p: Player) => ({
           ...p,
           age: p.age || 25,
           previousRanking: p.previousRanking || p.officialRanking,
           weeklyDefensePoints: p.weeklyDefensePoints || 0,
+          currentYearWeeklyPoints: p.currentYearWeeklyPoints || new Array(52).fill(0),
         }));
       }
       return parsed;
