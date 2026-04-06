@@ -252,8 +252,8 @@ export const useGameState = () => {
 
         const newLivePoints = player.livePoints + result.points;
         const newOfficialPoints = player.points + result.points;
-        const newPrevYearPoints = [...player.previousYearPoints];
-        newPrevYearPoints[prev.currentWeek - 1] = (newPrevYearPoints[prev.currentWeek - 1] || 0) + result.points;
+        const newCurrentYearPoints = [...player.currentYearWeeklyPoints];
+        newCurrentYearPoints[prev.currentWeek - 1] = (newCurrentYearPoints[prev.currentWeek - 1] || 0) + result.points;
 
         // Calculate stats
         const wins = getWinsFromRound(result.round, playerLimit);
