@@ -8,7 +8,7 @@ import {
   TRAINING_OPTIONS, CAREER_PLAYER_ID, getMoneyForRound, calculateWinsFromRound,
   ActiveSponsor, Sponsor, ActiveStaff, StaffMember,
   AVAILABLE_SPONSORS, AVAILABLE_STAFF, CareerTournamentResult, TitleDetail,
-  getContinentFromCountry,
+  getContinentFromCountry, CareerSeasonSummaryData,
 } from '@/data/careerData';
 import { tournaments, Tournament, Surface, Player, initialPlayers } from '@/data/players';
 import { extendedPlayers } from '@/data/playersExtended';
