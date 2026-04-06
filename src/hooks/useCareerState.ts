@@ -459,13 +459,13 @@ export const useCareerState = () => {
       let updatedAllPlayers = prev.allPlayers.map(player => {
         const result = results.find(r => r.playerId === player.id);
         if (!result) return player;
-        const newPrevYear = [...player.previousYearPoints];
-        newPrevYear[prev.currentWeek - 1] = (newPrevYear[prev.currentWeek - 1] || 0) + result.points;
+        const newCurrentYear = [...player.currentYearWeeklyPoints];
+        newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
         return {
           ...player,
           livePoints: player.livePoints + result.points,
           points: player.points + result.points,
-          previousYearPoints: newPrevYear,
+          currentYearWeeklyPoints: newCurrentYear,
         };
       });
 
