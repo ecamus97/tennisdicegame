@@ -913,7 +913,8 @@ export const useCareerState = () => {
         });
 
         // Process retirements and new player generation
-        updatedPlayers = processSeasonTransition(updatedPlayers);
+        const transitionResult = processSeasonTransition(updatedPlayers);
+        updatedPlayers = transitionResult.players;
       }
 
       // Weekly point defense - deduct CURRENT week's defense before advancing
