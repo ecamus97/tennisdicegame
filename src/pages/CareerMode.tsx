@@ -305,6 +305,15 @@ const CareerMode = () => {
             <CareerObjectives player={career.player} />
           </TabsContent>
         </Tabs>
+
+        {/* Season Summary Dialog */}
+        {career.seasonSummary && (
+          <SeasonSummaryDialog
+            open={!!career.seasonSummary}
+            onClose={career.dismissSeasonSummary}
+            data={career.seasonSummary}
+          />
+        )}
       </main>
     </div>
   );
