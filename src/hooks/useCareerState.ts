@@ -77,6 +77,11 @@ const getInitialCareerState = (): CareerState => {
       if (!parsed.allPlayers || parsed.allPlayers.length < 200) {
         parsed.allPlayers = allInitialPlayers.map(p => ({ ...p }));
       }
+      // Migrate allPlayers to include currentYearWeeklyPoints
+      parsed.allPlayers = parsed.allPlayers.map((p: Player) => ({
+        ...p,
+        currentYearWeeklyPoints: p.currentYearWeeklyPoints || new Array(52).fill(0),
+      }));
       if (parsed.activeTournament === undefined) parsed.activeTournament = null;
       if (!parsed.tournamentHistory) parsed.tournamentHistory = [];
       if (!parsed.currentDraw) parsed.currentDraw = null;
