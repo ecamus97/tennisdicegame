@@ -413,6 +413,11 @@ export const useGameState = () => {
     }));
   }, []);
 
+  // Dismiss season summary
+  const dismissSeasonSummary = useCallback(() => {
+    setState(prev => ({ ...prev, seasonSummary: null }));
+  }, []);
+
   // Save current draw
   const saveCurrentDraw = useCallback((draw: TournamentDraw) => {
     setState(prev => ({
