@@ -194,8 +194,13 @@ export const useGameState = () => {
       });
 
       // Retirement and new player generation at season end
+      let retiredNames: string[] = [];
+      let newPlayerNames: string[] = [];
       if (isNewSeason) {
-        updatedPlayers = processSeasonTransition(updatedPlayers);
+        const result = processSeasonTransition(updatedPlayers);
+        updatedPlayers = result.players;
+        retiredNames = result.retiredNames;
+        newPlayerNames = result.newPlayerNames;
       }
 
       // Re-rank players by official points
