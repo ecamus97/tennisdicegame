@@ -42,6 +42,8 @@ const Index = () => {
     loadGame,
     deleteSave,
     saveCurrentDraw,
+    seasonSummary,
+    dismissSeasonSummary,
   } = useGameState();
   
   // Get all tournaments for a given week
