@@ -430,6 +430,15 @@ const Index = () => {
         </div>
       </footer>
 
+      {/* Season Summary Dialog */}
+      {seasonSummary && (
+        <SeasonSummaryDialog
+          open={!!seasonSummary}
+          onClose={dismissSeasonSummary}
+          data={seasonSummary}
+        />
+      )}
+
       {/* Player Detail Dialog */}
       <PlayerDetailDialog
         player={selectedPlayer}
