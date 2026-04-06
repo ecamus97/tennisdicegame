@@ -911,8 +911,8 @@ export const useCareerState = () => {
         updatedPlayers = processSeasonTransition(updatedPlayers);
       }
 
-      // Weekly point defense - always apply
-      const weekToDefend = newWeek - 1;
+      // Weekly point defense - deduct CURRENT week's defense before advancing
+      const weekToDefend = prev.currentWeek - 1; // 0-based index for current week
       const careerDefended = p.previousYearPoints[weekToDefend] || 0;
       p.officialPoints = Math.max(0, p.officialPoints - careerDefended);
 
