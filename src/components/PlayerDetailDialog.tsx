@@ -19,6 +19,9 @@ interface PlayerDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   onUpdateFictionalRanking: (playerId: number, newRanking: number) => void;
   onUpdateSurfaceAffinity?: (playerId: number, affinity: SurfaceAffinity) => void;
+  getH2HPair?: (id1: number, id2: number) => { p1Wins: number; p2Wins: number };
+  allPlayers?: Player[];
+  readOnly?: boolean;
 }
 
 const surfaceColors: Record<Surface, string> = {
@@ -41,6 +44,9 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
   onOpenChange,
   onUpdateFictionalRanking,
   onUpdateSurfaceAffinity,
+  getH2HPair,
+  allPlayers,
+  readOnly = false,
 }) => {
   const [editingRanking, setEditingRanking] = useState<number>(1);
   const [editingAffinity, setEditingAffinity] = useState<SurfaceAffinity>({ Hard: 0, Clay: 0, Grass: 0 });
@@ -54,7 +60,16 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
 
   if (!player) return null;
 
-  const stats = player.stats || { wins: 0, losses: 0, surfaceWins: { Hard: 0, Clay: 0, Grass: 0 }, surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 }, currentStreak: 0, bestWinStreak: 0, titles: 0 };
+  const rawStats = player.stats || {};
+  const stats = {
+    wins: 0, losses: 0,
+    surfaceWins: { Hard: 0, Clay: 0, Grass: 0 },
+    surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 },
+    currentStreak: 0, bestWinStreak: 0, titles: 0,
+    ...rawStats,
+    // career mode uses titlesWon instead of titles
+    titles: (rawStats as { titles?: number; titlesWon?: number }).titles ?? (rawStats as { titlesWon?: number }).titlesWon ?? 0,
+  };
   const totalMatches = stats.wins + stats.losses;
   const winPct = totalMatches > 0 ? ((stats.wins / totalMatches) * 100).toFixed(1) : "—";
 
@@ -89,6 +104,7 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
           <DialogTitle className="flex items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground">{player.countryCode}</span>
             {player.name}
+            {player.age && <span className="text-sm font-normal text-muted-foreground">· {player.age} yrs</span>}
           </DialogTitle>
         </DialogHeader>
 
@@ -171,7 +187,7 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
             </div>
           </div>
 
-          {/* Surface Affinity Editor */}
+          {/* Surface Affinity */}
           <div className="glass-card p-4 space-y-3 border-2 border-accent/30">
             <span className="font-semibold text-sm text-foreground">🎾 Afinidad por Superficie</span>
             {(["Hard", "Clay", "Grass"] as Surface[]).map(surface => (
@@ -182,20 +198,36 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
                     {surfaceLabels[editingAffinity[surface]] || "Neutral"}
                   </span>
                 </div>
-                <Slider
-                  min={-2}
-                  max={2}
-                  step={1}
-                  value={[editingAffinity[surface]]}
-                  onValueChange={([v]) => setEditingAffinity(prev => ({ ...prev, [surface]: v }))}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>Muy débil</span>
-                  <span>Especialista</span>
-                </div>
+                {!readOnly ? (
+                  <>
+                    <Slider
+                      min={-2}
+                      max={2}
+                      step={1}
+                      value={[editingAffinity[surface]]}
+                      onValueChange={([v]) => setEditingAffinity(prev => ({ ...prev, [surface]: v }))}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Muy débil</span>
+                      <span>Especialista</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-2 rounded-full bg-muted/40 relative">
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-accent border-2 border-background"
+                      style={{ left: `${((editingAffinity[surface] + 2) / 4) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                    />
+                  </div>
+                )}
               </div>
             ))}
+            {readOnly && (
+              <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/30">
+                Mejora con Develop Points en Player Development
+              </p>
+            )}
           </div>
 
           {/* Points Breakdown */}
@@ -210,47 +242,113 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
             </div>
           </div>
 
-          {/* Fictional Ranking Editor */}
+          {/* H2H Section */}
+          {getH2HPair && allPlayers && (() => {
+            const rivals = allPlayers
+              .filter(p => p.id !== player.id && p.officialRanking <= 50)
+              .map(opp => {
+                const h2h = getH2HPair(player.id, opp.id);
+                return { opp, wins: h2h.p1Wins, losses: h2h.p2Wins, total: h2h.p1Wins + h2h.p2Wins };
+              })
+              .filter(r => r.total > 0)
+              .sort((a, b) => b.total - a.total)
+              .slice(0, 8);
+
+            if (rivals.length === 0) return (
+              <div className="glass-card p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <BarChart3 className="w-4 h-4 text-primary" />
+                  <span className="font-semibold text-sm text-foreground">Head-to-Head</span>
+                </div>
+                <p className="text-xs text-muted-foreground">No H2H data yet — records build as matches are simulated each week.</p>
+              </div>
+            );
+
+            return (
+              <div className="glass-card p-3 space-y-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="w-4 h-4 text-primary" />
+                  <span className="font-semibold text-sm text-foreground">Head-to-Head</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">vs top 50 players</span>
+                </div>
+                <div className="space-y-1">
+                  {rivals.map(r => {
+                    const winPct = r.total > 0 ? Math.round((r.wins / r.total) * 100) : 0;
+                    return (
+                      <div key={r.opp.id} className="flex items-center gap-2 py-1 border-b border-border/20 last:border-0">
+                        <span className="text-[10px] text-muted-foreground w-6 text-right shrink-0">#{r.opp.officialRanking}</span>
+                        <span className="text-xs text-foreground flex-1 truncate">{r.opp.name}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-xs font-bold text-green-400">{r.wins}</span>
+                          <span className="text-[10px] text-muted-foreground">-</span>
+                          <span className="text-xs font-bold text-red-400">{r.losses}</span>
+                          <span className="text-[10px] text-muted-foreground ml-1">({winPct}%)</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Fictional Ranking / Power Boost */}
           <div className="glass-card p-4 space-y-3 border-2 border-primary/30">
             <div className="flex items-center gap-2 text-primary">
               <Zap className="w-4 h-4" />
               <span className="font-semibold text-sm">Power Boost System</span>
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="fictional-ranking">Fictional Ranking</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="fictional-ranking"
-                  type="number"
-                  min={1}
-                  max={150}
-                  value={editingRanking}
-                  onChange={(e) => setEditingRanking(parseInt(e.target.value) || 1)}
-                  className="w-24"
-                />
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setEditingRanking(player.officialRanking)}
-                >
-                  Reset to Official
-                </Button>
-              </div>
-            </div>
 
-            {/* Advantage Preview */}
-            <div className="flex items-center gap-2 pt-2 border-t border-border/50">
-              <span className="text-xs text-muted-foreground">Advantage vs Official:</span>
-              <Badge className={advantage.color}>{advantage.level}</Badge>
-            </div>
+            {readOnly ? (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Fictional Ranking</span>
+                <span className="text-lg font-display font-bold text-primary">#{player.fictionalRanking}</span>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="fictional-ranking">Fictional Ranking</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="fictional-ranking"
+                      type="number"
+                      min={1}
+                      max={150}
+                      value={editingRanking}
+                      onChange={(e) => setEditingRanking(parseInt(e.target.value) || 1)}
+                      className="w-24"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingRanking(player.officialRanking)}
+                    >
+                      Reset to Official
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+                  <span className="text-xs text-muted-foreground">Advantage vs Official:</span>
+                  <Badge className={advantage.color}>{advantage.level}</Badge>
+                </div>
+              </>
+            )}
+
+            {readOnly && (
+              <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+                <span className="text-xs text-muted-foreground">Advantage vs Official:</span>
+                <Badge className={advantage.color}>{advantage.level}</Badge>
+              </div>
+            )}
           </div>
 
-          {/* Save Button */}
-          <Button onClick={handleSave} className="w-full gap-2">
-            <Zap className="w-4 h-4" />
-            Guardar Cambios
-          </Button>
+          {/* Save Button — only for editable (non-career) players */}
+          {!readOnly && (
+            <Button onClick={handleSave} className="w-full gap-2">
+              <Zap className="w-4 h-4" />
+              Guardar Cambios
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -9,9 +9,10 @@ import CalendarView from "@/components/CalendarView";
 import CurrentWeekView from "@/components/CurrentWeekView";
 import PlayerDetailDialog from "@/components/PlayerDetailDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Calendar, Play, Dice1, RotateCcw, ChevronRight, Save, User } from "lucide-react";
+import { Trophy, Calendar, Play, Dice1, RotateCcw, ChevronRight, Save, User, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useTheme } from "@/App";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +26,8 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const Index = () => {
-  const { 
+  const { theme, toggle: toggleTheme } = useTheme();
+  const {
     players, 
     currentWeek, 
     currentSeason, 
@@ -149,6 +151,9 @@ const Index = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={toggleTheme} className="text-muted-foreground hover:text-foreground px-2">
+                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </Button>
                 <Link to="/career">
                   <Button size="sm" variant="secondary" className="gap-1">
                     <User className="w-4 h-4" />

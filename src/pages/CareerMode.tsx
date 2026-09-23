@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useCareerState, listCareerSaveSlots } from '@/hooks/useCareerState';
+import { useCareerState, listCareerSaveSlots, TOURNAMENT_TIER_ORDER } from '@/hooks/useCareerState';
 import CareerCreation from '@/components/career/CareerCreation';
 import CareerDashboard from '@/components/career/CareerDashboard';
 import CareerCalendar from '@/components/career/CareerCalendar';
@@ -11,6 +11,8 @@ import CareerObjectives from '@/components/career/CareerObjectives';
 import CareerRankings from '@/components/career/CareerRankings';
 import CareerSponsors from '@/components/career/CareerSponsors';
 import CareerStaff from '@/components/career/CareerStaff';
+import RankingGraph from '@/components/career/RankingGraph';
+import TrainingRoadmap from '@/components/career/TrainingRoadmap';
 import CurrentWeekView from '@/components/CurrentWeekView';
 import SeasonSummaryDialog from '@/components/SeasonSummaryDialog';
 import SaveLoadDialog from '@/components/SaveLoadDialog';
@@ -20,14 +22,16 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Home, Calendar, TrendingUp, DollarSign, Heart, Trophy, Target, RotateCcw, ChevronRight, Save, Award, Users, ArrowLeft } from 'lucide-react';
+import { Home, Calendar, TrendingUp, DollarSign, Heart, Trophy, Target, RotateCcw, ChevronRight, Save, Award, Users, ArrowLeft, Sun, Moon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+import { useTheme } from '@/App';
 import { tournaments, Tournament } from '@/data/players';
-import { CAREER_PLAYER_ID, powerScoreToFictionalRanking } from '@/data/careerData';
+import { CAREER_PLAYER_ID, powerScoreToFictionalRanking, getReputationTier } from '@/data/careerData';
 
 const CareerMode = () => {
   const career = useCareerState();
+  const { theme, toggle: toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('dashboard');
 
   if (!career.isCreated || !career.player) {
@@ -73,12 +77,37 @@ const CareerMode = () => {
               tournament={tournament}
               players={career.allPlayersWithCareer}
               initialForcedEntrants={isSpectator ? [] : career.allPlayersWithCareer.filter(p => p.id === CAREER_PLAYER_ID)}
-              onTournamentComplete={(tid, results, winnerId, runnerUpId) => {
+              excludedPlayerIds={new Set([
+                ...career.weeklyUsedPlayerIds,
+                ...(isSpectator ? [CAREER_PLAYER_ID] : [])
+              ])}
+              concurrentHigherTierTournaments={
+                career.allCareerTournaments.filter(
+                  t => t.week === career.currentWeek &&
+                       t.id !== tournament.id &&
+                       !career.completedTournaments.includes(t.id) &&
+                       (TOURNAMENT_TIER_ORDER[t.category] ?? 99) < (TOURNAMENT_TIER_ORDER[tournament.category] ?? 99)
+                )
+              }
+              concurrentSameTierTournaments={
+                career.allCareerTournaments
+                  .filter(
+                    t => t.week === career.currentWeek &&
+                         t.id !== tournament.id &&
+                         !career.completedTournaments.includes(t.id) &&
+                         t.category === tournament.category
+                  )
+                  .sort((a, b) => a.id.localeCompare(b.id))
+              }
+              getH2HRecord={career.getH2HRecord}
+              getH2HPair={career.getH2HPair}
+              onPlayersLocked={career.addWeeklyExcludedPlayers}
+              onTournamentComplete={(tid, results, winnerId, runnerUpId, overrideWinnerName, overrideRunnerUpName) => {
                 if (isSpectator) {
                   // For spectator mode, treat as simulating the other tournament
-                  career.completeTournament(tid, results, winnerId, runnerUpId);
+                  career.completeTournament(tid, results, winnerId, runnerUpId, overrideWinnerName, overrideRunnerUpName);
                 } else {
-                  career.completeTournament(tid, results, winnerId, runnerUpId);
+                  career.completeTournament(tid, results, winnerId, runnerUpId, overrideWinnerName, overrideRunnerUpName);
                   const careerResult = results.find(r => r.playerId === CAREER_PLAYER_ID);
                   if (careerResult?.round === 'Winner') {
                     toast.success(`🏆 You won ${tournament.name}!`);
@@ -118,6 +147,9 @@ const CareerMode = () => {
               <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
                 <Home className="w-5 h-5" />
               </Link>
+              <Button variant="ghost" size="sm" onClick={toggleTheme} className="text-muted-foreground hover:text-foreground px-2">
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </Button>
               <div className="w-px h-6 bg-border" />
               <div>
                 <h1 className="font-display text-lg font-bold text-foreground tracking-wide">CAREER MODE</h1>
@@ -181,7 +213,7 @@ const CareerMode = () => {
 
       <main className="container mx-auto px-4 py-4">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10 lg:w-auto lg:inline-grid mb-6">
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-12 lg:w-auto lg:inline-grid mb-6">
             <TabsTrigger value="dashboard" className="gap-1.5 text-xs">
               <Home className="w-3.5 h-3.5" />
               <span className="hidden lg:inline">Dashboard</span>
@@ -227,11 +259,19 @@ const CareerMode = () => {
               <Target className="w-3.5 h-3.5" />
               Goals
             </TabsTrigger>
+            <TabsTrigger value="progress" className="gap-1.5 text-xs hidden lg:flex">
+              <TrendingUp className="w-3.5 h-3.5" />
+              Progress
+            </TabsTrigger>
+            <TabsTrigger value="roadmap" className="gap-1.5 text-xs hidden lg:flex">
+              <Calendar className="w-3.5 h-3.5" />
+              Roadmap
+            </TabsTrigger>
           </TabsList>
 
           {/* Mobile-only extra tabs */}
           <div className="flex flex-wrap gap-2 mb-4 lg:hidden">
-            {['sponsors', 'staff', 'physical', 'results', 'objectives'].map(tab => (
+            {['sponsors', 'staff', 'physical', 'results', 'objectives', 'progress', 'roadmap'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -239,7 +279,7 @@ const CareerMode = () => {
                   activeTab === tab ? 'bg-primary text-primary-foreground' : 'bg-secondary/50 text-muted-foreground'
                 }`}
               >
-                {tab === 'sponsors' ? '🤝 Sponsors' : tab === 'staff' ? '👥 Staff' : tab === 'physical' ? '❤️ Physical' : tab === 'results' ? '🏆 Results' : '🎯 Goals'}
+                {tab === 'sponsors' ? 'Sponsors' : tab === 'staff' ? 'Staff' : tab === 'physical' ? 'Physical' : tab === 'results' ? 'Results' : tab === 'objectives' ? 'Goals' : tab === 'progress' ? 'Progress' : 'Roadmap'}
               </button>
             ))}
           </div>
@@ -260,10 +300,11 @@ const CareerMode = () => {
               onSimulateAllOtherTournaments={career.simulateAllOtherTournaments}
               onEnterOtherTournament={career.enterOtherTournament}
               tournamentHistory={career.tournamentHistory}
+              newsItems={career.newsItems || []}
             />
           </TabsContent>
           <TabsContent value="rankings" className="mt-0">
-            <CareerRankings players={career.allPlayersWithCareer} careerPlayerId={CAREER_PLAYER_ID} />
+            <CareerRankings players={career.allPlayersWithCareer} careerPlayerId={CAREER_PLAYER_ID} getH2HRecord={career.getH2HRecord} getH2HPair={career.getH2HPair} />
           </TabsContent>
           <TabsContent value="calendar" className="mt-0">
             <CareerCalendar
@@ -303,6 +344,22 @@ const CareerMode = () => {
           </TabsContent>
           <TabsContent value="objectives" className="mt-0">
             <CareerObjectives player={career.player} />
+          </TabsContent>
+          <TabsContent value="progress" className="mt-0 space-y-4">
+            <RankingGraph
+              rankingHistory={career.player.rankingHistory || []}
+              currentRanking={career.player.officialRanking}
+              bestRanking={career.player.stats.bestRanking || career.player.officialRanking}
+            />
+          </TabsContent>
+          <TabsContent value="roadmap" className="mt-0">
+            <TrainingRoadmap
+              player={career.player}
+              currentWeek={career.currentWeek}
+              currentSeason={career.currentSeason}
+              allTournaments={career.allCareerTournaments}
+              onUpdatePlan={career.setWeeklyPlan}
+            />
           </TabsContent>
         </Tabs>
 

@@ -1,7 +1,7 @@
 // Full Challenger Tour Calendar
 import { Surface } from './players';
 
-export type ChallengerCategory = "Challenger 175" | "Challenger 125" | "Challenger 100" | "Challenger 75" | "Challenger 50";
+export type ChallengerCategory = "Challenger 175" | "Challenger 125" | "Challenger 100" | "Challenger 75" | "Challenger 50" | "ITF M25" | "ITF M15";
 
 export interface ChallengerTournament {
   id: string;
@@ -31,6 +31,8 @@ const challengerPoints: Record<ChallengerCategory, ChallengerTournament['points'
   "Challenger 100": { winner: 100, finalist: 50, sf: 25, qf: 14, r16: 7, r32: 0 },
   "Challenger 75":  { winner: 75, finalist: 44, sf: 22, qf: 12, r16: 6, r32: 0 },
   "Challenger 50":  { winner: 50, finalist: 25, sf: 14, qf: 8, r16: 4, r32: 0 },
+  "ITF M25":        { winner: 25, finalist: 16, sf: 8, qf: 3, r16: 1, r32: 0 },
+  "ITF M15":        { winner: 15, finalist: 8, sf: 4, qf: 2, r16: 1, r32: 0 },
 };
 
 function parseSurface(s: string): Surface {
@@ -52,7 +54,9 @@ function getCategoryFromLevel(level: number): ChallengerCategory {
   if (level >= 125) return "Challenger 125";
   if (level >= 100) return "Challenger 100";
   if (level >= 75) return "Challenger 75";
-  return "Challenger 50";
+  if (level >= 25) return "Challenger 50";
+  if (level >= 15) return "ITF M25";
+  return "ITF M15";
 }
 
 // Map country names from Spanish to English for consistency
@@ -279,14 +283,126 @@ const rawData: { week: number; name: string; country: string; level: number; sur
   { week: 51, name: "Challenger de Buenos Aires III", country: "Argentina", level: 50, surface: "Clay", prize: "$41,000" },
 ];
 
+// ITF M25 tournaments — one per week (52 total), globally distributed
+const itfM25Data: { week: number; name: string; country: string; surface: string }[] = [
+  { week: 1, name: "ITF M25 Cairo", country: "Egypt", surface: "Hard" },
+  { week: 2, name: "ITF M25 Sharm el-Sheikh", country: "Egypt", surface: "Hard" },
+  { week: 3, name: "ITF M25 Hammamet", country: "Tunisia", surface: "Clay" },
+  { week: 4, name: "ITF M25 Monastir", country: "Tunisia", surface: "Hard" },
+  { week: 5, name: "ITF M25 Antalya", country: "Turkey", surface: "Hard" },
+  { week: 6, name: "ITF M25 Izmir", country: "Turkey", surface: "Hard" },
+  { week: 7, name: "ITF M25 Larnaca", country: "Cyprus", surface: "Hard" },
+  { week: 8, name: "ITF M25 Athens", country: "Greece", surface: "Clay" },
+  { week: 9, name: "ITF M25 Heraklion", country: "Greece", surface: "Clay" },
+  { week: 10, name: "ITF M25 Shymkent", country: "Kazakhstan", surface: "Hard" },
+  { week: 11, name: "ITF M25 Almaty", country: "Kazakhstan", surface: "Hard" },
+  { week: 12, name: "ITF M25 Cairo II", country: "Egypt", surface: "Clay" },
+  { week: 13, name: "ITF M25 Fes", country: "Morocco", surface: "Clay" },
+  { week: 14, name: "ITF M25 Rabat", country: "Morocco", surface: "Clay" },
+  { week: 15, name: "ITF M25 Meknes", country: "Morocco", surface: "Clay" },
+  { week: 16, name: "ITF M25 Sousse", country: "Tunisia", surface: "Clay" },
+  { week: 17, name: "ITF M25 Lesa", country: "Italy", surface: "Clay" },
+  { week: 18, name: "ITF M25 Rome", country: "Italy", surface: "Clay" },
+  { week: 19, name: "ITF M25 Perugia", country: "Italy", surface: "Clay" },
+  { week: 20, name: "ITF M25 Valencia", country: "Spain", surface: "Clay" },
+  { week: 21, name: "ITF M25 Alicante", country: "Spain", surface: "Clay" },
+  { week: 22, name: "ITF M25 Troyes", country: "France", surface: "Clay" },
+  { week: 23, name: "ITF M25 Villeneuve", country: "France", surface: "Clay" },
+  { week: 24, name: "ITF M25 Prague", country: "Czech Republic", surface: "Clay" },
+  { week: 25, name: "ITF M25 Warsaw", country: "Poland", surface: "Clay" },
+  { week: 26, name: "ITF M25 Budapest", country: "Hungary", surface: "Clay" },
+  { week: 27, name: "ITF M25 Bratislava", country: "Slovakia", surface: "Clay" },
+  { week: 28, name: "ITF M25 Zagreb", country: "Croatia", surface: "Clay" },
+  { week: 29, name: "ITF M25 Prostejov", country: "Czech Republic", surface: "Hard" },
+  { week: 30, name: "ITF M25 Banja Luka", country: "Bosnia", surface: "Hard" },
+  { week: 31, name: "ITF M25 Tbilisi", country: "Georgia", surface: "Hard" },
+  { week: 32, name: "ITF M25 Yerevan", country: "Armenia", surface: "Hard" },
+  { week: 33, name: "ITF M25 Tashkent", country: "Uzbekistan", surface: "Hard" },
+  { week: 34, name: "ITF M25 Baku", country: "Azerbaijan", surface: "Hard" },
+  { week: 35, name: "ITF M25 Plovdiv", country: "Bulgaria", surface: "Hard" },
+  { week: 36, name: "ITF M25 Bucharest", country: "Romania", surface: "Hard" },
+  { week: 37, name: "ITF M25 Jakarta", country: "Indonesia", surface: "Hard" },
+  { week: 38, name: "ITF M25 Manila", country: "Philippines", surface: "Hard" },
+  { week: 39, name: "ITF M25 Ho Chi Minh", country: "Vietnam", surface: "Hard" },
+  { week: 40, name: "ITF M25 Bangkok", country: "Thailand", surface: "Hard" },
+  { week: 41, name: "ITF M25 Colombo", country: "Sri Lanka", surface: "Hard" },
+  { week: 42, name: "ITF M25 Dhaka", country: "Bangladesh", surface: "Hard" },
+  { week: 43, name: "ITF M25 Doha", country: "Qatar", surface: "Hard" },
+  { week: 44, name: "ITF M25 Muscat", country: "Oman", surface: "Hard" },
+  { week: 45, name: "ITF M25 Bogota", country: "Colombia", surface: "Clay" },
+  { week: 46, name: "ITF M25 Guayaquil", country: "Ecuador", surface: "Clay" },
+  { week: 47, name: "ITF M25 Santa Cruz", country: "Bolivia", surface: "Clay" },
+  { week: 48, name: "ITF M25 Asuncion", country: "Paraguay", surface: "Clay" },
+  { week: 49, name: "ITF M25 Cordoba", country: "Argentina", surface: "Clay" },
+  { week: 50, name: "ITF M25 Santiago", country: "Chile", surface: "Clay" },
+  { week: 51, name: "ITF M25 Lima", country: "Peru", surface: "Clay" },
+  { week: 52, name: "ITF M25 Montevideo", country: "Uruguay", surface: "Clay" },
+];
+
+// ITF M15 tournaments — one per week (52 total), globally distributed
+const itfM15Data: { week: number; name: string; country: string; surface: string }[] = [
+  { week: 1, name: "ITF M15 Sharm", country: "Egypt", surface: "Hard" },
+  { week: 2, name: "ITF M15 Antalya", country: "Turkey", surface: "Hard" },
+  { week: 3, name: "ITF M15 Heraklion", country: "Greece", surface: "Clay" },
+  { week: 4, name: "ITF M15 Larnaca", country: "Cyprus", surface: "Hard" },
+  { week: 5, name: "ITF M15 Hammamet", country: "Tunisia", surface: "Clay" },
+  { week: 6, name: "ITF M15 Almaty", country: "Kazakhstan", surface: "Hard" },
+  { week: 7, name: "ITF M15 Tbilisi", country: "Georgia", surface: "Hard" },
+  { week: 8, name: "ITF M15 Monastir", country: "Tunisia", surface: "Hard" },
+  { week: 9, name: "ITF M15 Fes", country: "Morocco", surface: "Clay" },
+  { week: 10, name: "ITF M15 Izmir", country: "Turkey", surface: "Clay" },
+  { week: 11, name: "ITF M15 Athens", country: "Greece", surface: "Clay" },
+  { week: 12, name: "ITF M15 Cairo", country: "Egypt", surface: "Hard" },
+  { week: 13, name: "ITF M15 Meknes", country: "Morocco", surface: "Clay" },
+  { week: 14, name: "ITF M15 Rabat", country: "Morocco", surface: "Clay" },
+  { week: 15, name: "ITF M15 Sousse", country: "Tunisia", surface: "Clay" },
+  { week: 16, name: "ITF M15 Bergamo", country: "Italy", surface: "Clay" },
+  { week: 17, name: "ITF M15 Florence", country: "Italy", surface: "Clay" },
+  { week: 18, name: "ITF M15 Palermo", country: "Italy", surface: "Clay" },
+  { week: 19, name: "ITF M15 Murcia", country: "Spain", surface: "Clay" },
+  { week: 20, name: "ITF M15 Tarragona", country: "Spain", surface: "Clay" },
+  { week: 21, name: "ITF M15 Poznan", country: "Poland", surface: "Clay" },
+  { week: 22, name: "ITF M15 Krakow", country: "Poland", surface: "Clay" },
+  { week: 23, name: "ITF M15 Bratislava", country: "Slovakia", surface: "Clay" },
+  { week: 24, name: "ITF M15 Budapest", country: "Hungary", surface: "Clay" },
+  { week: 25, name: "ITF M15 Sibiu", country: "Romania", surface: "Clay" },
+  { week: 26, name: "ITF M15 Sofia", country: "Bulgaria", surface: "Hard" },
+  { week: 27, name: "ITF M15 Belgrade", country: "Serbia", surface: "Clay" },
+  { week: 28, name: "ITF M15 Sarajevo", country: "Bosnia", surface: "Hard" },
+  { week: 29, name: "ITF M15 Yerevan", country: "Armenia", surface: "Hard" },
+  { week: 30, name: "ITF M15 Baku", country: "Azerbaijan", surface: "Hard" },
+  { week: 31, name: "ITF M15 Tashkent", country: "Uzbekistan", surface: "Hard" },
+  { week: 32, name: "ITF M15 Bishkek", country: "Kyrgyzstan", surface: "Hard" },
+  { week: 33, name: "ITF M15 Manila", country: "Philippines", surface: "Hard" },
+  { week: 34, name: "ITF M15 Jakarta", country: "Indonesia", surface: "Hard" },
+  { week: 35, name: "ITF M15 Hanoi", country: "Vietnam", surface: "Hard" },
+  { week: 36, name: "ITF M15 Colombo", country: "Sri Lanka", surface: "Hard" },
+  { week: 37, name: "ITF M15 Dhaka", country: "Bangladesh", surface: "Hard" },
+  { week: 38, name: "ITF M15 Kathmandu", country: "Nepal", surface: "Hard" },
+  { week: 39, name: "ITF M15 Nairobi", country: "Kenya", surface: "Hard" },
+  { week: 40, name: "ITF M15 Lagos", country: "Nigeria", surface: "Hard" },
+  { week: 41, name: "ITF M15 Accra", country: "Ghana", surface: "Hard" },
+  { week: 42, name: "ITF M15 Abidjan", country: "Ivory Coast", surface: "Hard" },
+  { week: 43, name: "ITF M15 Doha", country: "Qatar", surface: "Hard" },
+  { week: 44, name: "ITF M15 Muscat", country: "Oman", surface: "Hard" },
+  { week: 45, name: "ITF M15 Medellin", country: "Colombia", surface: "Clay" },
+  { week: 46, name: "ITF M15 Quito", country: "Ecuador", surface: "Clay" },
+  { week: 47, name: "ITF M15 Cochabamba", country: "Bolivia", surface: "Clay" },
+  { week: 48, name: "ITF M15 Asuncion", country: "Paraguay", surface: "Clay" },
+  { week: 49, name: "ITF M15 Mendoza", country: "Argentina", surface: "Clay" },
+  { week: 50, name: "ITF M15 Vina del Mar", country: "Chile", surface: "Clay" },
+  { week: 51, name: "ITF M15 Trujillo", country: "Peru", surface: "Clay" },
+  { week: 52, name: "ITF M15 Montevideo II", country: "Uruguay", surface: "Clay" },
+];
+
 // Generate ChallengerTournament objects
-export const challengerTournaments: ChallengerTournament[] = rawData.map(d => {
+const challengerBase: ChallengerTournament[] = rawData.map(d => {
   const category = getCategoryFromLevel(d.level);
   const country = normalizeCountry(d.country);
   return {
     id: makeId(d.name, d.week),
     name: d.name,
-    city: d.name.split(' ')[0], // simplified city from name
+    city: d.name.replace(/ Challenger\b.*$/, '').replace(/ Open\b.*$/, '').replace(/ International\b.*$/, '').trim(),
     country,
     category,
     surface: parseSurface(d.surface),
@@ -298,17 +414,53 @@ export const challengerTournaments: ChallengerTournament[] = rawData.map(d => {
   };
 });
 
+const itfM25Tournaments: ChallengerTournament[] = itfM25Data.map(d => ({
+  id: makeId(d.name, d.week),
+  name: d.name,
+  city: d.name.replace('ITF M25 ', ''),
+  country: d.country,
+  category: "ITF M25" as ChallengerCategory,
+  surface: parseSurface(d.surface),
+  week: d.week,
+  playerLimit: 32,
+  seeds: 4,
+  prizeMoney: 25000,
+  points: { ...challengerPoints["ITF M25"] },
+}));
+
+const itfM15Tournaments: ChallengerTournament[] = itfM15Data.map(d => ({
+  id: makeId(d.name, d.week),
+  name: d.name,
+  city: d.name.replace('ITF M15 ', ''),
+  country: d.country,
+  category: "ITF M15" as ChallengerCategory,
+  surface: parseSurface(d.surface),
+  week: d.week,
+  playerLimit: 16,
+  seeds: 4,
+  prizeMoney: 15000,
+  points: { ...challengerPoints["ITF M15"] },
+}));
+
+export const challengerTournaments: ChallengerTournament[] = [
+  ...challengerBase,
+  ...itfM25Tournaments,
+  ...itfM15Tournaments,
+];
+
 // Get Challenger tournaments for a specific week
 export const getChallengerTournamentsForWeek = (week: number): ChallengerTournament[] =>
   challengerTournaments.filter(t => t.week === week);
 
-// Prize money for Challenger categories
+// Prize money for Challenger and ITF categories
 export const CHALLENGER_PRIZE_MONEY: Record<ChallengerCategory, { winner: number; finalist: number; sf: number; qf: number; r16: number; r32: number }> = {
   "Challenger 175": { winner: 33000, finalist: 19000, sf: 11000, qf: 6200, r16: 3600, r32: 1800 },
   "Challenger 125": { winner: 22000, finalist: 13000, sf: 7500, qf: 4200, r16: 2500, r32: 1200 },
   "Challenger 100": { winner: 18000, finalist: 11000, sf: 6200, qf: 3500, r16: 2000, r32: 1000 },
   "Challenger 75":  { winner: 12000, finalist: 7000, sf: 4000, qf: 2300, r16: 1300, r32: 650 },
   "Challenger 50":  { winner: 8000, finalist: 4500, sf: 2600, qf: 1500, r16: 850, r32: 425 },
+  "ITF M25":        { winner: 4500, finalist: 2500, sf: 1400, qf: 750, r16: 400, r32: 0 },
+  "ITF M15":        { winner: 2500, finalist: 1400, sf: 800, qf: 450, r16: 250, r32: 0 },
 };
 
 // Get prize money for a round in a Challenger tournament

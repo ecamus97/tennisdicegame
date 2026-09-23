@@ -32,6 +32,7 @@ export interface Player {
   previousYearPoints: number[]; // Points to defend per week (52 weeks)
   currentYearWeeklyPoints: number[]; // Points earned this year per week (for next season defense)
   weeklyDefensePoints: number; // Points being defended this week
+  weeklyEarnedPoints: number; // Points earned in current week's tournaments
   injured: boolean;
   injuryWeeksRemaining: number;
   surfaceAffinity: SurfaceAffinity;
@@ -350,6 +351,166 @@ const playerNames = [
   "Titouan Droguet",
 ];
 
+const SURFACE_AFFINITY: Record<string, { Hard: number; Clay: number; Grass: number }> = {
+  // === TOP 10 ===
+  "Carlos Alcaraz":               { Hard: 2, Clay: 2, Grass: 2 },  // GS wins on all 3
+  "Jannik Sinner":                { Hard: 2, Clay: 1, Grass: 1 },  // Hard dominant, solid clay/grass
+  "Novak Djokovic":               { Hard: 2, Clay: 2, Grass: 2 },  // All-surface GOAT
+  "Alexander Zverev":             { Hard: 2, Clay: 2, Grass: 0 },  // Hard/Clay, weak grass
+  "Lorenzo Musetti":              { Hard: 0, Clay: 2, Grass: 0 },  // Pure clay specialist
+  "Alex de Miñaur":               { Hard: 2, Clay: 0, Grass: 1 },  // Hard specialist
+  "Taylor Fritz":                 { Hard: 2, Clay: 0, Grass: 1 },  // Hard specialist
+  "Félix Auger-Aliassime":        { Hard: 2, Clay: 1, Grass: 1 },  // Well-rounded
+  "Ben Shelton":                  { Hard: 2, Clay: 0, Grass: 0 },  // Hard only
+  "Alexander Bublik":             { Hard: 1, Clay: 0, Grass: 1 },  // Serve-based, hard/grass
+  // === 11-20 ===
+  "Daniil Medvedev":              { Hard: 2, Clay: 0, Grass: 0 },  // Hard specialist
+  "Casper Ruud":                  { Hard: 0, Clay: 2, Grass: -1 }, // Pure clay
+  "Jack Draper":                  { Hard: 1, Clay: 0, Grass: 1 },  // Grass/Hard
+  "Andrey Rublev":                { Hard: 2, Clay: 1, Grass: 0 },  // Hard primary
+  "Alejandro Davidovich Fokina":  { Hard: 0, Clay: 2, Grass: -1 }, // Clay specialist
+  "Jakub Menšík":                 { Hard: 1, Clay: 0, Grass: 0 },  // Hard player
+  "Holger Rune":                  { Hard: 1, Clay: 2, Grass: 0 },  // Clay/Hard
+  "Karen Khachanov":              { Hard: 1, Clay: 0, Grass: 0 },  // Hard
+  "Francisco Cerúndolo":          { Hard: 0, Clay: 2, Grass: -1 }, // Clay specialist
+  "Flavio Cobolli":               { Hard: 0, Clay: 1, Grass: 0 },  // Clay-leaning
+  // === 21-40 ===
+  "Jiří Lehečka":                 { Hard: 1, Clay: 0, Grass: 1 },  // Hard/Grass
+  "Tommy Paul":                   { Hard: 2, Clay: 0, Grass: 0 },  // Hard
+  "Luciano Darderi":              { Hard: 0, Clay: 2, Grass: -1 }, // Clay
+  "Learner Tien":                 { Hard: 1, Clay: 0, Grass: 0 },
+  "Denis Shapovalov":             { Hard: 1, Clay: 0, Grass: 1 },  // Hard/Grass
+  "Cameron Norrie":               { Hard: 1, Clay: 1, Grass: 1 },  // Solid all-around
+  "Valentin Vacherot":            { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Tomáš Macháč":                 { Hard: 1, Clay: 1, Grass: 0 },
+  "Tallon Griekspoor":            { Hard: 1, Clay: 0, Grass: 0 },
+  "Frances Tiafoe":               { Hard: 1, Clay: 0, Grass: 0 },  // Hard
+  "Arthur Rinderknech":           { Hard: 1, Clay: 0, Grass: 0 },
+  "Brandon Nakashima":            { Hard: 1, Clay: 0, Grass: 0 },
+  "Stefanos Tsitsipas":           { Hard: 1, Clay: 2, Grass: 0 },  // Clay specialist
+  "João Fonseca":                 { Hard: 1, Clay: 1, Grass: 0 },
+  "Sebastián Báez":               { Hard: 0, Clay: 2, Grass: -1 }, // Clay
+  "Corentin Moutet":              { Hard: 0, Clay: 1, Grass: 0 },  // Clay-leaning
+  "Jaume Munar":                  { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Ugo Humbert":                  { Hard: 1, Clay: 0, Grass: 1 },  // Grass/Hard
+  "Gabriel Diallo":               { Hard: 1, Clay: 0, Grass: 0 },
+  "Zizou Bergs":                  { Hard: 0, Clay: 1, Grass: 0 },  // Clay
+  // === 41-60 ===
+  "Alex Michelsen":               { Hard: 1, Clay: 0, Grass: 0 },
+  "Arthur Fils":                  { Hard: 1, Clay: 1, Grass: 0 },
+  "Grigor Dimitrov":              { Hard: 2, Clay: 0, Grass: 1 },  // Hard specialist
+  "Daniel Altmaier":              { Hard: 0, Clay: 1, Grass: 0 },  // Clay
+  "Nuno Borges":                  { Hard: 0, Clay: 1, Grass: 0 },  // Clay
+  "Fábián Marozsán":              { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Jenson Brooksby":              { Hard: 1, Clay: 0, Grass: 0 },
+  "Camilo Ugo Carabelli":         { Hard: 0, Clay: 2, Grass: -1 }, // Clay
+  "Alexandre Müller":             { Hard: 1, Clay: 1, Grass: 0 },
+  "Márton Fucsovics":             { Hard: 1, Clay: 0, Grass: 1 },  // Grass/Hard
+  "Alexei Popyrin":               { Hard: 1, Clay: 0, Grass: 0 },
+  "Hubert Hurkacz":               { Hard: 2, Clay: 0, Grass: 2 },  // Hard/Grass specialist
+  "Sebastian Korda":              { Hard: 1, Clay: 0, Grass: 0 },
+  "Tomás Martín Etcheverry":      { Hard: -1, Clay: 2, Grass: -1 },// Pure clay
+  "Kamil Majchrzak":              { Hard: 1, Clay: 1, Grass: 0 },
+  "Valentin Royer":               { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Giovanni Mpetshi Perricard":   { Hard: 1, Clay: 0, Grass: 2 },  // Serve → Grass
+  "Matteo Berrettini":            { Hard: 1, Clay: 0, Grass: 2 },  // Wimbledon finalist
+  "Marcos Giron":                 { Hard: 1, Clay: 0, Grass: 0 },
+  "Lorenzo Sonego":               { Hard: 1, Clay: 1, Grass: 0 },
+  // === 61-80 ===
+  "Marin Čilić":                  { Hard: 1, Clay: 0, Grass: 1 },  // GS on hard
+  "Damir Džumhur":                { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Reilly Opelka":                { Hard: 2, Clay: -1, Grass: 1 }, // Hard/serve specialist
+  "Francisco Comesaña":           { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Matteo Arnaldi":               { Hard: 1, Clay: 1, Grass: 0 },
+  "Térence Atmane":               { Hard: 1, Clay: 1, Grass: 0 },
+  "Botic van de Zandschulp":      { Hard: 0, Clay: 1, Grass: 0 },  // Clay
+  "Ethan Quinn":                  { Hard: 1, Clay: 0, Grass: 0 },
+  "Miomir Kecmanović":            { Hard: 0, Clay: 1, Grass: 0 },  // Clay
+  "Adrian Mannarino":             { Hard: 1, Clay: 0, Grass: 1 },  // Hard/Grass
+  "Eliot Spizzirri":              { Hard: 1, Clay: 0, Grass: 0 },
+  "Raphaël Collignon":            { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Alejandro Tabilo":             { Hard: 1, Clay: 1, Grass: 0 },
+  "Mattia Bellucci":              { Hard: 0, Clay: 1, Grass: 0 },  // Clay
+  "Mariano Navone":               { Hard: -1, Clay: 2, Grass: -1 },// Pure clay
+  "Arthur Cazaux":                { Hard: 0, Clay: 1, Grass: 0 },  // Clay
+  "Pedro Martínez":               { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Filip Misolic":                { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Quentin Halys":                { Hard: 1, Clay: 1, Grass: 0 },
+  "Hamad Medjedović":             { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  // === 81-100 ===
+  "Adam Walton":                  { Hard: 1, Clay: 0, Grass: 0 },
+  "Emilio Nava":                  { Hard: 1, Clay: 0, Grass: 0 },
+  "Aleksandar Kovačević":         { Hard: 1, Clay: 1, Grass: 0 },
+  "Jan-Lennard Struff":           { Hard: 1, Clay: 0, Grass: 1 },  // Serve/Grass
+  "Juan Manuel Cerúndolo":        { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "James Duckworth":              { Hard: 1, Clay: 0, Grass: 0 },
+  "Alexander Shevchenko":         { Hard: 1, Clay: 1, Grass: 0 },
+  "Jesper de Jong":               { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Roberto Bautista Agut":        { Hard: 1, Clay: 1, Grass: 1 },  // All-around
+  "Jacob Fearnley":               { Hard: 1, Clay: 0, Grass: 0 },
+  "Aleksandar Vukic":             { Hard: 1, Clay: 0, Grass: 0 },
+  "Cristian Garín":               { Hard: -1, Clay: 2, Grass: -1 },// Pure clay
+  "Yannick Hanfmann":             { Hard: 0, Clay: 1, Grass: 0 },  // Clay
+  "Laslo Djere":                  { Hard: -1, Clay: 2, Grass: -1 },// Pure clay
+  "Thiago Agustín Tirante":       { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Dalibor Svrčina":              { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Vít Kopřiva":                  { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Ignacio Buse":                 { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Hugo Gaston":                  { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  "Pablo Carreño Busta":          { Hard: 0, Clay: 1, Grass: -1 }, // Clay
+  // === 101-150 ===
+  "Carlos Taberner":              { Hard: 0, Clay: 1, Grass: -1 },
+  "Kyrian Jacquet":               { Hard: 0, Clay: 1, Grass: -1 },
+  "Rinky Hijikata":               { Hard: 1, Clay: 0, Grass: 0 },
+  "Adolfo Daniel Vallejo":        { Hard: 0, Clay: 1, Grass: -1 },
+  "Alexander Blockx":             { Hard: 1, Clay: 1, Grass: 0 },
+  "Luca Nardi":                   { Hard: 0, Clay: 1, Grass: 0 },
+  "Patrick Kypson":               { Hard: 1, Clay: 0, Grass: 0 },
+  "Shintaro Mochizuki":           { Hard: 1, Clay: 0, Grass: 0 },
+  "Zachary Svajda":               { Hard: 1, Clay: 0, Grass: 0 },
+  "Jordan Thompson":              { Hard: 1, Clay: 0, Grass: 0 },
+  "Mackenzie McDonald":           { Hard: 1, Clay: 0, Grass: 0 },
+  "Tomás Barrios Vera":           { Hard: 0, Clay: 1, Grass: -1 },
+  "Stan Wawrinka":                { Hard: 1, Clay: 2, Grass: 0 },  // Clay/Hard GS winner
+  "Tristan Schoolkate":           { Hard: 1, Clay: 0, Grass: 0 },
+  "David Goffin":                 { Hard: 1, Clay: 1, Grass: 1 },  // All-round
+  "Otto Virtanen":                { Hard: 1, Clay: 0, Grass: 0 },
+  "Francesco Maestrelli":         { Hard: 0, Clay: 1, Grass: 0 },
+  "Román Andrés Burruchaga":      { Hard: 0, Clay: 1, Grass: -1 },
+  "Christopher O'Connell":        { Hard: 1, Clay: 0, Grass: 0 },
+  "Elmer Møller":                 { Hard: 1, Clay: 0, Grass: 0 },
+  "Dino Prižmić":                 { Hard: 0, Clay: 1, Grass: -1 },
+  "Chun Hsin Tseng":              { Hard: 1, Clay: 0, Grass: 0 },
+  "Dušan Lajović":                { Hard: 0, Clay: 1, Grass: -1 },
+  "Rafael Jódar":                 { Hard: 0, Clay: 1, Grass: -1 },
+  "Jan Choinski":                 { Hard: 1, Clay: 0, Grass: 1 },  // British player
+  "Vilius Gaubas":                { Hard: 1, Clay: 1, Grass: 0 },
+  "Luca Van Assche":              { Hard: 0, Clay: 1, Grass: 0 },
+  "Benjamin Bonzi":               { Hard: 1, Clay: 1, Grass: 0 },
+  "Billy Harris":                 { Hard: 1, Clay: 0, Grass: 1 },  // British player
+  "Borna Ćorić":                  { Hard: 1, Clay: 0, Grass: 0 },
+  "Yoshihito Nishioka":           { Hard: 1, Clay: 0, Grass: 0 },
+  "Brandon Holt":                 { Hard: 1, Clay: 0, Grass: 0 },
+  "Nicolai Budkov Kjær":          { Hard: 1, Clay: 0, Grass: 0 },
+  "Marco Trungelliti":            { Hard: 0, Clay: 1, Grass: -1 },
+  "Sebastian Ofner":              { Hard: 1, Clay: 1, Grass: 0 },
+  "Coleman Wong":                 { Hard: 1, Clay: 0, Grass: 0 },
+  "Nikoloz Basilashvili":         { Hard: 1, Clay: 0, Grass: 0 },
+  "Chris Rodesch":                { Hard: 1, Clay: 0, Grass: 0 },
+  "Yunchaokete Bu":               { Hard: 1, Clay: 0, Grass: 0 },
+  "Nicolás Jarry":                { Hard: 1, Clay: 1, Grass: 0 },
+  "Sho Shimabukuro":              { Hard: 1, Clay: 0, Grass: 0 },
+  "Moez Echargui":                { Hard: 1, Clay: 1, Grass: 0 },
+  "Andrea Pellegrino":            { Hard: 0, Clay: 1, Grass: 0 },
+  "Yibing Wu":                    { Hard: 1, Clay: 0, Grass: 0 },
+  "Jaime Faria":                  { Hard: 0, Clay: 1, Grass: -1 },
+  "Liam Draxl":                   { Hard: 1, Clay: 0, Grass: 0 },
+  "Lukáš Klein":                  { Hard: 1, Clay: 1, Grass: 0 },
+  "Michael Zheng":                { Hard: 1, Clay: 0, Grass: 0 },
+  "Hugo Dellien":                 { Hard: 0, Clay: 1, Grass: -1 },
+  "Titouan Droguet":              { Hard: 0, Clay: 1, Grass: 0 },
+};
+
 // Generate initial players with real points and ages from ranking data
 export const initialPlayers: Player[] = playerNames.map((name, index) => {
   const { country, countryCode } = getCountryData(name);
@@ -371,9 +532,10 @@ export const initialPlayers: Player[] = playerNames.map((name, index) => {
     previousYearPoints: defensePoints,
     currentYearWeeklyPoints: new Array(52).fill(0),
     weeklyDefensePoints: 0,
+    weeklyEarnedPoints: 0,
     injured: false,
     injuryWeeksRemaining: 0,
-    surfaceAffinity: { Hard: 0, Clay: 0, Grass: 0 },
+    surfaceAffinity: SURFACE_AFFINITY[name] || { Hard: 0, Clay: 0, Grass: 0 },
     stats: {
       wins: 0, losses: 0,
       surfaceWins: { Hard: 0, Clay: 0, Grass: 0 },
@@ -385,7 +547,7 @@ export const initialPlayers: Player[] = playerNames.map((name, index) => {
   };
 });
 
-export type TournamentCategory = "Grand Slam" | "Masters 1000" | "ATP 500" | "ATP 250" | "ATP Finals" | "Davis Cup" | "Laver Cup" | "Challenger 175" | "Challenger 125" | "Challenger 100" | "Challenger 75" | "Challenger 50";
+export type TournamentCategory = "Grand Slam" | "Masters 1000" | "ATP 500" | "ATP 250" | "ATP Finals" | "Davis Cup" | "Laver Cup" | "Challenger 175" | "Challenger 125" | "Challenger 100" | "Challenger 75" | "Challenger 50" | "ITF M25" | "ITF M15";
 
 export interface Tournament {
   id: string;

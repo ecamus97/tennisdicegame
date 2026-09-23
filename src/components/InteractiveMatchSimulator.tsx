@@ -1,18 +1,18 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Player, Surface } from "@/data/players";
-import { 
-  MatchResult, 
-  SetScore, 
+import {
+  MatchResult,
+  SetScore,
   GameResult,
-  rollDice, 
-  getAdvantageLevel, 
+  rollDice,
+  getAdvantageLevel,
   getEffectiveRankingDiff,
-  AdvantageLevel 
+  AdvantageLevel
 } from "@/lib/matchEngine";
 import { playGameWithAdvantage } from "@/lib/gameLogic";
 import Dice from "./Dice";
 import { Button } from "@/components/ui/button";
-import { Play, RotateCcw, Zap, Users } from "lucide-react";
+import { Play, RotateCcw, Zap, Users, Pause } from "lucide-react";
 
 interface InteractiveMatchSimulatorProps {
   player1: Player;
@@ -21,6 +21,7 @@ interface InteractiveMatchSimulatorProps {
   onMatchComplete?: (result: MatchResult) => void;
   initialServerId?: number;
   surface?: Surface;
+  h2hRecord?: { wins: number; losses: number };
 }
 
 interface MatchState {
@@ -52,6 +53,7 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
   onMatchComplete,
   surface,
   initialServerId,
+  h2hRecord,
 }) => {
   // Determine who serves first - randomize if not specified
   const [player1ServesFirst] = useState(() => {
@@ -86,11 +88,16 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
   const [isRolling, setIsRolling] = useState(false);
   const [matchComplete, setMatchComplete] = useState(false);
   const [result, setResult] = useState<MatchResult | null>(null);
-  // Track previous server for display after game ends
   const [lastServerWasP1, setLastServerWasP1] = useState(player1ServesFirst);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+
+  // Always-fresh ref so async rollForGame never reads stale state
+  const matchStateRef = useRef(matchState);
+  useEffect(() => { matchStateRef.current = matchState; }, [matchState]);
 
   // Reset when players change
   useEffect(() => {
+    setIsAutoPlaying(false);
     setMatchState(getInitialState());
     setCurrentRoll(null);
     setMatchComplete(false);
@@ -106,12 +113,13 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
   // Determine which player is higher ranked (for advantage logic)
   const isPlayer1HigherRanked = rankingDiff > 0;
 
-  const rollForGame = async () => {
+  const rollForGame = useCallback(async () => {
     setIsRolling(true);
-    
-    // Store current server before roll
-    setLastServerWasP1(matchState.isPlayer1Serving);
-    
+
+    // Read FRESH state from ref — never stale even in auto-play
+    const currentState = matchStateRef.current;
+    setLastServerWasP1(currentState.isPlayer1Serving);
+
     // Animate dice
     for (let i = 0; i < 8; i++) {
       await new Promise(resolve => setTimeout(resolve, 60));
@@ -122,24 +130,16 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
         wasBreak: false,
       });
     }
-    
+
     setIsRolling(false);
 
-    const { 
-      isPlayer1Serving, 
-      isTiebreak, 
-      player1ServiceGames, 
-      player2ServiceGames,
-      tbPointNumber 
-    } = matchState;
-    
-    // Determine if higher ranked player is serving
+    // Read fresh state again after animation (in case of concurrent updates)
+    const { isPlayer1Serving, isTiebreak, player1ServiceGames, player2ServiceGames } = matchStateRef.current;
+
     const isHigherRankedServing = isPlayer1HigherRanked ? isPlayer1Serving : !isPlayer1Serving;
-    
-    // Get service game counts for the higher and lower ranked players
     const higherRankedServiceCount = isPlayer1HigherRanked ? player1ServiceGames : player2ServiceGames;
     const lowerRankedServiceCount = isPlayer1HigherRanked ? player2ServiceGames : player1ServiceGames;
-    
+
     const gameResult = playGameWithAdvantage({
       advantageLevel,
       isHigherRankedServing,
@@ -147,12 +147,12 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
       lowerRankedServiceGameCount: !isHigherRankedServing ? lowerRankedServiceCount + 1 : lowerRankedServiceCount,
       isTiebreak,
     });
-    
+
     setCurrentRoll(gameResult);
-    
-    // Update match state after a delay
+
+    // Short pause so the result is visible before state updates
     await new Promise(resolve => setTimeout(resolve, 400));
-    
+
     setMatchState(prev => {
       if (isTiebreak) {
         return updateTiebreakState(prev, gameResult, isPlayer1Serving);
@@ -160,7 +160,7 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
         return updateGameState(prev, gameResult, isPlayer1Serving);
       }
     });
-  };
+  }, [isPlayer1HigherRanked, advantageLevel]);
 
   const updateGameState = (prev: MatchState, gameResult: GameResult, isP1Serving: boolean): MatchState => {
     let { 
@@ -502,12 +502,29 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
   };
 
   const resetMatch = () => {
+    setIsAutoPlaying(false);
     setMatchState(getInitialState());
     setCurrentRoll(null);
     setMatchComplete(false);
     setResult(null);
     setLastServerWasP1(player1ServesFirst);
   };
+
+  const toggleAutoPlay = () => {
+    setIsAutoPlaying(prev => !prev);
+  };
+
+  // Auto-play engine: fires next game whenever idle (not rolling, not done)
+  useEffect(() => {
+    if (!isAutoPlaying || matchComplete || isRolling) return;
+    const timer = setTimeout(() => { rollForGame(); }, 500);
+    return () => clearTimeout(timer);
+  }, [isAutoPlaying, isRolling, matchComplete, rollForGame]);
+
+  // Stop auto-play when match ends
+  useEffect(() => {
+    if (matchComplete) setIsAutoPlaying(false);
+  }, [matchComplete]);
 
   const getCurrentServer = () => matchState.isPlayer1Serving ? player1 : player2;
 
@@ -522,6 +539,19 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
           Best of {bestOf} sets {matchState.isTiebreak && "• TIEBREAK"}
         </p>
       </div>
+
+      {/* H2H Record */}
+      {h2hRecord && (
+        <div className="text-center text-xs text-muted-foreground bg-secondary/20 rounded px-3 py-1.5">
+          {h2hRecord.wins === 0 && h2hRecord.losses === 0
+            ? <span className="opacity-60">H2H: Sin enfrentamientos previos</span>
+            : <>
+                H2H: <span className="text-green-400 font-medium">{h2hRecord.wins}W</span> - <span className="text-red-400 font-medium">{h2hRecord.losses}L</span>
+                <span className="ml-2 opacity-60">({h2hRecord.wins + h2hRecord.losses} partidos)</span>
+              </>
+          }
+        </div>
+      )}
 
       {/* Advantage indicator */}
       {advantageLevel !== "none" && favoredPlayer && (
@@ -664,15 +694,27 @@ const InteractiveMatchSimulator: React.FC<InteractiveMatchSimulatorProps> = ({
           <>
             <Button
               onClick={rollForGame}
-              disabled={isRolling}
+              disabled={isRolling || isAutoPlaying}
               className="gap-2"
             >
               <Play className="w-4 h-4" />
               {isRolling ? "Rolling..." : matchState.isTiebreak ? "Roll Point" : "Roll Game"}
             </Button>
             <Button
+              onClick={toggleAutoPlay}
+              disabled={isRolling && !isAutoPlaying}
+              variant={isAutoPlaying ? "destructive" : "outline"}
+              className="gap-2"
+            >
+              {isAutoPlaying ? (
+                <><Pause className="w-4 h-4" /> Pause</>
+              ) : (
+                <><Play className="w-4 h-4" />Auto</>
+              )}
+            </Button>
+            <Button
               onClick={simulateRestOfMatch}
-              disabled={isRolling}
+              disabled={isRolling || isAutoPlaying}
               variant="secondary"
               className="gap-2"
             >

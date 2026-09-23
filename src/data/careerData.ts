@@ -18,9 +18,12 @@ export interface CareerAttributes {
   surfaceGrass: number;
 }
 
+export type SponsorCategory = 'Equipment' | 'Apparel' | 'Technology' | 'Beverage' | 'Financial' | 'Travel' | 'Watch' | 'Automotive';
+
 export interface Sponsor {
   id: string;
   name: string;
+  category: SponsorCategory;
   weeklyIncome: number;
   winBonus: number;
   titleBonus: number;
@@ -28,6 +31,9 @@ export interface Sponsor {
   minRanking: number;
   duration: number;
   description: string;
+  weeklyFatigueIncrease?: number;  // endorsements, interviews, events
+  weeklyEnergyDrain?: number;       // galas, media obligations
+  trainingEfficiencyPenalty?: number; // 0-1, reduces training output
 }
 
 export interface ActiveSponsor {
@@ -47,8 +53,15 @@ export interface StaffMember {
     trainingEfficiency?: number;
     recoveryBonus?: number;
     injuryPrevention?: number;
-    mentalBonus?: number;
     fatigueReduction?: number;
+    weeklyServe?: number;
+    weeklyReturn?: number;
+    weeklyRally?: number;
+    weeklyConsistency?: number;
+    weeklyPressure?: number;
+    weeklyPhysical?: number;
+    weeklyMentality?: number;
+    weeklyRecovery?: number;
   };
 }
 
@@ -99,6 +112,29 @@ export interface CareerPlayer {
   objectives: CareerObjective[];
   sponsors: ActiveSponsor[];
   staff: ActiveStaff[];
+  matchHistory: CareerMatchRecord[];
+  reputation: number; // 0-1000, starts at 50
+  rankingHistory: { week: number; season: number; ranking: number }[];
+  weeklyPlan: WeeklyPlanEntry[];
+}
+
+export interface CareerMatchRecord {
+  opponentId: number;
+  opponentName: string;
+  won: boolean;
+  surface: Surface;
+  season: number;
+  week: number;
+  tournamentId: string;
+  round: string;
+}
+
+export interface WeeklyPlanEntry {
+  week: number;
+  type: 'tournament' | 'training' | 'rest' | 'unplanned';
+  tournamentId?: string;
+  trainingType?: string;
+  note?: string;
 }
 
 export interface CareerStats {
@@ -181,6 +217,29 @@ export interface CareerSeasonSummaryData {
   newPlayers: string[];
 }
 
+export interface NewsItem {
+  id: string;
+  headline: string;
+  detail?: string;
+  type: 'tournament' | 'ranking' | 'career' | 'general';
+  week: number;
+  season: number;
+  // Popup detail fields
+  tournamentName?: string;
+  tournamentCategory?: string;
+  tournamentCity?: string;
+  tournamentCountry?: string;
+  tournamentSurface?: string;
+  winnerName?: string;
+  runnerUpName?: string;
+  winnerNewRanking?: number;
+  runnerUpNewRanking?: number;
+  pointsAwarded?: number;
+  rankBefore?: number;
+  rankAfter?: number;
+  body?: string;
+}
+
 export interface CareerState {
   player: CareerPlayer | null;
   allPlayers: Player[];
@@ -193,6 +252,9 @@ export interface CareerState {
   activeTournament: string | null;
   currentDraw: any | null;
   seasonSummary?: CareerSeasonSummaryData | null;
+  globalH2H: Record<string, [number, number]>; // key: "${minId}-${maxId}", value: [wins_by_minId, wins_by_maxId]
+  newsItems: NewsItem[];
+  weeklyUsedPlayerIds: number[]; // IDs of players committed to a tournament this week (to prevent cross-tournament duplication)
 }
 
 // ==================== CONSTANTS ====================
@@ -224,48 +286,93 @@ export const BASE_ATTRIBUTES: CareerAttributes = {
 // ==================== SPONSORS ====================
 
 export const AVAILABLE_SPONSORS: Sponsor[] = [
-  // Sports brands — lower tier
-  { id: 'head', name: 'HEAD', weeklyIncome: 800, winBonus: 150, titleBonus: 3000, travelDiscount: 0, minRanking: 450, duration: 26, description: 'Equipment sponsor for emerging players' },
-  { id: 'babolat', name: 'Babolat', weeklyIncome: 900, winBonus: 180, titleBonus: 4000, travelDiscount: 0, minRanking: 400, duration: 26, description: 'Racquet sponsor for developing talent' },
-  { id: 'yonex', name: 'Yonex', weeklyIncome: 1000, winBonus: 200, titleBonus: 5000, travelDiscount: 0, minRanking: 350, duration: 26, description: 'Japanese equipment brand' },
-  { id: 'wilson', name: 'Wilson', weeklyIncome: 1200, winBonus: 250, titleBonus: 6000, travelDiscount: 0, minRanking: 300, duration: 26, description: 'Trusted equipment partner' },
-  { id: 'asics', name: 'ASICS', weeklyIncome: 1500, winBonus: 300, titleBonus: 8000, travelDiscount: 0.05, minRanking: 250, duration: 26, description: 'Footwear and apparel sponsor' },
-  { id: 'new-balance', name: 'New Balance', weeklyIncome: 1800, winBonus: 350, titleBonus: 10000, travelDiscount: 0.05, minRanking: 200, duration: 26, description: 'Athletic apparel and footwear' },
-  { id: 'lacoste', name: 'Lacoste', weeklyIncome: 2000, winBonus: 400, titleBonus: 12000, travelDiscount: 0.08, minRanking: 150, duration: 26, description: 'Classic sportswear brand' },
-  // Sports brands — higher tier
-  { id: 'nike-basic', name: 'Nike (Challenger)', weeklyIncome: 2500, winBonus: 500, titleBonus: 15000, travelDiscount: 0.1, minRanking: 120, duration: 26, description: 'Entry-level Nike deal for rising players' },
-  { id: 'adidas', name: 'Adidas', weeklyIncome: 4000, winBonus: 800, titleBonus: 25000, travelDiscount: 0.15, minRanking: 80, duration: 52, description: 'Premium sportswear deal' },
-  { id: 'nike-tour', name: 'Nike (Tour)', weeklyIncome: 5500, winBonus: 1200, titleBonus: 40000, travelDiscount: 0.18, minRanking: 50, duration: 52, description: 'Main tour Nike contract' },
-  { id: 'nike-elite', name: 'Nike (Elite)', weeklyIncome: 8000, winBonus: 2000, titleBonus: 75000, travelDiscount: 0.25, minRanking: 10, duration: 52, description: 'Top-tier Nike contract for elite players' },
-  // Global brands
-  { id: 'pepsi', name: 'Pepsi', weeklyIncome: 1500, winBonus: 300, titleBonus: 8000, travelDiscount: 0, minRanking: 200, duration: 26, description: 'Beverage sponsor with visibility bonuses' },
-  { id: 'samsung', name: 'Samsung', weeklyIncome: 2000, winBonus: 500, titleBonus: 12000, travelDiscount: 0, minRanking: 150, duration: 26, description: 'Tech brand endorsement' },
-  { id: 'red-bull', name: 'Red Bull', weeklyIncome: 3000, winBonus: 600, titleBonus: 20000, travelDiscount: 0.1, minRanking: 100, duration: 52, description: 'Energy brand with athlete support program' },
-  { id: 'mastercard', name: 'Mastercard', weeklyIncome: 3500, winBonus: 0, titleBonus: 15000, travelDiscount: 0.15, minRanking: 80, duration: 52, description: 'Financial sponsor with travel benefits' },
-  { id: 'emirates', name: 'Emirates', weeklyIncome: 3000, winBonus: 0, titleBonus: 0, travelDiscount: 0.4, minRanking: 100, duration: 52, description: 'Travel sponsor — massive travel cost reduction' },
-  { id: 'apple', name: 'Apple', weeklyIncome: 4000, winBonus: 800, titleBonus: 25000, travelDiscount: 0, minRanking: 50, duration: 52, description: 'Premium tech brand endorsement' },
-  // Luxury brands
-  { id: 'tag-heuer', name: 'TAG Heuer', weeklyIncome: 4500, winBonus: 1000, titleBonus: 30000, travelDiscount: 0.1, minRanking: 50, duration: 52, description: 'Luxury watch partnership' },
-  { id: 'omega', name: 'Omega', weeklyIncome: 5000, winBonus: 1200, titleBonus: 40000, travelDiscount: 0.1, minRanking: 30, duration: 52, description: 'Premium luxury watch sponsor' },
-  { id: 'porsche', name: 'Porsche', weeklyIncome: 5500, winBonus: 1500, titleBonus: 45000, travelDiscount: 0.15, minRanking: 25, duration: 52, description: 'Luxury automotive partnership' },
-  { id: 'mercedes', name: 'Mercedes-Benz', weeklyIncome: 6000, winBonus: 1500, titleBonus: 50000, travelDiscount: 0.2, minRanking: 20, duration: 52, description: 'Premium automotive brand deal' },
-  { id: 'rolex', name: 'Rolex', weeklyIncome: 8000, winBonus: 2000, titleBonus: 80000, travelDiscount: 0.2, minRanking: 10, duration: 52, description: 'Elite luxury partnership — the pinnacle' },
+  // ── EQUIPMENT ──────────────────────────────────────────────────────────────
+  { id: 'prince', name: 'Prince', category: 'Equipment', weeklyIncome: 600, winBonus: 100, titleBonus: 2000, travelDiscount: 0, minRanking: 503, duration: 26, description: 'Entry equipment deal for emerging players. No media obligations.' },
+  { id: 'tecnifibre', name: 'Tecnifibre', category: 'Equipment', weeklyIncome: 700, winBonus: 130, titleBonus: 2500, travelDiscount: 0, minRanking: 450, duration: 26, description: 'Racquet and strings sponsor. Simple deal, occasional social posts.' },
+  { id: 'head', name: 'HEAD', category: 'Equipment', weeklyIncome: 900, winBonus: 180, titleBonus: 4000, travelDiscount: 0, minRanking: 400, duration: 26, description: 'Established equipment brand. Low-key contract for developing talent.' },
+  { id: 'babolat', name: 'Babolat', category: 'Equipment', weeklyIncome: 1100, winBonus: 220, titleBonus: 5500, travelDiscount: 0, minRanking: 300, duration: 26, description: 'Iconic racquet brand. Occasional promo events required.' },
+  { id: 'yonex', name: 'Yonex', category: 'Equipment', weeklyIncome: 1400, winBonus: 280, titleBonus: 7000, travelDiscount: 0, minRanking: 200, duration: 26, description: 'Premium Japanese equipment. Photoshoots and product launches.' },
+  { id: 'wilson', name: 'Wilson', category: 'Equipment', weeklyIncome: 2000, winBonus: 400, titleBonus: 12000, travelDiscount: 0, minRanking: 100, duration: 26, description: 'Top equipment brand. Global presence and media duties.', weeklyFatigueIncrease: 1 },
+  { id: 'dunlop', name: 'Dunlop', category: 'Equipment', weeklyIncome: 2500, winBonus: 500, titleBonus: 15000, travelDiscount: 0, minRanking: 50, duration: 52, description: 'Historic brand, full tour support. Events and ambassador duties.', weeklyFatigueIncrease: 2 },
+
+  // ── APPAREL ────────────────────────────────────────────────────────────────
+  { id: 'lotto', name: 'Lotto', category: 'Apparel', weeklyIncome: 700, winBonus: 120, titleBonus: 3000, travelDiscount: 0, minRanking: 450, duration: 26, description: 'Italian sportswear. Basic deal, minimal obligations.' },
+  { id: 'fila', name: 'Fila', category: 'Apparel', weeklyIncome: 900, winBonus: 160, titleBonus: 4000, travelDiscount: 0, minRanking: 350, duration: 26, description: 'Classic tennis brand. Photoshoots and seasonal campaigns.' },
+  { id: 'asics', name: 'ASICS', category: 'Apparel', weeklyIncome: 1500, winBonus: 300, titleBonus: 8000, travelDiscount: 0.05, minRanking: 250, duration: 26, description: 'Footwear & apparel. Minor media duties, manageable schedule.' },
+  { id: 'new-balance', name: 'New Balance', category: 'Apparel', weeklyIncome: 2000, winBonus: 400, titleBonus: 11000, travelDiscount: 0.05, minRanking: 180, duration: 26, description: 'Athletic apparel. 1 photoshoot per season, light schedule.', weeklyFatigueIncrease: 1 },
+  { id: 'under-armour', name: 'Under Armour', category: 'Apparel', weeklyIncome: 2500, winBonus: 500, titleBonus: 14000, travelDiscount: 0.08, minRanking: 120, duration: 26, description: 'Performance apparel. Regular content creation required.', weeklyFatigueIncrease: 2 },
+  { id: 'lacoste', name: 'Lacoste', category: 'Apparel', weeklyIncome: 3000, winBonus: 600, titleBonus: 18000, travelDiscount: 0.08, minRanking: 80, duration: 26, description: 'Classic sportswear & fashion. Events and brand appearances.', weeklyFatigueIncrease: 2 },
+  { id: 'nike-basic', name: 'Nike (Challenger)', category: 'Apparel', weeklyIncome: 4000, winBonus: 800, titleBonus: 22000, travelDiscount: 0.12, minRanking: 50, duration: 26, description: 'Entry Nike deal. Regular content creation and social media.', weeklyFatigueIncrease: 3 },
+  { id: 'adidas', name: 'Adidas', category: 'Apparel', weeklyIncome: 5500, winBonus: 1100, titleBonus: 35000, travelDiscount: 0.15, minRanking: 30, duration: 52, description: 'Premium sportswear. Campaign shoots and global brand events.', weeklyFatigueIncrease: 3, trainingEfficiencyPenalty: 0.05 },
+  { id: 'nike-elite', name: 'Nike (Elite)', category: 'Apparel', weeklyIncome: 9000, winBonus: 2200, titleBonus: 80000, travelDiscount: 0.25, minRanking: 10, duration: 52, description: 'Top-tier Nike contract. Relentless global campaigns and media tours.', weeklyFatigueIncrease: 5, weeklyEnergyDrain: 3, trainingEfficiencyPenalty: 0.1 },
+
+  // ── TECHNOLOGY ─────────────────────────────────────────────────────────────
+  { id: 'lenovo', name: 'Lenovo', category: 'Technology', weeklyIncome: 1200, winBonus: 200, titleBonus: 6000, travelDiscount: 0, minRanking: 300, duration: 26, description: 'Tech brand. Product launches and digital content.', weeklyFatigueIncrease: 1 },
+  { id: 'sony', name: 'Sony', category: 'Technology', weeklyIncome: 1800, winBonus: 350, titleBonus: 9000, travelDiscount: 0, minRanking: 200, duration: 26, description: 'Electronics giant. Campaigns and gaming/sports crossovers.', weeklyFatigueIncrease: 2 },
+  { id: 'samsung', name: 'Samsung', category: 'Technology', weeklyIncome: 2500, winBonus: 500, titleBonus: 14000, travelDiscount: 0, minRanking: 120, duration: 26, description: 'Global tech brand. Product launches and digital content creation.', weeklyFatigueIncrease: 3, trainingEfficiencyPenalty: 0.05 },
+  { id: 'apple', name: 'Apple', category: 'Technology', weeklyIncome: 5000, winBonus: 1000, titleBonus: 30000, travelDiscount: 0, minRanking: 30, duration: 52, description: 'Premium tech. High-profile launches and global campaigns.', weeklyFatigueIncrease: 4, weeklyEnergyDrain: 3, trainingEfficiencyPenalty: 0.08 },
+
+  // ── BEVERAGE ───────────────────────────────────────────────────────────────
+  { id: 'evian', name: 'Evian', category: 'Beverage', weeklyIncome: 800, winBonus: 150, titleBonus: 4000, travelDiscount: 0, minRanking: 400, duration: 26, description: 'Water sponsor. Low-key deal, mostly court-side branding.' },
+  { id: 'gatorade', name: 'Gatorade', category: 'Beverage', weeklyIncome: 1200, winBonus: 250, titleBonus: 6000, travelDiscount: 0, minRanking: 250, duration: 26, description: 'Sports drink. Ads and social media content.', weeklyFatigueIncrease: 1 },
+  { id: 'pepsi', name: 'Pepsi', category: 'Beverage', weeklyIncome: 2000, winBonus: 400, titleBonus: 10000, travelDiscount: 0, minRanking: 150, duration: 26, description: 'Beverage giant. Regular commercials and public events.', weeklyFatigueIncrease: 2 },
+  { id: 'red-bull', name: 'Red Bull', category: 'Beverage', weeklyIncome: 3500, winBonus: 700, titleBonus: 22000, travelDiscount: 0.1, minRanking: 80, duration: 52, description: 'Energy brand. Content creation, stunts and live events.', weeklyFatigueIncrease: 4, weeklyEnergyDrain: 3 },
+  { id: 'heineken', name: 'Heineken', category: 'Beverage', weeklyIncome: 4000, winBonus: 0, titleBonus: 18000, travelDiscount: 0.05, minRanking: 50, duration: 52, description: 'Premium beer brand. Hospitality events and global campaigns.', weeklyFatigueIncrease: 3, weeklyEnergyDrain: 2 },
+
+  // ── FINANCIAL ──────────────────────────────────────────────────────────────
+  { id: 'bnp-paribas', name: 'BNP Paribas', category: 'Financial', weeklyIncome: 1500, winBonus: 0, titleBonus: 8000, travelDiscount: 0.1, minRanking: 300, duration: 26, description: 'Major tennis sponsor. Low-key hospitality and brand events.' },
+  { id: 'barclays', name: 'Barclays', category: 'Financial', weeklyIncome: 2000, winBonus: 0, titleBonus: 10000, travelDiscount: 0.12, minRanking: 200, duration: 26, description: 'UK banking giant. Client hospitality and formal events.', weeklyFatigueIncrease: 1 },
+  { id: 'mastercard', name: 'Mastercard', category: 'Financial', weeklyIncome: 3500, winBonus: 0, titleBonus: 18000, travelDiscount: 0.15, minRanking: 80, duration: 52, description: 'Global payment brand. Client hospitality and formal events.', weeklyFatigueIncrease: 2, trainingEfficiencyPenalty: 0.05 },
+  { id: 'amex', name: 'American Express', category: 'Financial', weeklyIncome: 4500, winBonus: 0, titleBonus: 25000, travelDiscount: 0.2, minRanking: 40, duration: 52, description: 'Premium financial brand. VIP events, business galas and hospitality.', weeklyFatigueIncrease: 3, trainingEfficiencyPenalty: 0.07 },
+
+  // ── TRAVEL ─────────────────────────────────────────────────────────────────
+  { id: 'marriott', name: 'Marriott', category: 'Travel', weeklyIncome: 1000, winBonus: 0, titleBonus: 5000, travelDiscount: 0.2, minRanking: 350, duration: 26, description: 'Hotel chain. Branding at stays, minimal obligations.' },
+  { id: 'qatar-airways', name: 'Qatar Airways', category: 'Travel', weeklyIncome: 2000, winBonus: 0, titleBonus: 0, travelDiscount: 0.35, minRanking: 150, duration: 52, description: 'Premium airline. Airport appearances and airline promotions.', weeklyFatigueIncrease: 1 },
+  { id: 'emirates', name: 'Emirates', category: 'Travel', weeklyIncome: 3000, winBonus: 0, titleBonus: 0, travelDiscount: 0.45, minRanking: 80, duration: 52, description: 'Flagship airline sponsor. Heavy travel schedule, global appearances.', weeklyFatigueIncrease: 2 },
+  { id: 'ritz-carlton', name: 'Ritz-Carlton', category: 'Travel', weeklyIncome: 4000, winBonus: 0, titleBonus: 15000, travelDiscount: 0.3, minRanking: 30, duration: 52, description: 'Ultra-luxury hotel. VIP events, galas and premium branding.', weeklyFatigueIncrease: 2, weeklyEnergyDrain: 2 },
+
+  // ── WATCH ──────────────────────────────────────────────────────────────────
+  { id: 'longines', name: 'Longines', category: 'Watch', weeklyIncome: 1500, winBonus: 300, titleBonus: 8000, travelDiscount: 0, minRanking: 250, duration: 26, description: 'Swiss watch brand. Photoshoots and award ceremonies.' },
+  { id: 'hublot', name: 'Hublot', category: 'Watch', weeklyIncome: 2500, winBonus: 600, titleBonus: 15000, travelDiscount: 0.05, minRanking: 100, duration: 52, description: 'Luxury watch. VIP events and brand galas.', weeklyFatigueIncrease: 2, weeklyEnergyDrain: 1 },
+  { id: 'tag-heuer', name: 'TAG Heuer', category: 'Watch', weeklyIncome: 4000, winBonus: 900, titleBonus: 28000, travelDiscount: 0.1, minRanking: 50, duration: 52, description: 'Iconic luxury watch. Award ceremonies and brand galas.', weeklyFatigueIncrease: 3, weeklyEnergyDrain: 2 },
+  { id: 'omega', name: 'Omega', category: 'Watch', weeklyIncome: 5500, winBonus: 1200, titleBonus: 45000, travelDiscount: 0.1, minRanking: 25, duration: 52, description: 'Premium watch. Frequent global events and formal appearances.', weeklyFatigueIncrease: 3, weeklyEnergyDrain: 3 },
+  { id: 'rolex', name: 'Rolex', category: 'Watch', weeklyIncome: 9000, winBonus: 2500, titleBonus: 90000, travelDiscount: 0.2, minRanking: 10, duration: 52, description: 'The pinnacle. Relentless global ambassador duties.', weeklyFatigueIncrease: 5, weeklyEnergyDrain: 5, trainingEfficiencyPenalty: 0.12 },
+
+  // ── AUTOMOTIVE ─────────────────────────────────────────────────────────────
+  { id: 'kia', name: 'Kia', category: 'Automotive', weeklyIncome: 1200, winBonus: 200, titleBonus: 6000, travelDiscount: 0.1, minRanking: 300, duration: 26, description: 'Official ATP car partner. Light branding and social content.' },
+  { id: 'bmw', name: 'BMW', category: 'Automotive', weeklyIncome: 2500, winBonus: 500, titleBonus: 15000, travelDiscount: 0.15, minRanking: 100, duration: 52, description: 'Premium automotive. Events and brand ambassadorship.', weeklyFatigueIncrease: 2 },
+  { id: 'audi', name: 'Audi', category: 'Automotive', weeklyIncome: 3000, winBonus: 600, titleBonus: 18000, travelDiscount: 0.15, minRanking: 70, duration: 52, description: 'Luxury automotive. Race events and VIP dinners.', weeklyFatigueIncrease: 2, weeklyEnergyDrain: 1 },
+  { id: 'porsche', name: 'Porsche', category: 'Automotive', weeklyIncome: 5000, winBonus: 1200, titleBonus: 40000, travelDiscount: 0.18, minRanking: 25, duration: 52, description: 'Prestige automotive. Race events, VIP dinners and corporate functions.', weeklyFatigueIncrease: 4, weeklyEnergyDrain: 3 },
+  { id: 'mercedes', name: 'Mercedes-Benz', category: 'Automotive', weeklyIncome: 6500, winBonus: 1500, titleBonus: 55000, travelDiscount: 0.2, minRanking: 15, duration: 52, description: 'Premium global brand. Intensive ambassador schedule.', weeklyFatigueIncrease: 4, weeklyEnergyDrain: 4, trainingEfficiencyPenalty: 0.1 },
 ];
 
 // ==================== STAFF ====================
 
 export const AVAILABLE_STAFF: StaffMember[] = [
-  { id: 'coach-basic', name: 'Local Coach', role: 'coach', quality: 'basic', weeklyCost: 1500, description: 'Improves training results', effects: { trainingEfficiency: 1.3 } },
-  { id: 'coach-pro', name: 'Experienced Coach', role: 'coach', quality: 'pro', weeklyCost: 4000, description: 'Significantly better training', effects: { trainingEfficiency: 1.6, mentalBonus: 2 } },
-  { id: 'coach-elite', name: 'Elite Coach', role: 'coach', quality: 'elite', weeklyCost: 8000, description: 'World-class coaching', effects: { trainingEfficiency: 2.0, mentalBonus: 4 } },
-  { id: 'fitness-basic', name: 'Fitness Trainer', role: 'fitness', quality: 'basic', weeklyCost: 1000, description: 'Reduces fatigue buildup', effects: { fatigueReduction: 5 } },
-  { id: 'fitness-pro', name: 'Pro Fitness Coach', role: 'fitness', quality: 'pro', weeklyCost: 3000, description: 'Better fatigue management and recovery', effects: { fatigueReduction: 10, recoveryBonus: 5 } },
-  { id: 'fitness-elite', name: 'Elite Performance Coach', role: 'fitness', quality: 'elite', weeklyCost: 6000, description: 'Peak physical conditioning', effects: { fatigueReduction: 15, recoveryBonus: 10 } },
-  { id: 'physio-basic', name: 'Physiotherapist', role: 'physio', quality: 'basic', weeklyCost: 1500, description: 'Injury prevention and recovery', effects: { recoveryBonus: 8, injuryPrevention: 0.3 } },
-  { id: 'physio-pro', name: 'Sports Physio', role: 'physio', quality: 'pro', weeklyCost: 4000, description: 'Advanced injury care', effects: { recoveryBonus: 15, injuryPrevention: 0.5 } },
-  { id: 'physio-elite', name: 'Elite Medical Team', role: 'physio', quality: 'elite', weeklyCost: 7000, description: 'Best-in-class medical support', effects: { recoveryBonus: 25, injuryPrevention: 0.7 } },
-  { id: 'mental-basic', name: 'Mental Coach', role: 'mental', quality: 'basic', weeklyCost: 2000, description: 'Pressure and focus training', effects: { mentalBonus: 3 } },
-  { id: 'mental-pro', name: 'Sports Psychologist', role: 'mental', quality: 'pro', weeklyCost: 5000, description: 'Advanced mental conditioning', effects: { mentalBonus: 6, trainingEfficiency: 1.1 } },
+  // === COACHES ===
+  { id: 'coach-basic', name: 'Marco Delgado', role: 'coach', quality: 'basic', weeklyCost: 1500, description: 'Solid foundations, improves training output', effects: { trainingEfficiency: 1.3 } },
+  { id: 'coach-pro', name: 'Carlos Vega', role: 'coach', quality: 'pro', weeklyCost: 4500, description: 'Experienced tour coach, sharp tactical mind', effects: { trainingEfficiency: 1.6, weeklyMentality: 1 } },
+  { id: 'coach-serve', name: 'Ivan Krasnov', role: 'coach', quality: 'pro', weeklyCost: 5500, description: 'Serve specialist — weekly serve technique sessions', effects: { trainingEfficiency: 1.2, weeklyServe: 1.5 } },
+  { id: 'coach-return', name: 'Rodrigo Faria', role: 'coach', quality: 'pro', weeklyCost: 5500, description: 'Return of serve expert — methodical breakdown sessions', effects: { trainingEfficiency: 1.2, weeklyReturn: 1.5 } },
+  { id: 'coach-rally', name: 'Thierry Dupont', role: 'coach', quality: 'pro', weeklyCost: 5500, description: 'Baseline specialist — rally and footwork focus', effects: { trainingEfficiency: 1.2, weeklyRally: 1.5 } },
+  { id: 'coach-elite', name: 'Patrick Renaud', role: 'coach', quality: 'elite', weeklyCost: 9000, description: 'Former top-10 coach, world-class development', effects: { trainingEfficiency: 2.0, weeklyMentality: 2 } },
+  { id: 'coach-elite-all', name: 'Gregor Haas', role: 'coach', quality: 'elite', weeklyCost: 14000, description: 'Grand Slam winning coach, all-around elite development', effects: { trainingEfficiency: 2.2, weeklyMentality: 2, weeklyServe: 1, weeklyReturn: 1 } },
+  // === FITNESS ===
+  { id: 'fitness-basic', name: 'Tony Marcello', role: 'fitness', quality: 'basic', weeklyCost: 1000, description: 'Basic conditioning, keeps fatigue manageable', effects: { fatigueReduction: 5, weeklyPhysical: 0.5 } },
+  { id: 'fitness-pro', name: 'Stefan Kovač', role: 'fitness', quality: 'pro', weeklyCost: 3200, description: 'Pro-level conditioning and recovery protocols', effects: { fatigueReduction: 10, recoveryBonus: 5, weeklyPhysical: 1, weeklyRecovery: 0.5 } },
+  { id: 'fitness-endurance', name: 'Dmitri Volkov', role: 'fitness', quality: 'pro', weeklyCost: 4500, description: 'Endurance specialist — builds physical base week by week', effects: { fatigueReduction: 8, weeklyPhysical: 1.5, weeklyRecovery: 0.5 } },
+  { id: 'fitness-elite', name: 'Marcus Okafor', role: 'fitness', quality: 'elite', weeklyCost: 6500, description: 'Peak physical conditioning, elite recovery', effects: { fatigueReduction: 15, recoveryBonus: 10, weeklyPhysical: 2, weeklyRecovery: 1 } },
+  { id: 'fitness-elite-2', name: 'Luca Ferretti', role: 'fitness', quality: 'elite', weeklyCost: 10000, description: 'Olympic athletics trainer, peak human performance', effects: { fatigueReduction: 18, recoveryBonus: 14, weeklyPhysical: 2.5, weeklyRecovery: 1.5 } },
+  // === PHYSIO ===
+  { id: 'physio-basic', name: 'Ana Herrera', role: 'physio', quality: 'basic', weeklyCost: 1500, description: 'Injury prevention and basic recovery care', effects: { recoveryBonus: 8, injuryPrevention: 0.3, weeklyRecovery: 0.5 } },
+  { id: 'physio-pro', name: 'Dr. James Whitfield', role: 'physio', quality: 'pro', weeklyCost: 4200, description: 'Sports physio with tour experience', effects: { recoveryBonus: 15, injuryPrevention: 0.5, weeklyRecovery: 1 } },
+  { id: 'physio-elite', name: 'Dr. Sofia Nakamura', role: 'physio', quality: 'elite', weeklyCost: 7500, description: 'Best-in-class medical team, rapid injury return', effects: { recoveryBonus: 25, injuryPrevention: 0.7, weeklyRecovery: 1.5 } },
+  { id: 'physio-specialist', name: 'Dr. Erik Svensson', role: 'physio', quality: 'elite', weeklyCost: 13000, description: 'Elite sports medicine specialist, used by top-5 players', effects: { recoveryBonus: 30, injuryPrevention: 0.85, fatigueReduction: 5, weeklyRecovery: 2 } },
+  // === MENTAL ===
+  { id: 'mental-basic', name: 'David Park', role: 'mental', quality: 'basic', weeklyCost: 2000, description: 'Focus and pressure training basics', effects: { weeklyMentality: 1, weeklyPressure: 0.5 } },
+  { id: 'mental-pro', name: 'Dr. Amelia Chase', role: 'mental', quality: 'pro', weeklyCost: 5500, description: 'Sports psychologist, clutch performance coaching', effects: { weeklyMentality: 2, weeklyPressure: 1.5 } },
+  { id: 'mental-elite', name: 'Prof. Yuki Tanaka', role: 'mental', quality: 'elite', weeklyCost: 9500, description: 'World-renowned sports psychologist, elite mental fortitude', effects: { weeklyMentality: 3, weeklyPressure: 2, weeklyConsistency: 1 } },
+  { id: 'mental-consistency', name: 'Dr. Marco Rossi', role: 'mental', quality: 'elite', weeklyCost: 12000, description: 'Pressure and consistency master — trains you to hold serves under fire', effects: { weeklyMentality: 2, weeklyPressure: 2.5, weeklyConsistency: 2 } },
 ];
 
 // ==================== PRIZE MONEY ====================
@@ -280,11 +387,13 @@ export const PRIZE_MONEY: Record<string, PrizeMoney> = {
   'Masters 1000': { winner: 1100000, finalist: 570000, sf: 300000, qf: 160000, r16: 85000, r32: 45000, r64: 25000, r128: 0 },
   'ATP 500': { winner: 420000, finalist: 215000, sf: 110000, qf: 58000, r16: 30000, r32: 17000, r64: 0, r128: 0 },
   'ATP 250': { winner: 195000, finalist: 110000, sf: 58000, qf: 32000, r16: 18000, r32: 10000, r64: 0, r128: 0 },
-  'Challenger 175': { winner: 33000, finalist: 19000, sf: 11000, qf: 6200, r16: 3600, r32: 1800, r64: 0, r128: 0 },
-  'Challenger 125': { winner: 22000, finalist: 13000, sf: 7500, qf: 4200, r16: 2500, r32: 1200, r64: 0, r128: 0 },
-  'Challenger 100': { winner: 18000, finalist: 11000, sf: 6200, qf: 3500, r16: 2000, r32: 1000, r64: 0, r128: 0 },
-  'Challenger 75': { winner: 12000, finalist: 7000, sf: 4000, qf: 2300, r16: 1300, r32: 650, r64: 0, r128: 0 },
-  'Challenger 50': { winner: 8000, finalist: 4500, sf: 2600, qf: 1500, r16: 850, r32: 425, r64: 0, r128: 0 },
+  'Challenger 175': { winner: 120000, finalist: 65000, sf: 35000, qf: 18000, r16: 10000, r32: 5000, r64: 0, r128: 0 },
+  'Challenger 125': { winner: 90000, finalist: 48000, sf: 26000, qf: 14000, r16: 8000, r32: 4000, r64: 0, r128: 0 },
+  'Challenger 100': { winner: 65000, finalist: 35000, sf: 18000, qf: 10000, r16: 5500, r32: 2800, r64: 0, r128: 0 },
+  'Challenger 75': { winner: 45000, finalist: 24000, sf: 13000, qf: 7000, r16: 3800, r32: 1900, r64: 0, r128: 0 },
+  'Challenger 50': { winner: 30000, finalist: 16000, sf: 8500, qf: 4800, r16: 2600, r32: 1300, r64: 0, r128: 0 },
+  'ITF M25': { winner: 25000, finalist: 14000, sf: 8000, qf: 4500, r16: 2500, r32: 0, r64: 0, r128: 0 },
+  'ITF M15': { winner: 15000, finalist: 8500, sf: 5000, qf: 2800, r16: 1500, r32: 0, r64: 0, r128: 0 },
 };
 
 // ==================== TRAVEL / CONTINENTS ====================
@@ -514,6 +623,29 @@ export const CITY_DATA: Record<string, { continent: Continent; lat: number; lng:
   'Marrakech': { continent: 'Africa', lat: 31.63, lng: -8.00 },
   'Kigali': { continent: 'Africa', lat: -1.94, lng: 30.06 },
   'Tunis': { continent: 'Africa', lat: 36.81, lng: 10.17 },
+  'Fes': { continent: 'Africa', lat: 34.03, lng: -4.99 },
+  'Cairo': { continent: 'Africa', lat: 30.04, lng: 31.24 },
+  'Casablanca': { continent: 'Africa', lat: 33.59, lng: -7.62 },
+  'Nairobi': { continent: 'Africa', lat: -1.29, lng: 36.82 },
+  // Caucasus / Central Asia (listed under Asia)
+  'Tbilisi': { continent: 'Asia', lat: 41.69, lng: 44.83 },
+  'Baku': { continent: 'Asia', lat: 40.41, lng: 49.87 },
+  'Yerevan': { continent: 'Asia', lat: 40.18, lng: 44.51 },
+  'Tashkent': { continent: 'Asia', lat: 41.30, lng: 69.24 },
+  // Mediterranean / Southern Europe (add to Europe section)
+  'Heraklion': { continent: 'Europe', lat: 35.34, lng: 25.13 },
+  'Athens': { continent: 'Europe', lat: 37.98, lng: 23.73 },
+  'Thessaloniki': { continent: 'Europe', lat: 40.64, lng: 22.94 },
+  'Antalya': { continent: 'Europe', lat: 36.90, lng: 30.70 },
+  'Istanbul': { continent: 'Europe', lat: 41.01, lng: 28.95 },
+  'Belgrade': { continent: 'Europe', lat: 44.80, lng: 20.46 },
+  'Zagreb': { continent: 'Europe', lat: 45.81, lng: 15.98 },
+  'Sofia': { continent: 'Europe', lat: 42.70, lng: 23.32 },
+  'Riga': { continent: 'Europe', lat: 56.95, lng: 24.11 },
+  'Vilnius': { continent: 'Europe', lat: 54.69, lng: 25.28 },
+  'Tallinn': { continent: 'Europe', lat: 59.44, lng: 24.75 },
+  'Warsaw': { continent: 'Europe', lat: 52.23, lng: 21.01 },
+  'Poznan': { continent: 'Europe', lat: 52.41, lng: 16.93 },
 };
 
 export function calculateTravelDistance(fromCity: string, toCity: string): number {
@@ -586,9 +718,15 @@ export function calculateFictionalRankingScore(attrs: CareerAttributes): number 
   );
 }
 
+// Minimum score a newly created career player starts with (BASE_ATTRIBUTES all = 20)
+const CAREER_BASE_SCORE = 20;
+
 export function powerScoreToFictionalRanking(score: number): number {
-  const normalized = Math.max(0, Math.min(100, score)) / 100;
-  const rank = Math.round(500 * Math.pow(1 - normalized, 1.5));
+  // Normalize relative to base score so a new career player starts at rank 500
+  // Improvement is fast at start (concave curve) and slows down at the top
+  const adjusted = Math.max(0, score - CAREER_BASE_SCORE);
+  const normalized = Math.min(1, adjusted / (100 - CAREER_BASE_SCORE));
+  const rank = Math.round(500 * Math.pow(1 - normalized, 1.8));
   return Math.max(1, rank);
 }
 
@@ -597,7 +735,7 @@ export function getEffectiveFictionalRanking(player: CareerPlayer): number {
   if (player.fatigue > 60) effectiveScore -= (player.fatigue - 60) * 0.15;
   if (player.energy < 30) effectiveScore -= (30 - player.energy) * 0.1;
   effectiveScore += player.form * 0.3;
-  effectiveScore += player.momentum * 0.5;
+
   if (player.injured) effectiveScore -= 10;
   return powerScoreToFictionalRanking(effectiveScore);
 }
@@ -658,9 +796,12 @@ export function careerPlayerToPlayer(cp: CareerPlayer): Player {
     injured: cp.injured,
     injuryWeeksRemaining: cp.injuryWeeksRemaining,
     surfaceAffinity: {
-      Hard: Math.max(-2, Math.min(2, Math.floor((cp.attributes.surfaceHard - 30) / 15))),
-      Clay: Math.max(-2, Math.min(2, Math.floor((cp.attributes.surfaceClay - 30) / 15))),
-      Grass: Math.max(-2, Math.min(2, Math.floor((cp.attributes.surfaceGrass - 30) / 15))),
+      // Base attribute = 20 → affinity 0 (neutral)
+      // Favorite surface start = 28 → affinity 1 (+8 effective ranking)
+      // Trained to 36 → affinity 2 (+16), 44 → affinity 3 (+24)
+      Hard: Math.max(-2, Math.min(3, Math.round((cp.attributes.surfaceHard - 20) / 8))),
+      Clay: Math.max(-2, Math.min(3, Math.round((cp.attributes.surfaceClay - 20) / 8))),
+      Grass: Math.max(-2, Math.min(3, Math.round((cp.attributes.surfaceGrass - 20) / 8))),
     },
     stats: {
       wins: cp.stats.wins,
@@ -688,17 +829,56 @@ export function getDPCost(currentValue: number): number {
 
 export function getDefaultObjectives(): CareerObjective[] {
   return [
-    { id: 'first-win', title: 'First ATP Win', description: 'Win your first match on the ATP Tour', completed: false, reward: { dp: 3, xp: 50, money: 5000 } },
-    { id: 'top-150', title: 'Top 150', description: 'Reach the Top 150 in the official ranking', completed: false, reward: { dp: 5, xp: 100, money: 10000 } },
-    { id: 'top-100', title: 'Top 100', description: 'Reach the Top 100 in the official ranking', completed: false, reward: { dp: 8, xp: 200, money: 25000 } },
-    { id: 'top-50', title: 'Top 50', description: 'Reach the Top 50 in the official ranking', completed: false, reward: { dp: 10, xp: 300, money: 50000 } },
-    { id: 'top-20', title: 'Top 20', description: 'Reach the Top 20 in the official ranking', completed: false, reward: { dp: 15, xp: 500, money: 100000 } },
-    { id: 'top-10', title: 'Top 10', description: 'Break into the Top 10', completed: false, reward: { dp: 20, xp: 700, money: 200000 } },
-    { id: 'first-title', title: 'First Title', description: 'Win your first ATP tournament', completed: false, reward: { dp: 10, xp: 300, money: 50000 } },
+    // === RANKING MILESTONES ===
+    { id: 'top-300', title: 'Top 300', description: 'Reach the Top 300 in the official ranking', completed: false, reward: { dp: 2, xp: 50, money: 5000 } },
+    { id: 'top-200', title: 'Top 200', description: 'Reach the Top 200 in the official ranking', completed: false, reward: { dp: 3, xp: 75, money: 8000 } },
+    { id: 'top-150', title: 'Top 150', description: 'Reach the Top 150 in the official ranking', completed: false, reward: { dp: 5, xp: 100, money: 12000 } },
+    { id: 'top-100', title: 'Top 100', description: 'Enter the Top 100 — full ATP tour access', completed: false, reward: { dp: 8, xp: 200, money: 25000 } },
+    { id: 'top-75', title: 'Top 75', description: 'Reach the Top 75 in the official ranking', completed: false, reward: { dp: 10, xp: 250, money: 35000 } },
+    { id: 'top-50', title: 'Top 50', description: 'Break into the Top 50', completed: false, reward: { dp: 12, xp: 300, money: 50000 } },
+    { id: 'top-30', title: 'Top 30', description: 'Reach the Top 30 in the world', completed: false, reward: { dp: 14, xp: 400, money: 75000 } },
+    { id: 'top-20', title: 'Top 20', description: 'Reach the Top 20 in the world', completed: false, reward: { dp: 16, xp: 500, money: 100000 } },
+    { id: 'top-10', title: 'Top 10', description: 'Break into the elite Top 10', completed: false, reward: { dp: 20, xp: 700, money: 200000 } },
+    { id: 'top-5', title: 'Top 5', description: 'Reach the Top 5 in the world', completed: false, reward: { dp: 25, xp: 850, money: 350000 } },
+    { id: 'number-1', title: 'World No.1', description: 'Become the World Number 1', completed: false, reward: { dp: 35, xp: 1000, money: 500000 } },
+    // === ITF TITLES ===
+    { id: 'first-itf-title', title: 'First ITF Title', description: 'Win your first ITF M15 or M25 tournament', completed: false, reward: { dp: 2, xp: 50, money: 2000 } },
+    { id: 'itf-titles-3', title: 'ITF Specialist', description: 'Win 3 ITF titles', completed: false, reward: { dp: 4, xp: 100, money: 5000 } },
+    // === MATCH WINS ===
+    { id: 'first-win', title: 'First Match Win', description: 'Win your first professional match', completed: false, reward: { dp: 1, xp: 30, money: 1000 } },
+    { id: 'wins-10', title: '10 Match Wins', description: 'Win 10 professional matches', completed: false, reward: { dp: 3, xp: 75, money: 3000 } },
+    { id: 'wins-50', title: '50 Match Wins', description: 'Win 50 professional matches', completed: false, reward: { dp: 6, xp: 200, money: 15000 } },
+    { id: 'wins-100', title: '100 Match Wins', description: 'Win 100 professional matches', completed: false, reward: { dp: 12, xp: 450, money: 40000 } },
+    { id: 'wins-200', title: '200 Match Wins', description: 'Win 200 matches — a true professional', completed: false, reward: { dp: 18, xp: 800, money: 100000 } },
+    // === CHALLENGER TITLES ===
+    { id: 'first-challenger', title: 'First Challenger Title', description: 'Win your first Challenger tournament', completed: false, reward: { dp: 6, xp: 150, money: 15000 } },
+    { id: 'challenger-3', title: 'Challenger Specialist', description: 'Win 3 Challenger titles', completed: false, reward: { dp: 10, xp: 300, money: 30000 } },
+    { id: 'challenger-5', title: 'Challenger King', description: 'Win 5 Challenger titles', completed: false, reward: { dp: 14, xp: 450, money: 50000 } },
+    // === ATP TITLES ===
+    { id: 'first-title', title: 'First ATP Title', description: 'Win your first ATP 250 or higher title', completed: false, reward: { dp: 10, xp: 300, money: 50000 } },
+    { id: 'titles-3', title: 'Three Titles', description: 'Win 3 ATP main tour titles', completed: false, reward: { dp: 15, xp: 500, money: 100000 } },
+    { id: 'titles-5', title: 'Five Titles', description: 'Win 5 ATP main tour titles', completed: false, reward: { dp: 20, xp: 750, money: 200000 } },
+    { id: 'titles-10', title: 'Ten Titles', description: 'Win 10 ATP main tour titles — all-time great territory', completed: false, reward: { dp: 30, xp: 1200, money: 500000 } },
+    { id: 'first-500', title: 'ATP 500 Title', description: 'Win an ATP 500 event', completed: false, reward: { dp: 12, xp: 350, money: 75000 } },
+    { id: 'first-masters', title: 'Masters 1000 Title', description: 'Win a prestigious Masters 1000 title', completed: false, reward: { dp: 18, xp: 600, money: 200000 } },
+    { id: 'masters-3', title: 'Masters Specialist', description: 'Win 3 Masters 1000 titles', completed: false, reward: { dp: 25, xp: 900, money: 400000 } },
+    // === GRAND SLAM ===
     { id: 'gs-qualify', title: 'Grand Slam Debut', description: 'Compete in a Grand Slam main draw', completed: false, reward: { dp: 5, xp: 150, money: 20000 } },
     { id: 'gs-r16', title: 'Grand Slam R16', description: 'Reach the Round of 16 at a Grand Slam', completed: false, reward: { dp: 12, xp: 400, money: 75000 } },
-    { id: 'gs-final', title: 'Grand Slam Final', description: 'Reach a Grand Slam Final', completed: false, reward: { dp: 20, xp: 800, money: 200000 } },
-    { id: 'number-1', title: 'World No.1', description: 'Become the World Number 1', completed: false, reward: { dp: 30, xp: 1000, money: 500000 } },
+    { id: 'gs-qf', title: 'Grand Slam Quarter-Final', description: 'Reach a Grand Slam Quarter-Final', completed: false, reward: { dp: 15, xp: 550, money: 120000 } },
+    { id: 'gs-sf', title: 'Grand Slam Semi-Final', description: 'Reach a Grand Slam Semi-Final', completed: false, reward: { dp: 18, xp: 700, money: 175000 } },
+    { id: 'gs-final', title: 'Grand Slam Final', description: 'Reach a Grand Slam Final', completed: false, reward: { dp: 22, xp: 900, money: 250000 } },
+    { id: 'gs-win', title: 'Grand Slam Champion', description: 'Win a Grand Slam title', completed: false, reward: { dp: 30, xp: 1200, money: 500000 } },
+    { id: 'gs-2', title: 'Two Grand Slams', description: 'Win 2 Grand Slam titles', completed: false, reward: { dp: 35, xp: 1500, money: 750000 } },
+    { id: 'career-slam', title: 'Career Grand Slam', description: 'Win all 4 Grand Slam tournaments', completed: false, reward: { dp: 50, xp: 3000, money: 2000000 } },
+    // === SURFACE ===
+    { id: 'clay-title', title: 'King of Clay', description: 'Win a Challenger or ATP title on clay', completed: false, reward: { dp: 6, xp: 150, money: 20000 } },
+    { id: 'grass-title', title: 'Grass Specialist', description: 'Win a Challenger or ATP title on grass', completed: false, reward: { dp: 6, xp: 150, money: 20000 } },
+    { id: 'hard-title', title: 'Hard Court Expert', description: 'Win a Challenger or ATP title on hard court', completed: false, reward: { dp: 6, xp: 150, money: 20000 } },
+    // === FINANCIAL ===
+    { id: 'money-100k', title: '$100K Earned', description: 'Accumulate $100,000 in prize money', completed: false, reward: { dp: 3, xp: 75, money: 0 } },
+    { id: 'money-1m', title: 'Millionaire', description: 'Accumulate $1,000,000 in career earnings', completed: false, reward: { dp: 8, xp: 200, money: 0 } },
+    { id: 'money-5m', title: '$5M Career Earnings', description: 'Accumulate $5,000,000 in career earnings', completed: false, reward: { dp: 15, xp: 500, money: 0 } },
   ];
 }
 
@@ -769,3 +949,14 @@ export const COUNTRIES = [
   { name: 'Spain', code: 'ESP' }, { name: 'Sweden', code: 'SWE' }, { name: 'Switzerland', code: 'SUI' },
   { name: 'USA', code: 'USA' }, { name: 'Uruguay', code: 'URU' },
 ];
+
+// ==================== REPUTATION ====================
+
+export function getReputationTier(reputation: number): { tier: string; color: string; next: number } {
+  if (reputation >= 900) return { tier: 'Legend', color: 'text-amber-400', next: 1000 };
+  if (reputation >= 700) return { tier: 'Star', color: 'text-purple-400', next: 900 };
+  if (reputation >= 500) return { tier: 'Respected', color: 'text-blue-400', next: 700 };
+  if (reputation >= 300) return { tier: 'Known', color: 'text-green-400', next: 500 };
+  if (reputation >= 100) return { tier: 'Emerging', color: 'text-yellow-400', next: 300 };
+  return { tier: 'Amateur', color: 'text-muted-foreground', next: 100 };
+}

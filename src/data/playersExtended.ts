@@ -26,7 +26,7 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 162, name: "Guy Den Ouden", country: "Netherlands", countryCode: "NED" },
   { rank: 163, name: "Matteo Gigante", country: "Italy", countryCode: "ITA" },
   { rank: 164, name: "Luka Mikrut", country: "Croatia", countryCode: "CRO" },
-  { rank: 165, name: "Gael Monfils", country: "France", countryCode: "FRA" },
+  { rank: 165, name: "Gaël Monfils", country: "France", countryCode: "FRA" },
   { rank: 166, name: "Yosuke Watanuki", country: "Japan", countryCode: "JPN" },
   { rank: 167, name: "Daniil Glinka", country: "Sweden", countryCode: "SWE" },
   { rank: 168, name: "Arthur Gea", country: "France", countryCode: "FRA" },
@@ -38,13 +38,13 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 174, name: "Ugo Blanchet", country: "France", countryCode: "FRA" },
   { rank: 175, name: "Roberto Carballés Baena", country: "Spain", countryCode: "ESP" },
   { rank: 176, name: "Zsombor Piros", country: "Hungary", countryCode: "HUN" },
-  { rank: 177, name: "Nicolas Mejia", country: "Colombia", countryCode: "COL" },
+  { rank: 177, name: "Nicolás Mejía", country: "Colombia", countryCode: "COL" },
   { rank: 178, name: "Stefano Travaglia", country: "Italy", countryCode: "ITA" },
-  { rank: 179, name: "Jason Kubler", country: "Australia", countryCode: "AUS" },
+  { rank: 179, name: "Jaeson Kubler", country: "Australia", countryCode: "AUS" },
   { rank: 180, name: "Alex Barrena", country: "Spain", countryCode: "ESP" },
-  { rank: 181, name: "Zdenek Kolar", country: "Czech Republic", countryCode: "CZE" },
+  { rank: 181, name: "Zdeněk Kolář", country: "Czech Republic", countryCode: "CZE" },
   { rank: 182, name: "Vitaliy Sachko", country: "Ukraine", countryCode: "UKR" },
-  { rank: 183, name: "Daniel Merida", country: "Spain", countryCode: "ESP" },
+  { rank: 183, name: "Daniel Mérida", country: "Spain", countryCode: "ESP" },
   { rank: 184, name: "Rei Sakamoto", country: "Japan", countryCode: "JPN" },
   { rank: 185, name: "Lloyd Harris", country: "South Africa", countryCode: "RSA" },
   { rank: 186, name: "Jay Clarke", country: "Great Britain", countryCode: "GBR" },
@@ -58,56 +58,56 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 194, name: "Bernard Tomic", country: "Australia", countryCode: "AUS" },
   { rank: 195, name: "Nishesh Basavareddy", country: "USA", countryCode: "USA" },
   { rank: 196, name: "Justin Engel", country: "South Africa", countryCode: "RSA" },
-  { rank: 197, name: "Federico Agustin Gomez", country: "Argentina", countryCode: "ARG" },
+  { rank: 197, name: "Federico Agustín Gómez", country: "Argentina", countryCode: "ARG" },
   { rank: 198, name: "Thiago Seyboth Wild", country: "Brazil", countryCode: "BRA" },
   { rank: 199, name: "August Holmgren", country: "USA", countryCode: "USA" },
-  { rank: 200, name: "Alex Molcan", country: "Slovakia", countryCode: "SVK" },
-  { rank: 201, name: "Alvaro Guillen Meza", country: "Mexico", countryCode: "MEX" },
-  { rank: 202, name: "Clement Chidekh", country: "France", countryCode: "FRA" },
+  { rank: 200, name: "Alex Molčan", country: "Slovakia", countryCode: "SVK" },
+  { rank: 201, name: "Álvaro Guillén Meza", country: "Mexico", countryCode: "MEX" },
+  { rank: 202, name: "Clément Chidekh", country: "France", countryCode: "FRA" },
   { rank: 203, name: "Dan Added", country: "France", countryCode: "FRA" },
   { rank: 204, name: "Pablo Llamas Ruiz", country: "Spain", countryCode: "ESP" },
   { rank: 205, name: "George Loffhagen", country: "Great Britain", countryCode: "GBR" },
   { rank: 206, name: "Gilles Arnaud Bailly", country: "Belgium", countryCode: "BEL" },
-  { rank: 207, name: "Joao Lucas Reis Da Silva", country: "Brazil", countryCode: "BRA" },
+  { rank: 207, name: "João Lucas Reis Da Silva", country: "Brazil", countryCode: "BRA" },
   { rank: 208, name: "James McCabe", country: "Australia", countryCode: "AUS" },
   { rank: 209, name: "Lorenzo Giustino", country: "Italy", countryCode: "ITA" },
   { rank: 210, name: "Thiago Monteiro", country: "Brazil", countryCode: "BRA" },
-  { rank: 212, name: "Juan Carlos Prado Angelo", country: "Brazil", countryCode: "BRA" },
+  { rank: 212, name: "Juan Carlos Prado Ángelo", country: "Brazil", countryCode: "BRA" },
   { rank: 213, name: "Remy Bertola", country: "Switzerland", countryCode: "SUI" },
   { rank: 214, name: "Oliver Crawford", country: "USA", countryCode: "USA" },
-  { rank: 215, name: "Ilia Simakin", country: "Russia", countryCode: "RUS" },
-  { rank: 216, name: "Clement Tabur", country: "France", countryCode: "FRA" },
+  { rank: 215, name: "Iliá Simakin", country: "Russia", countryCode: "RUS" },
+  { rank: 216, name: "Clément Tabur", country: "France", countryCode: "FRA" },
   { rank: 217, name: "Marco Cecchinato", country: "Italy", countryCode: "ITA" },
   { rank: 218, name: "Gonzalo Bueno", country: "Peru", countryCode: "PER" },
   { rank: 219, name: "Tristan Boyer", country: "USA", countryCode: "USA" },
   { rank: 220, name: "Luka Pavlovic", country: "France", countryCode: "FRA" },
   { rank: 221, name: "Yi Zhou", country: "China", countryCode: "CHN" },
   { rank: 222, name: "Yu Hsiou Hsu", country: "Taiwan", countryCode: "TPE" },
-  { rank: 223, name: "Rodrigo Pacheco Mendez", country: "Mexico", countryCode: "MEX" },
+  { rank: 223, name: "Rodrigo Pacheco Méndez", country: "Mexico", countryCode: "MEX" },
   { rank: 224, name: "Lukas Neumayer", country: "Austria", countryCode: "AUT" },
-  { rank: 225, name: "Nerman Fatic", country: "Bosnia", countryCode: "BIH" },
+  { rank: 225, name: "Nerman Fatić", country: "Bosnia", countryCode: "BIH" },
   { rank: 226, name: "Federico Cina", country: "Italy", countryCode: "ITA" },
   { rank: 227, name: "Felipe Meligeni Rodrigues Alves", country: "Brazil", countryCode: "BRA" },
   { rank: 228, name: "Dmitry Popko", country: "Kazakhstan", countryCode: "KAZ" },
   { rank: 229, name: "Arthur Bouquier", country: "France", countryCode: "FRA" },
   { rank: 230, name: "Andrea Collarini", country: "Argentina", countryCode: "ARG" },
-  { rank: 231, name: "Santiago Fa Rodriguez Taverna", country: "Argentina", countryCode: "ARG" },
-  { rank: 232, name: "Lautaro Midon", country: "Argentina", countryCode: "ARG" },
+  { rank: 231, name: "Santiago Fa Rodríguez Taverna", country: "Argentina", countryCode: "ARG" },
+  { rank: 232, name: "Lautaro Midón", country: "Argentina", countryCode: "ARG" },
   { rank: 233, name: "Alexis Galarneau", country: "Canada", countryCode: "CAN" },
-  { rank: 234, name: "Marc-Andrea Huesler", country: "Switzerland", countryCode: "SUI" },
+  { rank: 234, name: "Marc-Andrea Hüsler", country: "Switzerland", countryCode: "SUI" },
   { rank: 235, name: "Ryan Peniston", country: "Great Britain", countryCode: "GBR" },
   { rank: 236, name: "Matej Dodig", country: "Croatia", countryCode: "CRO" },
-  { rank: 237, name: "Johannus Monday", country: "USA", countryCode: "USA" },
+  { rank: 237, name: "Johannes Monday", country: "USA", countryCode: "USA" },
   { rank: 238, name: "Max Houkes", country: "Netherlands", countryCode: "NED" },
   { rank: 239, name: "Michael Mmoh", country: "USA", countryCode: "USA" },
   { rank: 240, name: "Genaro Alberto Olivieri", country: "Argentina", countryCode: "ARG" },
   { rank: 241, name: "Marko Topo", country: "Croatia", countryCode: "CRO" },
   { rank: 242, name: "Rio Noguchi", country: "Japan", countryCode: "JPN" },
   { rank: 243, name: "Daniel Michalski", country: "Poland", countryCode: "POL" },
-  { rank: 244, name: "Joel Schwaerzler", country: "Austria", countryCode: "AUT" },
+  { rank: 244, name: "Joel Schwärzler", country: "Austria", countryCode: "AUT" },
   { rank: 245, name: "Murphy Cassone", country: "USA", countryCode: "USA" },
   { rank: 246, name: "Toby Samuel", country: "Great Britain", countryCode: "GBR" },
-  { rank: 247, name: "Alejandro Moro Canas", country: "Spain", countryCode: "ESP" },
+  { rank: 247, name: "Alejandro Moro Cañas", country: "Spain", countryCode: "ESP" },
   { rank: 248, name: "Kaichi Uchida", country: "Japan", countryCode: "JPN" },
   { rank: 249, name: "Edas Butvilas", country: "Lithuania", countryCode: "LTU" },
   { rank: 250, name: "Mitchell Krueger", country: "USA", countryCode: "USA" },
@@ -122,20 +122,20 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 259, name: "Frederico Ferreira Silva", country: "Portugal", countryCode: "POR" },
   { rank: 260, name: "Benjamin Hassan", country: "Lebanon", countryCode: "LIB" },
   { rank: 261, name: "Ivan Gakhov", country: "Russia", countryCode: "RUS" },
-  { rank: 262, name: "Daniel Rincon", country: "Spain", countryCode: "ESP" },
+  { rank: 262, name: "Daniel Rincón", country: "Spain", countryCode: "ESP" },
   { rank: 263, name: "Juncheng Shang", country: "China", countryCode: "CHN" },
   { rank: 264, name: "Patrick Zahraj", country: "Austria", countryCode: "AUT" },
   { rank: 265, name: "Franco Agamenone", country: "Argentina", countryCode: "ARG" },
   { rank: 266, name: "Pol Martin Tiffon", country: "Spain", countryCode: "ESP" },
   { rank: 267, name: "Sascha Gueymard Wayenburg", country: "France", countryCode: "FRA" },
-  { rank: 268, name: "Dimitar Kuzmanov", country: "Bulgaria", countryCode: "BUL" },
+  { rank: 268, name: "Dmitar Kuzmanov", country: "Bulgaria", countryCode: "BUL" },
   { rank: 269, name: "Pedro Boscardin Dias", country: "Brazil", countryCode: "BRA" },
-  { rank: 270, name: "Nicolas Kicker", country: "Argentina", countryCode: "ARG" },
+  { rank: 270, name: "Nicolás Kicker", country: "Argentina", countryCode: "ARG" },
   { rank: 271, name: "Tiago Pereira", country: "Portugal", countryCode: "POR" },
   { rank: 272, name: "Saba Purtseladze", country: "Georgia", countryCode: "GEO" },
   { rank: 273, name: "Florent Bax", country: "France", countryCode: "FRA" },
   { rank: 274, name: "Fajing Sun", country: "China", countryCode: "CHN" },
-  { rank: 275, name: "Andres Martin", country: "USA", countryCode: "USA" },
+  { rank: 275, name: "Andrés Martin", country: "USA", countryCode: "USA" },
   { rank: 276, name: "Stefanos Sakellaridis", country: "Greece", countryCode: "GRE" },
   { rank: 277, name: "Borna Gojo", country: "Croatia", countryCode: "CRO" },
   { rank: 278, name: "Tom Gentzsch", country: "Germany", countryCode: "GER" },
@@ -162,7 +162,7 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 299, name: "Mats Rosenkranz", country: "Germany", countryCode: "GER" },
   { rank: 300, name: "Jacopo Berrettini", country: "Italy", countryCode: "ITA" },
   { rank: 301, name: "Norbert Gombos", country: "Slovakia", countryCode: "SVK" },
-  { rank: 302, name: "Facundo Diaz Acosta", country: "Argentina", countryCode: "ARG" },
+  { rank: 302, name: "Facundo Díaz Acosta", country: "Argentina", countryCode: "ARG" },
   { rank: 303, name: "Petr Brunclik", country: "Czech Republic", countryCode: "CZE" },
   { rank: 304, name: "Marat Sharipov", country: "Russia", countryCode: "RUS" },
   { rank: 305, name: "Maximus Jones", country: "USA", countryCode: "USA" },
@@ -186,7 +186,7 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 324, name: "Renta Tokuda", country: "Japan", countryCode: "JPN" },
   { rank: 325, name: "Matias Soto", country: "Chile", countryCode: "CHI" },
   { rank: 326, name: "Maxim Mrva", country: "Czech Republic", countryCode: "CZE" },
-  { rank: 327, name: "Daniel Dutra da Silva", country: "Brazil", countryCode: "BRA" },
+  { rank: 327, name: "Daniel Dutra Da Silva", country: "Brazil", countryCode: "BRA" },
   { rank: 328, name: "Yasutaka Uchiyama", country: "Japan", countryCode: "JPN" },
   { rank: 329, name: "James Trotter", country: "Australia", countryCode: "AUS" },
   { rank: 330, name: "Felix Gill", country: "Great Britain", countryCode: "GBR" },
@@ -229,7 +229,7 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 367, name: "Florian Broska", country: "Germany", countryCode: "GER" },
   { rank: 368, name: "Paul Jubb", country: "Great Britain", countryCode: "GBR" },
   { rank: 369, name: "Zhizhen Zhang", country: "China", countryCode: "CHN" },
-  { rank: 370, name: "Inaki Montes-De La Torre", country: "USA", countryCode: "USA" },
+  { rank: 370, name: "Iñaki Montes-De La Torre", country: "USA", countryCode: "USA" },
   { rank: 371, name: "Max Alcala Gurri", country: "Spain", countryCode: "ESP" },
   { rank: 372, name: "Max Basing", country: "USA", countryCode: "USA" },
   { rank: 373, name: "Viacheslav Bielinskyi", country: "Ukraine", countryCode: "UKR" },
@@ -254,7 +254,7 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 392, name: "Adria Soriano Barrera", country: "Spain", countryCode: "ESP" },
   { rank: 393, name: "Carlo Alberto Caniato", country: "Italy", countryCode: "ITA" },
   { rank: 394, name: "Hyeon Chung", country: "South Korea", countryCode: "KOR" },
-  { rank: 395, name: "Mili Poljicak", country: "Croatia", countryCode: "CRO" },
+  { rank: 395, name: "Mil Poljicak", country: "Croatia", countryCode: "CRO" },
   { rank: 396, name: "Federico Arnaboldi", country: "Italy", countryCode: "ITA" },
   { rank: 397, name: "Kasidit Samrej", country: "Thailand", countryCode: "THA" },
   { rank: 398, name: "Andrea Picchione", country: "Italy", countryCode: "ITA" },
@@ -294,7 +294,7 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 433, name: "Hikaru Shiraishi", country: "Japan", countryCode: "JPN" },
   { rank: 434, name: "Erik Arutiunian", country: "Russia", countryCode: "RUS" },
   { rank: 435, name: "Karan Singh", country: "India", countryCode: "IND" },
-  { rank: 436, name: "Buvaysar Gadamauri", country: "Russia", countryCode: "RUS" },
+  { rank: 436, name: "Buayvar Gadamauri", country: "Russia", countryCode: "RUS" },
   { rank: 437, name: "Roberto Cid", country: "Spain", countryCode: "ESP" },
   { rank: 438, name: "Stefano Napolitano", country: "Italy", countryCode: "ITA" },
   { rank: 439, name: "Yanki Erel", country: "Turkey", countryCode: "TUR" },
@@ -313,7 +313,7 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 452, name: "Juan Estevez", country: "Argentina", countryCode: "ARG" },
   { rank: 453, name: "Jakub Paul", country: "Czech Republic", countryCode: "CZE" },
   { rank: 454, name: "Andrew Fenty", country: "USA", countryCode: "USA" },
-  { rank: 455, name: "Dali Blanch", country: "USA", countryCode: "USA" },
+  { rank: 455, name: "Dal Blanch", country: "USA", countryCode: "USA" },
   { rank: 456, name: "Mika Brunold", country: "Switzerland", countryCode: "SUI" },
   { rank: 457, name: "Giovanni Fonio", country: "Italy", countryCode: "ITA" },
   { rank: 458, name: "Thomas Faurel", country: "France", countryCode: "FRA" },
@@ -327,7 +327,7 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 466, name: "Blaise Bicknell", country: "Canada", countryCode: "CAN" },
   { rank: 467, name: "Moerani Bouzige", country: "France", countryCode: "FRA" },
   { rank: 468, name: "Dhakshineswar Suresh", country: "India", countryCode: "IND" },
-  { rank: 469, name: "Bernabé Zapata Miralles", country: "Spain", countryCode: "ESP" },
+  { rank: 469, name: "Bernabe Zapata Miralles", country: "Spain", countryCode: "ESP" },
   { rank: 470, name: "Bor Artnak", country: "Slovenia", countryCode: "SLO" },
   { rank: 471, name: "Carlos Lopez Montagud", country: "Spain", countryCode: "ESP" },
   { rank: 472, name: "Jake Delaney", country: "Australia", countryCode: "AUS" },
@@ -335,7 +335,7 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 474, name: "Filippo Moroni", country: "Italy", countryCode: "ITA" },
   { rank: 475, name: "Oleg Prihodko", country: "Ukraine", countryCode: "UKR" },
   { rank: 476, name: "Takuya Kumasaka", country: "Japan", countryCode: "JPN" },
-  { rank: 477, name: "Filip Peliwo", country: "Canada", countryCode: "CAN" },
+  { rank: 477, name: "Filip Pelivo", country: "Canada", countryCode: "CAN" },
   { rank: 478, name: "Nikolay Vylegzhanin", country: "Russia", countryCode: "RUS" },
   { rank: 479, name: "Eero Vasa", country: "Finland", countryCode: "FIN" },
   { rank: 480, name: "Pietro Fellin", country: "Italy", countryCode: "ITA" },
@@ -373,11 +373,48 @@ const defaultStats: PlayerStats = {
 
 const defaultAffinity: SurfaceAffinity = { Hard: 0, Clay: 0, Grass: 0 };
 
+function getSurfaceAffinityByNationality(countryCode: string): { Hard: number; Clay: number; Grass: number } {
+  // South American clay specialists
+  if (['ARG', 'CHI', 'BRA', 'PER', 'COL', 'BOL', 'URU', 'PAR', 'ECU', 'VEN'].includes(countryCode))
+    return { Hard: -1, Clay: 1, Grass: -1 };
+  // Spanish and Italians slight clay bias
+  if (['ESP', 'ITA'].includes(countryCode))
+    return { Hard: 0, Clay: 1, Grass: -1 };
+  // French players
+  if (['FRA'].includes(countryCode))
+    return { Hard: 0, Clay: 1, Grass: 0 };
+  // British players: grass specialists
+  if (['GBR'].includes(countryCode))
+    return { Hard: 1, Clay: 0, Grass: 1 };
+  // American, Australian, Canadian players: hard court
+  if (['USA', 'AUS', 'CAN'].includes(countryCode))
+    return { Hard: 1, Clay: 0, Grass: 0 };
+  // Eastern European, Russian players (Serbian, Czech, Slovak, Polish, Hungarian, etc.)
+  if (['SRB', 'CZE', 'SVK', 'POL', 'HUN', 'BUL', 'ROU', 'CRO', 'GEO', 'KAZ', 'UKR', 'BLR'].includes(countryCode))
+    return { Hard: 1, Clay: 1, Grass: 0 };
+  // German, Austrian, Swiss: slight clay
+  if (['GER', 'AUT', 'SUI'].includes(countryCode))
+    return { Hard: 1, Clay: 1, Grass: 0 };
+  // Nordic countries: grass
+  if (['SWE', 'FIN', 'NOR', 'DEN'].includes(countryCode))
+    return { Hard: 1, Clay: 0, Grass: 0 };
+  // Asian players: hard court
+  if (['JPN', 'CHN', 'KOR', 'TPE', 'HKG', 'THA'].includes(countryCode))
+    return { Hard: 1, Clay: 0, Grass: 0 };
+  // Default: neutral
+  return { Hard: 0, Clay: 0, Grass: 0 };
+}
+
 // Generate Player objects for players 151-503
 // IDs start from 151 (to follow the existing 1-150 range)
 export const extendedPlayers: Player[] = extendedPlayerEntries.map((entry, _index) => {
   const rankingData = INITIAL_RANKING_DATA[entry.name];
-  const points = rankingData?.points || 0;
+  // Fallback for players not in INITIAL_RANKING_DATA: assign rank-based low points
+  // so they appear at the bottom of the rankings instead of having 0 pts
+  const fallbackPoints = entry.rank >= 487
+    ? Math.max(1, Math.round(78 - (entry.rank - 487) * 2.2))
+    : Math.max(1, Math.round(Math.pow(Math.max(0, 500 - entry.rank) / 4.5, 1.4)));
+  const points = rankingData?.points || fallbackPoints;
   const age = rankingData?.age || 25;
   const defensePoints = getSeason1DefensePoints(entry.name, points);
   return {
@@ -394,9 +431,10 @@ export const extendedPlayers: Player[] = extendedPlayerEntries.map((entry, _inde
     previousYearPoints: defensePoints,
     currentYearWeeklyPoints: new Array(52).fill(0),
     weeklyDefensePoints: 0,
+    weeklyEarnedPoints: 0,
     injured: false,
     injuryWeeksRemaining: 0,
-    surfaceAffinity: { ...defaultAffinity },
+    surfaceAffinity: getSurfaceAffinityByNationality(entry.countryCode),
     stats: { ...defaultStats, surfaceWins: { Hard: 0, Clay: 0, Grass: 0 }, surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 } },
   };
 });

@@ -43,6 +43,11 @@ interface CurrentWeekViewProps {
   excludedPlayerIds?: Set<number>;
   sameWeekSameCategoryCount?: number;
   initialForcedEntrants?: Player[];
+  concurrentHigherTierTournaments?: Tournament[];
+  concurrentSameTierTournaments?: Tournament[];
+  getH2HRecord?: (opponentId: number) => { wins: number; losses: number };
+  getH2HPair?: (id1: number, id2: number) => { p1Wins: number; p2Wins: number };
+  onPlayersLocked?: (playerIds: number[]) => void;
 }
 
 // Helper function - defined outside component to avoid hoisting issues
@@ -58,8 +63,8 @@ const getRoundName = (totalPlayers: number, roundNumber: number): string => {
   return `Round ${roundNumber}`;
 };
 
-const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({ 
-  tournament, 
+const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
+  tournament,
   players,
   onTournamentComplete,
   isCompleted = false,
@@ -68,6 +73,11 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   excludedPlayerIds = new Set(),
   sameWeekSameCategoryCount = 1,
   initialForcedEntrants = [],
+  concurrentHigherTierTournaments = [],
+  concurrentSameTierTournaments = [],
+  getH2HRecord,
+  getH2HPair,
+  onPlayersLocked,
 }) => {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [wildCardIds, setWildCardIds] = useState<Set<number>>(new Set());
@@ -116,21 +126,35 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     const p1 = getPlayerById(stored.player1Id);
     const p2 = getPlayerById(stored.player2Id);
     if (!p1 || !p2) return null;
+    // Restore full player objects into result (stored result only keeps id)
+    const result = stored.result ? {
+      ...stored.result,
+      winner: getPlayerById(stored.result.winner.id) ?? stored.result.winner,
+      loser:  getPlayerById(stored.result.loser.id)  ?? stored.result.loser,
+    } : undefined;
     return {
       id: stored.id,
       player1: p1,
       player2: p2,
-      result: stored.result,
+      result,
       round: stored.round,
     };
   }, [getPlayerById]);
 
-  // Convert Match to stored format
+  // Convert Match to stored format — strip games[] and slim winner/loser to id-only
+  // to keep localStorage payload small (quota is ~5MB and 128-player GS draws are huge)
   const matchToStored = (match: Match): StoredMatch => ({
     id: match.id,
     player1Id: match.player1.id,
     player2Id: match.player2.id,
-    result: match.result,
+    result: match.result ? {
+      winner: { id: match.result.winner.id } as Player,
+      loser:  { id: match.result.loser.id  } as Player,
+      sets: match.result.sets,
+      player1Sets: match.result.player1Sets,
+      player2Sets: match.result.player2Sets,
+      games: [],  // game-by-game data not needed for bracket state
+    } : undefined,
     round: match.round,
   });
 
@@ -188,21 +212,35 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
       return;
     }
 
-    // Filter out players excluded from same-week tournaments
-    let availablePlayers = players.filter(p => !excludedPlayerIds.has(p.id));
-
-    // Balance players across same-week same-category tournaments
-    // Each player is randomly "assigned" to one of the remaining tournaments
-    if (sameWeekSameCategoryCount > 1) {
-      availablePlayers = availablePlayers.filter(p => 
-        Math.random() < 1 / sameWeekSameCategoryCount
+    // Pre-simulate higher-tier concurrent tournament draws to exclude their committed players
+    const higherTierExcludedIds = new Set<number>(excludedPlayerIds);
+    for (const higherTournament of concurrentHigherTierTournaments) {
+      const pool = players.filter(p => !higherTierExcludedIds.has(p.id));
+      const { entrants: higherEntrants } = selectTournamentEntrants(
+        pool,
+        higherTournament.category,
+        higherTournament.playerLimit,
+        higherTournament.country
       );
-      // Ensure we still have enough players for the draw
-      if (availablePlayers.length < tournament.playerLimit) {
-        const extraPool = players.filter(p => !excludedPlayerIds.has(p.id) && !availablePlayers.some(a => a.id === p.id));
-        const shuffled = [...extraPool].sort(() => Math.random() - 0.5);
-        availablePlayers.push(...shuffled.slice(0, tournament.playerLimit - availablePlayers.length));
+      for (const p of higherEntrants) {
+        higherTierExcludedIds.add(p.id);
       }
+    }
+
+    // Filter out players committed to higher-tier concurrent tournaments
+    let availablePlayers = players.filter(p => !higherTierExcludedIds.has(p.id));
+
+    // Interleave-split same-tier concurrent tournaments so each gets equal proportions of
+    // top players. Sort all concurrent same-tier tournaments + this one by ID to get a
+    // stable index, then assign every Nth player (by ranking) to this tournament.
+    if (concurrentSameTierTournaments.length > 0) {
+      const allSameTier = [tournament, ...concurrentSameTierTournaments]
+        .sort((a, b) => a.id.localeCompare(b.id));
+      const totalCount = allSameTier.length;
+      const myIndex = allSameTier.findIndex(t => t.id === tournament.id);
+      availablePlayers = availablePlayers
+        .sort((a, b) => a.officialRanking - b.officialRanking)
+        .filter((_, idx) => idx % totalCount === myIndex);
     }
 
     // Include forced entrants in the draw
@@ -213,16 +251,43 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
       Math.max(0, tournament.playerLimit - forcedEntrants.length),
       tournament.country
     );
-    const tournamentEntrants = [...forcedEntrants, ...autoEntrants]
+    let tournamentEntrants = [...forcedEntrants, ...autoEntrants]
       .slice(0, tournament.playerLimit)
       .sort((a, b) => a.officialRanking - b.officialRanking);
+
+    // Pre-fill to full draw size so bracket positions and seed badges always match.
+    // Use availableForAutoSelect (this tournament's allocated pool) — NOT all players —
+    // so that concurrent same-category tournaments don't share top players.
+    if (tournamentEntrants.length < tournament.playerLimit) {
+      const usedIds = new Set(tournamentEntrants.map(p => p.id));
+      const extra = availableForAutoSelect
+        .filter(p => !usedIds.has(p.id) && !p.injured)
+        .sort((a, b) => a.officialRanking - b.officialRanking)
+        .slice(0, tournament.playerLimit - tournamentEntrants.length);
+      tournamentEntrants = [...tournamentEntrants, ...extra]
+        .sort((a, b) => a.officialRanking - b.officialRanking);
+    }
+
     setWildCardIds(autoWCs);
     setEntrants(tournamentEntrants);
 
-    // For ATP Finals, use the special round-robin format
+    // For ATP Finals, select top 8 by live race (livePoints), not official ranking
     if (isATPFinals) {
+      const atpEntrants = players
+        .filter(p => !p.injured)
+        .sort((a, b) => b.livePoints - a.livePoints)
+        .slice(0, 8);
+      // If fewer than 8 non-injured players available, fill with injured players as last resort
+      if (atpEntrants.length < 8) {
+        const extras = players
+          .filter(p => p.injured && !atpEntrants.some(e => e.id === p.id))
+          .sort((a, b) => b.livePoints - a.livePoints)
+          .slice(0, 8 - atpEntrants.length);
+        atpEntrants.push(...extras);
+      }
+      setEntrants(atpEntrants);
       setIsDrawGenerated(true);
-      persistDraw([], 0, tournamentEntrants);
+      // Don't persistDraw for ATP Finals (no bracket to save)
       return;
     }
 
@@ -356,7 +421,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     setDraw(newDraw);
     setIsDrawGenerated(true);
     setCurrentRound(0);
-    
+
     // Persist immediately
     persistDraw(newDraw, 0, tournamentEntrants);
   };
@@ -477,19 +542,45 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     const currentMatches = draw[currentRound];
     if (!currentMatches) return;
 
-    const results: { matchId: string; result: MatchResult }[] = [];
-    
-    currentMatches.forEach(match => {
-      if (!match.result) {
-        const bestOf = tournament.category === "Grand Slam" ? 5 : 3;
-        const result = playMatch(match.player1, match.player2, bestOf as 3 | 5, tournament.surface);
-        results.push({ matchId: match.id, result });
-      }
+    // Build the complete new round in one pass (no side effects inside setDraw)
+    const newRound = currentMatches.map(match => {
+      if (match.result) return match;
+      const bestOf = tournament.category === "Grand Slam" ? 5 : 3;
+      const result = playMatch(match.player1, match.player2, bestOf as 3 | 5, tournament.surface);
+      return { ...match, result };
     });
 
-    results.forEach(({ matchId, result }) => {
-      handleMatchComplete(matchId, result);
-    });
+    // Build next round if all matches now have results
+    let newDraw = draw.map((r, i) => i === currentRound ? newRound : r);
+    let nextRoundIdx = currentRound;
+
+    if (newRound.every(m => m.result) && newRound.length > 1) {
+      const nextRoundMatches: typeof newRound = [];
+      for (let i = 0; i < newRound.length; i += 2) {
+        const winner1 = newRound[i].result!.winner;
+        const winner2 = newRound[i + 1]?.result?.winner;
+        if (winner2) {
+          nextRoundMatches.push({
+            id: `R${currentRound + 2}-${i / 2}`,
+            player1: winner1,
+            player2: winner2,
+            round: getRoundName(tournament.playerLimit, currentRound + 2),
+          });
+        }
+      }
+      if (nextRoundMatches.length > 0) {
+        newDraw = [...newDraw, nextRoundMatches];
+        nextRoundIdx = currentRound + 1;
+      }
+    }
+
+    // Single atomic state update — no setState calls inside updater
+    setDraw(newDraw);
+    setSelectedMatch(null);
+    if (nextRoundIdx !== currentRound) {
+      setCurrentRound(nextRoundIdx);
+    }
+    persistDraw(newDraw, nextRoundIdx, entrants);
   };
 
   const currentRoundMatches = draw[currentRound] || [];
@@ -831,14 +922,27 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
       const updatedMatches = laverCupState.matches.map(m =>
         m.id === match.id ? { ...m, result, europeWon } : m
       );
-      setLaverCupState({
+      const allDone = updatedMatches.every(m => m.result);
+      const newEuropeScore = updatedMatches.filter(m => m.europeWon === true).reduce((s, m) => s + m.pointValue, 0);
+      const newWorldScore = updatedMatches.filter(m => m.europeWon === false).reduce((s, m) => s + m.pointValue, 0);
+      const updatedState = {
         ...laverCupState,
         matches: updatedMatches,
-        europeScore: updatedMatches.filter(m => m.europeWon === true).reduce((s, m) => s + m.pointValue, 0),
-        worldScore: updatedMatches.filter(m => m.europeWon === false).reduce((s, m) => s + m.pointValue, 0),
-        phase: updatedMatches.every(m => m.result) ? "complete" : "playing",
-      });
+        europeScore: newEuropeScore,
+        worldScore: newWorldScore,
+        phase: allDone ? "complete" as const : "playing" as const,
+      };
+      setLaverCupState(updatedState);
       setLaverCupSelectedMatch(null);
+      // Auto-complete when all matches have been played
+      if (allDone && !resultsSubmitted) {
+        setResultsSubmitted(true);
+        const winnerName = newEuropeScore > newWorldScore ? "Team Europe" : "Team World";
+        const runnerUpName = newEuropeScore > newWorldScore ? "Team World" : "Team Europe";
+        const winnerId = newEuropeScore > newWorldScore ? laverCupState.europePlayerIds[0] : laverCupState.worldPlayerIds[0];
+        const runnerUpId = newEuropeScore > newWorldScore ? laverCupState.worldPlayerIds[0] : laverCupState.europePlayerIds[0];
+        onTournamentComplete?.(tournament.id, [], winnerId, runnerUpId, winnerName, runnerUpName);
+      }
     };
 
     return (
@@ -862,7 +966,12 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
         <LaverCupView
           players={players}
           state={laverCupState}
-          onStateChange={setLaverCupState}
+          onStateChange={(newState) => {
+            if (!laverCupState && newState && onPlayersLocked) {
+              onPlayersLocked([...newState.europePlayerIds, ...newState.worldPlayerIds]);
+            }
+            setLaverCupState(newState);
+          }}
           onMatchClick={(p1, p2, matchId) =>
             setLaverCupSelectedMatch({ player1: p1, player2: p2, matchId })
           }
@@ -957,6 +1066,20 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
               bestOf={tournament.category === "Grand Slam" ? 5 : 3}
               onMatchComplete={(result) => handleMatchComplete(selectedMatch.id, result)}
               surface={tournament.surface}
+              h2hRecord={selectedMatch && (() => {
+                const careerPlayerId = -1;
+                // Career player match: use per-career H2H
+                if (getH2HRecord) {
+                  if (selectedMatch.player1.id === careerPlayerId) return getH2HRecord(selectedMatch.player2.id);
+                  if (selectedMatch.player2.id === careerPlayerId) return getH2HRecord(selectedMatch.player1.id);
+                }
+                // CPU vs CPU match: use global H2H pair
+                if (getH2HPair) {
+                  const pair = getH2HPair(selectedMatch.player1.id, selectedMatch.player2.id);
+                  return { wins: pair.p1Wins, losses: pair.p2Wins };
+                }
+                return undefined;
+              })()}
             />
             <Button 
               variant="ghost" 

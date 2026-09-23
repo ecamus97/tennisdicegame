@@ -2,7 +2,7 @@ import { Player, TournamentCategory } from "@/data/players";
 
 // Entry probabilities by ranking tier and tournament category
 // Returns probability (0-1) that a player will enter
-const getEntryProbability = (
+export const getEntryProbability = (
   ranking: number,
   category: TournamentCategory
 ): number => {
@@ -61,6 +61,15 @@ const getEntryProbability = (
       if (ranking < 400 || ranking > 500) return 0;
       return 0.85;
 
+    case "ITF M25":
+      if (ranking < 420 || ranking > 503) return 0;
+      if (ranking <= 450) return 0.75;
+      return 0.90;
+
+    case "ITF M15":
+      if (ranking < 460 || ranking > 503) return 0;
+      return 0.90;
+
     default:
       return 0.5;
   }
@@ -79,12 +88,14 @@ const getWildCardCount = (category: TournamentCategory): number => {
     case "Challenger 75":
     case "Challenger 50":
       return 4;
+    case "ITF M25": return 4;
+    case "ITF M15": return 2;
     default: return 0;
   }
 };
 
 // Map tournament country name to player countryCode
-const getCountryCodeFromCountry = (country: string): string | null => {
+export const getCountryCodeFromCountry = (country: string): string | null => {
   const map: Record<string, string> = {
     "Australia": "AUS", "France": "FRA", "Spain": "ESP", "Italy": "ITA",
     "USA": "USA", "Great Britain": "GBR", "Germany": "GER", "Netherlands": "NED",
@@ -117,11 +128,13 @@ export const isEligibleForTournament = (ranking: number, category: TournamentCat
     case "ATP 500": return ranking <= 60;
     case "ATP 250": return ranking <= 100;
     case "ATP Finals": return ranking <= 8;
-    case "Challenger 175": return ranking >= 80 && ranking <= 150;
-    case "Challenger 125": return ranking >= 150 && ranking <= 250;
-    case "Challenger 100": return ranking >= 250 && ranking <= 350;
-    case "Challenger 75": return ranking >= 300 && ranking <= 400;
-    case "Challenger 50": return ranking >= 400 && ranking <= 500;
+    case "Challenger 175": return ranking >= 70 && ranking <= 180;
+    case "Challenger 125": return ranking >= 130 && ranking <= 260;
+    case "Challenger 100": return ranking >= 220 && ranking <= 360;
+    case "Challenger 75": return ranking >= 280 && ranking <= 420;
+    case "Challenger 50": return ranking >= 340 && ranking <= 503;
+    case "ITF M25": return ranking >= 420 && ranking <= 503;
+    case "ITF M15": return ranking >= 460 && ranking <= 503;
     default: return true;
   }
 };
@@ -135,11 +148,13 @@ export const getEligibleRankingRange = (category: TournamentCategory): { min: nu
     case 'ATP 250': return { min: 1, max: 100 };
     case 'ATP Finals': return { min: 1, max: 8 };
     case 'Laver Cup': return { min: 1, max: 12 };
-    case 'Challenger 175': return { min: 80, max: 150 };
-    case 'Challenger 125': return { min: 150, max: 250 };
-    case 'Challenger 100': return { min: 250, max: 350 };
-    case 'Challenger 75': return { min: 300, max: 400 };
-    case 'Challenger 50': return { min: 400, max: 500 };
+    case 'Challenger 175': return { min: 70, max: 180 };
+    case 'Challenger 125': return { min: 130, max: 260 };
+    case 'Challenger 100': return { min: 220, max: 360 };
+    case 'Challenger 75': return { min: 280, max: 420 };
+    case 'Challenger 50': return { min: 340, max: 503 };
+    case 'ITF M25': return { min: 420, max: 503 };
+    case 'ITF M15': return { min: 460, max: 503 };
     default: return { min: 1, max: 500 };
   }
 };
@@ -148,24 +163,31 @@ export const getEligibleRankingRange = (category: TournamentCategory): { min: nu
 export const getCareerEligibleCategories = (ranking: number): TournamentCategory[] => {
   const categories: TournamentCategory[] = [];
 
-  if (ranking > 300) {
-    categories.push("Challenger 50", "Challenger 75");
-  } else if (ranking > 200) {
-    categories.push("Challenger 75", "Challenger 100");
-  } else if (ranking > 150) {
-    categories.push("Challenger 100", "Challenger 125");
+  // Each bracket gives 3 adjacent levels so there's always something to play
+  if (ranking > 460) {
+    categories.push("ITF M15", "ITF M25", "Challenger 50");
+  } else if (ranking > 400) {
+    categories.push("ITF M15", "ITF M25", "Challenger 50", "Challenger 75");
+  } else if (ranking > 340) {
+    categories.push("ITF M25", "Challenger 50", "Challenger 75");
+  } else if (ranking > 280) {
+    categories.push("Challenger 50", "Challenger 75", "Challenger 100");
+  } else if (ranking > 220) {
+    categories.push("Challenger 75", "Challenger 100", "Challenger 125");
+  } else if (ranking > 160) {
+    categories.push("Challenger 100", "Challenger 125", "Challenger 175");
   } else if (ranking > 100) {
-    categories.push("Challenger 125", "ATP 250");
+    categories.push("Challenger 125", "Challenger 175", "ATP 250");
   } else if (ranking > 50) {
-    categories.push("ATP 250", "ATP 500");
-  } else if (ranking > 40) {
+    categories.push("Challenger 175", "ATP 250", "ATP 500");
+  } else if (ranking > 20) {
     categories.push("ATP 250", "ATP 500", "Masters 1000");
   } else {
     categories.push("ATP 250", "ATP 500", "Masters 1000");
   }
 
-  // Grand Slams for Top 100
-  if (ranking <= 100) {
+  // Grand Slams for Top 130
+  if (ranking <= 130) {
     categories.push("Grand Slam");
   }
 
@@ -185,10 +207,31 @@ export const getCareerEligibleCategories = (ranking: number): TournamentCategory
   return categories;
 };
 
-// Check if player can enter as wild card (same country as tournament)
-export const canEnterAsWildCard = (playerCountryCode: string, tournamentCountry: string): boolean => {
+// Check if player can enter as wild card (same country + ranking must be in reasonable range)
+export const canEnterAsWildCard = (
+  playerCountryCode: string,
+  tournamentCountry: string,
+  category?: TournamentCategory,
+  playerRanking?: number
+): boolean => {
   const tourneyCode = getCountryCodeFromCountry(tournamentCountry);
-  return tourneyCode !== null && playerCountryCode === tourneyCode;
+  if (!tourneyCode || playerCountryCode !== tourneyCode) return false;
+  if (!category || playerRanking === undefined) return true; // legacy calls
+
+  // Max ranking allowed to receive a WC for each category (looser than normal entry cutoff)
+  const wcRankingLimit: Partial<Record<TournamentCategory, number>> = {
+    'Grand Slam': 160,
+    'Masters 1000': 80,
+    'ATP 500': 80,
+    'ATP 250': 150,
+    'Challenger 175': 220,
+    'Challenger 125': 310,
+    'Challenger 100': 400,
+    'Challenger 75': 460,
+    'Challenger 50': 503,
+  };
+  const limit = wcRankingLimit[category];
+  return limit === undefined || playerRanking <= limit;
 };
 
 // Select tournament entrants including wild cards
@@ -301,6 +344,10 @@ export const getFieldDescription = (category: TournamentCategory): string => {
       return "Lower Challenger, players ranked 200-450";
     case "Challenger 50":
       return "Entry-level Challenger, players ranked 250-500";
+    case "ITF M25":
+      return "ITF Men's World Tennis Tour, players ranked 200-503";
+    case "ITF M15":
+      return "ITF Men's World Tennis Tour entry-level, players ranked 300-503";
     default:
       return "Various players";
   }

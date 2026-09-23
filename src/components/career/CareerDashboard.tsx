@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { CareerPlayer, TrainingType, TRAINING_OPTIONS, PRIZE_MONEY, CITY_DATA, calculateTravelDistance, getTravelCost, getTravelFatigue, powerScoreToFictionalRanking, CareerTournamentResult, TitleDetail } from '@/data/careerData';
+import React, { useState, useMemo, useEffect } from 'react';
+import { CareerPlayer, TrainingType, TRAINING_OPTIONS, PRIZE_MONEY, CITY_DATA, calculateTravelDistance, getTravelCost, powerScoreToFictionalRanking, getEffectiveFictionalRanking, getReputationTier, CareerTournamentResult, TitleDetail, NewsItem } from '@/data/careerData';
 import { Tournament, Surface, getSurfaceEmoji, getCategoryColor } from '@/data/players';
+import CareerNews from './CareerNews';
 import { getCareerEligibleCategories, canEnterAsWildCard } from '@/lib/tournamentEntryLogic';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -27,12 +28,14 @@ interface Props {
   onSimulateAllOtherTournaments: () => void;
   onEnterOtherTournament: (tournamentId: string) => void;
   tournamentHistory: CareerTournamentResult[];
+  newsItems: NewsItem[];
 }
 
 const CareerDashboard: React.FC<Props> = ({
   player, currentWeek, currentSeason, weeklyActionTaken,
   onEnterTournament, onQuickSimTournament, onTrain, onRest, completedTournaments, allTournaments,
   onSimulateOtherTournament, onSimulateAllOtherTournaments, onEnterOtherTournament, tournamentHistory,
+  newsItems,
 }) => {
   const [selectedTraining, setSelectedTraining] = useState<TrainingType>('serve');
   const [surfaceTarget, setSurfaceTarget] = useState<Surface>('Hard');
@@ -53,9 +56,9 @@ const CareerDashboard: React.FC<Props> = ({
 
   const eligibleTournaments = useMemo(() => {
     return allWeekTournaments.filter(t =>
-      eligibleCategories.includes(t.category) || canEnterAsWildCard(player.countryCode, t.country)
+      eligibleCategories.includes(t.category) || canEnterAsWildCard(player.countryCode, t.country, t.category, player.officialRanking)
     );
-  }, [allWeekTournaments, eligibleCategories, player.countryCode]);
+  }, [allWeekTournaments, eligibleCategories, player.countryCode, player.officialRanking]);
 
   const ineligibleTournaments = useMemo(() => {
     return allWeekTournaments.filter(t => !eligibleTournaments.some(e => e.id === t.id));
@@ -69,7 +72,21 @@ const CareerDashboard: React.FC<Props> = ({
     return allWeekTournaments.filter(t => completedTournaments.includes(t.id));
   }, [allWeekTournaments, completedTournaments]);
 
+  const plannedThisWeek = useMemo(() =>
+    player.weeklyPlan?.find(p => p.week === currentWeek),
+    [player.weeklyPlan, currentWeek]
+  );
+
+  // Pre-apply roadmap training type when week starts
+  useEffect(() => {
+    if (plannedThisWeek?.type === 'training' && plannedThisWeek.trainingType) {
+      setSelectedTraining(plannedThisWeek.trainingType as TrainingType);
+    }
+  }, [plannedThisWeek]);
+
   const fictionalRank = powerScoreToFictionalRanking(player.fictionalRankingScore);
+  const effectiveRank = getEffectiveFictionalRanking(player);
+  const rankDiff = fictionalRank - effectiveRank; // positive = currently better than base
 
   const handleTrain = () => {
     const option = TRAINING_OPTIONS.find(t => t.type === selectedTraining);
@@ -78,6 +95,23 @@ const CareerDashboard: React.FC<Props> = ({
     onTrain(selectedTraining, selectedTraining === 'surface' ? surfaceTarget : undefined);
     toast.success(`Training completed: ${option.label}`);
   };
+
+  const getTrainingPreview = () => {
+    const option = TRAINING_OPTIONS.find(t => t.type === selectedTraining);
+    if (!option) return null;
+    const staffEfficiency = player.staff.reduce((mult, s) => mult * (s.member.effects.trainingEfficiency || 1), 1);
+    const sponsorPenalty = player.sponsors.reduce((pen, s) => pen + (s.sponsor.trainingEfficiencyPenalty || 0), 0);
+    const effMult = staffEfficiency * Math.max(0.5, 1 - sponsorPenalty);
+    // Use average current attribute value for the trained attributes
+    const attrKey = selectedTraining === 'surface' ? `surface${surfaceTarget}` : option.attributes[0];
+    const currentVal = (player.attributes as any)[attrKey] ?? 50;
+    const dimReturns = Math.max(0.35, 1.6 - currentVal / 55);
+    const low = Math.max(1, Math.round(option.improvementRange[0] * effMult * dimReturns));
+    const high = Math.max(1, Math.round(option.improvementRange[1] * effMult * dimReturns));
+    const hasCoach = effMult > 1;
+    return { low, high, hasCoach, effMult };
+  };
+  const trainingPreview = getTrainingPreview();
 
   const handleRest = () => { onRest(); toast.success('You rested this week. Energy restored!'); };
 
@@ -104,7 +138,10 @@ const CareerDashboard: React.FC<Props> = ({
             </div>
             <div className="p-3 rounded-lg bg-secondary/30">
               <div className="text-xs text-muted-foreground">Fictional Rank</div>
-              <div className="text-xl font-display font-bold text-primary">#{fictionalRank}</div>
+              <div className="flex items-center gap-1">
+                <div className="text-xl font-display font-bold text-primary">#{fictionalRank}</div>
+                {rankDiff !== 0 && <span className={rankDiff > 0 ? 'text-green-400 text-xs' : 'text-red-400 text-xs'} title={`Effective with form/fatigue: #${effectiveRank}`}>{rankDiff > 0 ? '↑' : '↓'}</span>}
+              </div>
             </div>
             <div className="p-3 rounded-lg bg-secondary/30">
               <div className="text-xs text-muted-foreground">Live Points</div>
@@ -147,13 +184,21 @@ const CareerDashboard: React.FC<Props> = ({
               <Progress value={50 + player.form * 2.5} className="h-2" />
             </div>
             <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-muted-foreground flex items-center gap-1"><Plane className="w-3 h-3" /> Travel</span>
-                <span className={player.travelFatigue < 30 ? 'text-green-400' : player.travelFatigue < 60 ? 'text-yellow-400' : 'text-red-400'}>
-                  {Math.round(player.travelFatigue)}%
-                </span>
-              </div>
-              <Progress value={player.travelFatigue} className="h-2" />
+              {(() => {
+                const rep = player.reputation ?? 50;
+                const tier = getReputationTier(rep);
+                const pct = (rep / 1000) * 100;
+                return (
+                  <>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-muted-foreground flex items-center gap-1">⭐ Reputation</span>
+                      <span className={tier.color}>{tier.tier}</span>
+                    </div>
+                    <Progress value={pct} className="h-2" />
+                    <div className="text-[10px] text-muted-foreground mt-1">{rep} / 1000</div>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -206,17 +251,19 @@ const CareerDashboard: React.FC<Props> = ({
                   <div className="space-y-2">
                     {eligibleTournaments.map(t => {
                       const isCompleted = completedTournaments.includes(t.id);
+                      const isPlanned = plannedThisWeek?.type === 'tournament' && plannedThisWeek?.tournamentId === t.id;
                       const distance = calculateTravelDistance(player.currentCity, t.city);
-                      const cost = getTravelCost(distance);
+                      const travelCost = getTravelCost(distance);
                       const prize = PRIZE_MONEY[t.category];
 
                       return (
-                        <div key={t.id} className={`p-3 rounded-lg border transition-all ${isCompleted ? 'bg-muted/30 border-border/30 opacity-60' : 'bg-secondary/20 border-border/50 hover:border-primary/30'}`}>
+                        <div key={t.id} className={`p-3 rounded-lg border transition-all ${isCompleted ? 'bg-muted/30 border-border/30 opacity-60' : isPlanned ? 'bg-amber-500/10 border-amber-500/40 hover:border-amber-500/60' : 'bg-secondary/20 border-border/50 hover:border-primary/30'}`}>
                           <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className={getCategoryColor(t.category) + ' !text-[10px]'}>{t.category}</span>
                                 <span className="font-medium text-sm text-foreground">{t.name}</span>
+                                {isPlanned && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">Planned</span>}
                               </div>
                               <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{t.city}, {t.country}</span>
@@ -224,8 +271,8 @@ const CareerDashboard: React.FC<Props> = ({
                                 <span className="flex items-center gap-1"><Plane className="w-3 h-3" />{Math.round(distance)} km</span>
                               </div>
                               <div className="flex items-center gap-3 mt-1 text-xs">
-                                <span className="text-destructive">Travel: ${cost.toLocaleString()}</span>
                                 {prize && <span className="text-accent">Winner: ${prize.winner.toLocaleString()}</span>}
+                                <span className="text-red-400">Travel: -${travelCost.toLocaleString()}</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-2 ml-2">
@@ -282,9 +329,10 @@ const CareerDashboard: React.FC<Props> = ({
               )}
 
               {/* Training */}
-              <div>
-                <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
+              <div className={plannedThisWeek?.type === 'training' ? 'rounded-lg border border-blue-500/40 bg-blue-500/5 p-3 -mx-1' : ''}>
+                <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
                   <Dumbbell className="w-3.5 h-3.5" /> Training
+                  {plannedThisWeek?.type === 'training' && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">Planned</span>}
                 </h4>
                 <div className="flex items-center gap-2">
                   <Select value={selectedTraining} onValueChange={v => setSelectedTraining(v as TrainingType)}>
@@ -309,10 +357,24 @@ const CareerDashboard: React.FC<Props> = ({
                   )}
                   <Button size="sm" variant="secondary" onClick={handleTrain}>Train</Button>
                 </div>
+                {trainingPreview && (
+                  <div className="mt-1.5 flex items-center gap-2 text-[11px]">
+                    <span className="text-muted-foreground">Expected gain:</span>
+                    <span className="font-medium text-green-400">+{trainingPreview.low}{trainingPreview.high > trainingPreview.low ? `–${trainingPreview.high}` : ''} pts</span>
+                    {trainingPreview.hasCoach && (
+                      <span className="text-blue-400">× {trainingPreview.effMult.toFixed(2)} coach boost</span>
+                    )}
+                  </div>
+                )}
               </div>
 
-              <Button variant="outline" className="w-full gap-2" onClick={handleRest}>
+              <Button
+                variant="outline"
+                className={`w-full gap-2 ${plannedThisWeek?.type === 'rest' ? 'border-purple-500/40 bg-purple-500/10 text-purple-400' : ''}`}
+                onClick={handleRest}
+              >
                 <BedDouble className="w-4 h-4" /> Rest This Week
+                {plannedThisWeek?.type === 'rest' && <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 border border-purple-500/30">Planned</span>}
               </Button>
             </div>
           )}
@@ -426,15 +488,7 @@ const CareerDashboard: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="glass-card p-4">
-          <h3 className="font-display font-semibold text-foreground mb-3">🔥 Momentum</h3>
-          <div className="flex gap-1">
-            {Array.from({ length: 10 }, (_, i) => (
-              <div key={i} className={`h-3 flex-1 rounded-sm ${i < player.momentum ? 'bg-primary' : 'bg-muted'}`} />
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">{player.momentum}/10</p>
-        </div>
+        <CareerNews newsItems={newsItems} currentWeek={currentWeek} currentSeason={currentSeason} />
 
         {player.sponsors.length > 0 && (
           <div className="glass-card p-4">

@@ -194,15 +194,7 @@ const LaverCupView: React.FC<LaverCupViewProps> = ({
   }, [state, players, onStateChange]);
 
   const allPlayed = state ? state.matches.every(m => m.result) : false;
-  const isComplete = state ? (state.phase === "complete" || allPlayed) : false;
-
-  // Check completion
-  useEffect(() => {
-    if (state && allPlayed && state.phase !== "complete") {
-      onStateChange({ ...state, phase: "complete" });
-      onComplete();
-    }
-  }, [allPlayed, state, onStateChange, onComplete]);
+  const isComplete = state ? (state.phase === "complete") : false;
 
   if (!state) return null;
 
@@ -422,11 +414,12 @@ const LaverCupView: React.FC<LaverCupViewProps> = ({
         </div>
       ))}
 
-      {/* Simulate All */}
-      {!isComplete && (
-        <div className="flex justify-end">
+      {/* Actions */}
+      <div className="flex justify-end gap-2">
+        {!isComplete && (
           <Button
             size="sm"
+            variant="outline"
             className="gap-1"
             onClick={() => {
               // Find next unplayed match
@@ -437,8 +430,21 @@ const LaverCupView: React.FC<LaverCupViewProps> = ({
             <Zap className="w-3 h-3" />
             Play Next Match
           </Button>
-        </div>
-      )}
+        )}
+        {allPlayed && !isComplete && (
+          <Button
+            size="sm"
+            className="gap-1"
+            onClick={() => {
+              onStateChange({ ...state, phase: "complete" });
+              onComplete();
+            }}
+          >
+            <Trophy className="w-3 h-3" />
+            Confirm Results
+          </Button>
+        )}
+      </div>
     </div>
   );
 };

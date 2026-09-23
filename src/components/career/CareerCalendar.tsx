@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { CareerPlayer, CareerTournamentResult } from '@/data/careerData';
-import { Tournament, getSurfaceEmoji, getCategoryColor } from '@/data/players';
-import { Check, Trophy } from 'lucide-react';
+import { Tournament, getSurfaceEmoji, getCategoryColor, TournamentCategory } from '@/data/players';
+import { Check, Trophy, ChevronDown, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Props {
@@ -13,33 +13,47 @@ interface Props {
   tournamentHistory: CareerTournamentResult[];
 }
 
-const CareerCalendar: React.FC<Props> = ({ player, currentWeek, currentSeason, completedTournaments, allTournaments, tournamentHistory }) => {
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [seasonFilter, setSeasonFilter] = useState<number>(currentSeason);
+const ALL_CATEGORIES: TournamentCategory[] = [
+  'Grand Slam', 'Masters 1000', 'ATP 500', 'ATP 250',
+  'Challenger 175', 'Challenger 125', 'Challenger 100', 'Challenger 75', 'Challenger 50',
+  'ITF M25', 'ITF M15',
+];
 
-  // Update season filter when currentSeason changes
+const CareerCalendar: React.FC<Props> = ({ player, currentWeek, currentSeason, completedTournaments, allTournaments, tournamentHistory }) => {
+  const [selectedCategories, setSelectedCategories] = useState<Set<TournamentCategory>>(new Set());
+  const [seasonFilter, setSeasonFilter] = useState<number>(currentSeason);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   React.useEffect(() => {
     setSeasonFilter(currentSeason);
   }, [currentSeason]);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const weeks = Array.from({ length: 52 }, (_, i) => i + 1);
 
   const filteredTournaments = useMemo(() => {
-    if (categoryFilter === 'all') return allTournaments;
-    return allTournaments.filter(t => t.category === categoryFilter);
-  }, [allTournaments, categoryFilter]);
+    if (selectedCategories.size === 0) return allTournaments;
+    return allTournaments.filter(t => selectedCategories.has(t.category as TournamentCategory));
+  }, [allTournaments, selectedCategories]);
 
-  // Filter tournament history by selected season
   const seasonTournamentHistory = useMemo(() => {
     return tournamentHistory.filter(h => h.season === seasonFilter);
   }, [tournamentHistory, seasonFilter]);
 
-  // Get season history for career player's results filtered by season
   const seasonPlayerHistory = useMemo(() => {
     return player.seasonHistory.filter(s => s.season === seasonFilter);
   }, [player.seasonHistory, seasonFilter]);
 
-  // Available seasons
   const availableSeasons = useMemo(() => {
     const seasons = new Set<number>();
     seasons.add(currentSeason);
@@ -49,6 +63,23 @@ const CareerCalendar: React.FC<Props> = ({ player, currentWeek, currentSeason, c
   }, [currentSeason, tournamentHistory, player.seasonHistory]);
 
   const isCurrentSeason = seasonFilter === currentSeason;
+
+  const toggleCategory = (cat: TournamentCategory) => {
+    setSelectedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  const clearCategories = () => setSelectedCategories(new Set());
+
+  const filterLabel = selectedCategories.size === 0
+    ? 'All Tournaments'
+    : selectedCategories.size === 1
+      ? Array.from(selectedCategories)[0]
+      : `${selectedCategories.size} selected`;
 
   return (
     <div className="glass-card p-4">
@@ -67,23 +98,53 @@ const CareerCalendar: React.FC<Props> = ({ player, currentWeek, currentSeason, c
               </SelectContent>
             </Select>
           )}
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Tournaments</SelectItem>
-              <SelectItem value="Grand Slam">Grand Slam</SelectItem>
-              <SelectItem value="Masters 1000">Masters 1000</SelectItem>
-              <SelectItem value="ATP 500">ATP 500</SelectItem>
-              <SelectItem value="ATP 250">ATP 250</SelectItem>
-              <SelectItem value="Challenger 175">Challenger 175</SelectItem>
-              <SelectItem value="Challenger 125">Challenger 125</SelectItem>
-              <SelectItem value="Challenger 100">Challenger 100</SelectItem>
-              <SelectItem value="Challenger 75">Challenger 75</SelectItem>
-              <SelectItem value="Challenger 50">Challenger 50</SelectItem>
-            </SelectContent>
-          </Select>
+
+          {/* Multi-select category filter */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setDropdownOpen(v => !v)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/50 bg-card/50 text-sm text-foreground hover:border-primary/40 transition-colors min-w-[180px] justify-between"
+            >
+              <span className="truncate">{filterLabel}</span>
+              <div className="flex items-center gap-1 shrink-0">
+                {selectedCategories.size > 0 && (
+                  <span
+                    className="text-muted-foreground hover:text-foreground p-0.5"
+                    onClick={e => { e.stopPropagation(); clearCategories(); }}
+                  >
+                    <X className="w-3 h-3" />
+                  </span>
+                )}
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border/50 rounded-lg shadow-xl min-w-[200px] py-1 max-h-72 overflow-y-auto">
+                <button
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary/30 transition-colors"
+                  onClick={clearCategories}
+                >
+                  <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selectedCategories.size === 0 ? 'bg-primary border-primary' : 'border-border'}`}>
+                    {selectedCategories.size === 0 && <Check className="w-3 h-3 text-primary-foreground" />}
+                  </span>
+                  <span className="text-foreground">All Tournaments</span>
+                </button>
+                {ALL_CATEGORIES.map(cat => (
+                  <button
+                    key={cat}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary/30 transition-colors"
+                    onClick={() => toggleCategory(cat)}
+                  >
+                    <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selectedCategories.has(cat) ? 'bg-primary border-primary' : 'border-border'}`}>
+                      {selectedCategories.has(cat) && <Check className="w-3 h-3 text-primary-foreground" />}
+                    </span>
+                    <span className="text-foreground">{cat}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <div className="space-y-1">
@@ -126,13 +187,11 @@ const CareerCalendar: React.FC<Props> = ({ player, currentWeek, currentSeason, c
                           <span className="text-muted-foreground shrink-0">{getSurfaceEmoji(t.surface)}</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
-                          {/* Show player's result if they played */}
                           {playerResult && (
                             <span className={`font-medium ${playerResult.round === 'Winner' ? 'text-primary' : 'text-muted-foreground'}`}>
                               ({playerResult.round})
                             </span>
                           )}
-                          {/* Always show tournament winner */}
                           {historyEntry && (
                             <span className="flex items-center gap-1 text-primary">
                               <Trophy className="w-3 h-3" /> {historyEntry.winnerName}

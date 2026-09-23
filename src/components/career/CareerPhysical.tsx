@@ -1,7 +1,7 @@
 import React from 'react';
 import { CareerPlayer } from '@/data/careerData';
 import { Progress } from '@/components/ui/progress';
-import { Heart, Zap, Activity, Plane, Dumbbell, AlertTriangle } from 'lucide-react';
+import { Heart, Zap, Activity, Plane, Dumbbell, AlertTriangle, Users } from 'lucide-react';
 
 interface Props {
   player: CareerPlayer;
@@ -48,6 +48,43 @@ const CareerPhysical: React.FC<Props> = ({ player }) => {
           </div>
         </div>
       </div>
+
+      {/* Staff Physical Effects */}
+      {player.staff.length > 0 && (() => {
+        const fatigueRed = player.staff.reduce((s, m) => s + (m.member.effects.fatigueReduction || 0), 0);
+        const recoveryBon = player.staff.reduce((s, m) => s + (m.member.effects.recoveryBonus || 0), 0);
+        const physicalPerWk = player.staff.reduce((s, m) => s + (m.member.effects.weeklyPhysical || 0), 0);
+        const hasAny = fatigueRed > 0 || recoveryBon > 0 || physicalPerWk > 0;
+        if (!hasAny) return null;
+        return (
+          <div className="glass-card p-4">
+            <h3 className="font-display font-semibold text-foreground mb-3 flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" /> Staff Physical Benefits
+            </h3>
+            <div className="space-y-2">
+              {fatigueRed > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Fatigue reduction / week</span>
+                  <span className="text-green-400 font-medium">−{fatigueRed} pts</span>
+                </div>
+              )}
+              {recoveryBon > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Recovery bonus (Rest weeks)</span>
+                  <span className="text-green-400 font-medium">+{recoveryBon} pts</span>
+                </div>
+              )}
+              {physicalPerWk > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Physical attribute / week</span>
+                  <span className="text-blue-400 font-medium">+{physicalPerWk} pts/wk</span>
+                </div>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2">Applied automatically each week when advancing.</p>
+          </div>
+        );
+      })()}
 
       {player.injured && (
         <div className="glass-card p-4 border-destructive/30">

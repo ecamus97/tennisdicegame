@@ -87,7 +87,14 @@ const CareerStaff: React.FC<Props> = ({ player, onHire, onFire }) => {
                   {s.member.effects.recoveryBonus && <span className="text-blue-400">Recovery +{s.member.effects.recoveryBonus}</span>}
                   {s.member.effects.fatigueReduction && <span className="text-cyan-400">Fatigue -{s.member.effects.fatigueReduction}</span>}
                   {s.member.effects.injuryPrevention && <span className="text-purple-400">Injury prevention {Math.round((s.member.effects.injuryPrevention || 0) * 100)}%</span>}
-                  {s.member.effects.mentalBonus && <span className="text-yellow-400">Mental +{s.member.effects.mentalBonus}</span>}
+                  {s.member.effects.weeklyRecovery && <span className="text-amber-400">+{s.member.effects.weeklyRecovery} Recovery/wk</span>}
+                  {s.member.effects.weeklyServe && <span className="text-amber-400">+{s.member.effects.weeklyServe} Serve/wk</span>}
+                  {s.member.effects.weeklyReturn && <span className="text-amber-400">+{s.member.effects.weeklyReturn} Return/wk</span>}
+                  {s.member.effects.weeklyRally && <span className="text-amber-400">+{s.member.effects.weeklyRally} Rally/wk</span>}
+                  {s.member.effects.weeklyConsistency && <span className="text-amber-400">+{s.member.effects.weeklyConsistency} Consistency/wk</span>}
+                  {s.member.effects.weeklyPressure && <span className="text-amber-400">+{s.member.effects.weeklyPressure} Pressure/wk</span>}
+                  {s.member.effects.weeklyPhysical && <span className="text-amber-400">+{s.member.effects.weeklyPhysical} Physical/wk</span>}
+                  {s.member.effects.weeklyMentality && <span className="text-amber-400">+{s.member.effects.weeklyMentality} Mentality/wk</span>}
                 </div>
               </div>
             ))}
@@ -123,7 +130,14 @@ const CareerStaff: React.FC<Props> = ({ player, onHire, onFire }) => {
                         {member.effects.recoveryBonus && <span className="text-blue-400">Recovery +{member.effects.recoveryBonus}</span>}
                         {member.effects.fatigueReduction && <span className="text-cyan-400">Fatigue -{member.effects.fatigueReduction}</span>}
                         {member.effects.injuryPrevention && <span className="text-purple-400">Injury prev. {Math.round(member.effects.injuryPrevention * 100)}%</span>}
-                        {member.effects.mentalBonus && <span className="text-yellow-400">Mental +{member.effects.mentalBonus}</span>}
+                        {member.effects.weeklyRecovery && <span className="text-amber-400">+{member.effects.weeklyRecovery} Recovery/wk</span>}
+                        {member.effects.weeklyServe && <span className="text-amber-400">+{member.effects.weeklyServe} Serve/wk</span>}
+                        {member.effects.weeklyReturn && <span className="text-amber-400">+{member.effects.weeklyReturn} Return/wk</span>}
+                        {member.effects.weeklyRally && <span className="text-amber-400">+{member.effects.weeklyRally} Rally/wk</span>}
+                        {member.effects.weeklyConsistency && <span className="text-amber-400">+{member.effects.weeklyConsistency} Consistency/wk</span>}
+                        {member.effects.weeklyPressure && <span className="text-amber-400">+{member.effects.weeklyPressure} Pressure/wk</span>}
+                        {member.effects.weeklyPhysical && <span className="text-amber-400">+{member.effects.weeklyPhysical} Physical/wk</span>}
+                        {member.effects.weeklyMentality && <span className="text-amber-400">+{member.effects.weeklyMentality} Mentality/wk</span>}
                       </div>
                     </div>
                     <Button
