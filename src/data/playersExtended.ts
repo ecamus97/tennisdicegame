@@ -434,6 +434,7 @@ export const extendedPlayers: Player[] = extendedPlayerEntries.map((entry, _inde
     weeklyEarnedPoints: 0,
     injured: false,
     injuryWeeksRemaining: 0,
+    fatigue: 0,
     surfaceAffinity: getSurfaceAffinityByNationality(entry.countryCode),
     stats: { ...defaultStats, surfaceWins: { Hard: 0, Clay: 0, Grass: 0 }, surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 } },
   };

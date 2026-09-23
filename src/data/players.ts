@@ -38,6 +38,8 @@ export interface Player {
   surfaceAffinity: SurfaceAffinity;
   stats: PlayerStats;
   retired?: boolean;
+  /** 0-100. Builds up from deep tournament runs, decays on weeks not competing. Reduces the chance of entering the next few events. */
+  fatigue?: number;
 }
 
 // Country code helper
@@ -535,6 +537,7 @@ export const initialPlayers: Player[] = playerNames.map((name, index) => {
     weeklyEarnedPoints: 0,
     injured: false,
     injuryWeeksRemaining: 0,
+    fatigue: 0,
     surfaceAffinity: SURFACE_AFFINITY[name] || { Hard: 0, Clay: 0, Grass: 0 },
     stats: {
       wins: 0, losses: 0,

@@ -220,6 +220,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
         pool,
         higherTournament.category,
         higherTournament.playerLimit,
+        higherTournament.week,
         higherTournament.country
       );
       for (const p of higherEntrants) {
@@ -249,6 +250,7 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
       availableForAutoSelect,
       tournament.category,
       Math.max(0, tournament.playerLimit - forcedEntrants.length),
+      tournament.week,
       tournament.country
     );
     let tournamentEntrants = [...forcedEntrants, ...autoEntrants]

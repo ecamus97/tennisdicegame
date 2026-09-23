@@ -9,13 +9,13 @@ import {
   ActiveSponsor, Sponsor, ActiveStaff, StaffMember,
   AVAILABLE_SPONSORS, AVAILABLE_STAFF, CareerTournamentResult, TitleDetail,
   getContinentFromCountry, CareerSeasonSummaryData, CareerMatchRecord, WeeklyPlanEntry,
-  NewsItem,
+  NewsItem, getCategoryFatigueMultiplier, calculateTournamentFatigueGain,
 } from '@/data/careerData';
 import { tournaments, Tournament, Surface, Player, initialPlayers } from '@/data/players';
 import { extendedPlayers } from '@/data/playersExtended';
 import { challengerTournaments, ChallengerTournament, getChallengerMoneyForRound } from '@/data/challengerTournaments';
 import { playMatch } from '@/lib/matchEngine';
-import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard, getEligibleRankingRange, getCountryCodeFromCountry, getEntryProbability } from '@/lib/tournamentEntryLogic';
+import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard, getEligibleRankingRange, getCountryCodeFromCountry, getEntryProbability, getAdjustedEntryProbability } from '@/lib/tournamentEntryLogic';
 import { TournamentDraw } from '@/hooks/useGameState';
 import { processSeasonTransition } from '@/lib/retirementLogic';
 
@@ -90,6 +90,7 @@ const getInitialCareerState = (): CareerState => {
       parsed.allPlayers = parsed.allPlayers.map((p: Player) => ({
         ...p,
         currentYearWeeklyPoints: p.currentYearWeeklyPoints || new Array(52).fill(0),
+        fatigue: p.fatigue ?? 0,
       }));
       if (parsed.activeTournament === undefined) parsed.activeTournament = null;
       if (!parsed.tournamentHistory) parsed.tournamentHistory = [];
@@ -188,7 +189,7 @@ function autoSimulateTournamentBracket(
   const probabilisticEntrants: Player[] = [];
   for (const player of eligiblePlayers) {
     if (probabilisticEntrants.length >= tournament.playerLimit) break;
-    const prob = getEntryProbability(player.officialRanking, tournament.category);
+    const prob = getAdjustedEntryProbability(player, tournament.category, tournament.week);
     if (Math.random() < prob) {
       probabilisticEntrants.push(player);
     }
@@ -199,7 +200,7 @@ function autoSimulateTournamentBracket(
   if (probabilisticEntrants.length < tournament.playerLimit) {
     const usedIds = new Set(probabilisticEntrants.map(p => p.id));
     const fillPool = eligiblePlayers.filter(
-      p => !usedIds.has(p.id) && getEntryProbability(p.officialRanking, tournament.category) >= 0.4
+      p => !usedIds.has(p.id) && getAdjustedEntryProbability(p, tournament.category, tournament.week) >= 0.4
     );
     probabilisticEntrants.push(...fillPool.slice(0, tournament.playerLimit - probabilisticEntrants.length));
   }
@@ -785,7 +786,7 @@ export const useCareerState = () => {
         p.currentContinent = toContinent;
 
         const staffFatigueReduction = p.staff.reduce((sum, s) => sum + (s.member.effects.fatigueReduction || 0), 0);
-        const matchFatigue = Math.max(0, (wins + losses) * 8 - staffFatigueReduction);
+        const matchFatigue = Math.max(0, (wins + losses) * 8 * getCategoryFatigueMultiplier(tournament.category) - staffFatigueReduction);
         p.fatigue = Math.min(100, p.fatigue + matchFatigue);
         p.energy = Math.max(0, p.energy - matchFatigue * 0.7);
         p.matchLoad += wins + losses;
@@ -916,12 +917,14 @@ export const useCareerState = () => {
         const aiWins = calculateWinsFromRound(result.round, tournament.playerLimit);
         const aiLosses = result.round !== 'Winner' ? 1 : 0;
         const aiStats = player.stats || { wins: 0, losses: 0, surfaceWins: { Hard: 0, Clay: 0, Grass: 0 }, surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 }, currentStreak: 0, bestWinStreak: 0, titles: 0 };
+        const fatigueGain = calculateTournamentFatigueGain(result.round, tournament.category, tournament.playerLimit);
         return {
           ...player,
           livePoints: player.livePoints + result.points,
           points: player.points + result.points,
           currentYearWeeklyPoints: newCurrentYear,
           weeklyEarnedPoints: (player.weeklyEarnedPoints || 0) + result.points,
+          fatigue: Math.min(100, (player.fatigue ?? 0) + fatigueGain),
           stats: {
             ...aiStats,
             wins: aiStats.wins + aiWins,
@@ -1145,7 +1148,7 @@ export const useCareerState = () => {
       p.currentContinent = toContinent;
 
       const staffFatigueReduction = p.staff.reduce((sum, s) => sum + (s.member.effects.fatigueReduction || 0), 0);
-      const matchFatigue = Math.max(0, (wins + losses) * 8 - staffFatigueReduction);
+      const matchFatigue = Math.max(0, (wins + losses) * 8 * getCategoryFatigueMultiplier(tournament.category) - staffFatigueReduction);
       p.fatigue = Math.min(100, p.fatigue + matchFatigue);
       p.energy = Math.max(0, p.energy - matchFatigue * 0.7);
       p.matchLoad += wins + losses;
@@ -1221,7 +1224,8 @@ export const useCareerState = () => {
         if (!result) return player;
         const newCurrentYear = [...player.currentYearWeeklyPoints];
         newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
-        return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, currentYearWeeklyPoints: newCurrentYear, weeklyEarnedPoints: (player.weeklyEarnedPoints || 0) + result.points };
+        const fatigueGain = calculateTournamentFatigueGain(result.round, tournament.category, tournament.playerLimit);
+        return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, currentYearWeeklyPoints: newCurrentYear, weeklyEarnedPoints: (player.weeklyEarnedPoints || 0) + result.points, fatigue: Math.min(100, (player.fatigue ?? 0) + fatigueGain) };
       });
 
       const { players: ranked, careerRanking } = recalculateRankings(updatedPlayers, p);
@@ -1400,7 +1404,8 @@ export const useCareerState = () => {
           if (!result) return player;
           const newCurrentYear = [...player.currentYearWeeklyPoints];
           newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
-          return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, currentYearWeeklyPoints: newCurrentYear, weeklyEarnedPoints: (player.weeklyEarnedPoints || 0) + result.points };
+          const fatigueGain = calculateTournamentFatigueGain(result.round, t.category, t.playerLimit);
+          return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, currentYearWeeklyPoints: newCurrentYear, weeklyEarnedPoints: (player.weeklyEarnedPoints || 0) + result.points, fatigue: Math.min(100, (player.fatigue ?? 0) + fatigueGain) };
         });
 
         newCompleted.push(t.id);
@@ -1414,6 +1419,17 @@ export const useCareerState = () => {
           weekSimulations.push({ winnerId: sim.winnerId, winnerName: sim.winnerName, runnerUpId: sim.runnerUpId, runnerUpName: sim.runnerUpName, tournament: t });
         }
       }
+
+      // Rest recovery: any CPU player who didn't compete anywhere this week (including
+      // tournaments resolved earlier in the week via quick-sim/interactive play) sheds
+      // some accumulated fatigue, making them more likely to re-enter next week.
+      const restedThisWeekIds = new Set([...(prev.weeklyUsedPlayerIds || []), ...usedPlayerIds]);
+      const REST_RECOVERY_PER_WEEK = 12;
+      updatedPlayers = updatedPlayers.map(player =>
+        restedThisWeekIds.has(player.id)
+          ? player
+          : { ...player, fatigue: Math.max(0, (player.fatigue ?? 0) - REST_RECOVERY_PER_WEEK) }
+      );
 
       // Natural weekly recovery
       const staffRecovery = p.staff.reduce((sum, s) => sum + (s.member.effects.recoveryBonus || 0), 0);
@@ -1663,7 +1679,8 @@ export const useCareerState = () => {
         if (!result) return player;
         const newCurrentYear = [...player.currentYearWeeklyPoints];
         newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
-        return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, currentYearWeeklyPoints: newCurrentYear, weeklyEarnedPoints: (player.weeklyEarnedPoints || 0) + result.points };
+        const fatigueGain = calculateTournamentFatigueGain(result.round, tournament.category, tournament.playerLimit);
+        return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, currentYearWeeklyPoints: newCurrentYear, weeklyEarnedPoints: (player.weeklyEarnedPoints || 0) + result.points, fatigue: Math.min(100, (player.fatigue ?? 0) + fatigueGain) };
       });
 
       const p = { ...prev.player };
@@ -1745,7 +1762,8 @@ export const useCareerState = () => {
           if (!result) return player;
           const newCurrentYear = [...player.currentYearWeeklyPoints];
           newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
-          return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, currentYearWeeklyPoints: newCurrentYear, weeklyEarnedPoints: (player.weeklyEarnedPoints || 0) + result.points };
+          const fatigueGain = calculateTournamentFatigueGain(result.round, t.category, t.playerLimit);
+          return { ...player, livePoints: player.livePoints + result.points, points: player.points + result.points, currentYearWeeklyPoints: newCurrentYear, weeklyEarnedPoints: (player.weeklyEarnedPoints || 0) + result.points, fatigue: Math.min(100, (player.fatigue ?? 0) + fatigueGain) };
         });
 
         newCompleted.push(t.id);
@@ -1878,7 +1896,7 @@ export const useCareerState = () => {
       if (!parsed.allPlayers || parsed.allPlayers.length < 200) {
         parsed.allPlayers = allInitialPlayers.map(p => ({ ...p }));
       }
-      parsed.allPlayers = parsed.allPlayers.map((p: Player) => ({ ...p, age: p.age || 25, previousRanking: p.previousRanking || p.officialRanking, weeklyDefensePoints: p.weeklyDefensePoints || 0, weeklyEarnedPoints: p.weeklyEarnedPoints || 0 }));
+      parsed.allPlayers = parsed.allPlayers.map((p: Player) => ({ ...p, age: p.age || 25, previousRanking: p.previousRanking || p.officialRanking, weeklyDefensePoints: p.weeklyDefensePoints || 0, weeklyEarnedPoints: p.weeklyEarnedPoints || 0, fatigue: p.fatigue ?? 0 }));
       if (parsed.player) {
         if (!parsed.player.sponsors) parsed.player.sponsors = [];
         if (!parsed.player.staff) parsed.player.staff = [];

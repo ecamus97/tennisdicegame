@@ -775,6 +775,44 @@ export function calculateWinsFromRound(round: string, drawSize: number): number 
 }
 
 /**
+ * How physically demanding a tournament category is, relative to a baseline ATP 500 (1.0).
+ * Grand Slams (best-of-5, 7 rounds) are the most fatiguing; Challengers/ITFs the least.
+ * Used both for CPU entry-fatigue and for the career player's own match fatigue.
+ */
+export function getCategoryFatigueMultiplier(category: string): number {
+  switch (category) {
+    case 'Grand Slam': return 1.6;
+    case 'ATP Finals': return 1.3;
+    case 'Masters 1000': return 1.15;
+    case 'ATP 500': return 1.0;
+    case 'ATP 250': return 0.85;
+    case 'Laver Cup': return 0.8;
+    case 'Davis Cup': return 0.8;
+    default:
+      if (category.startsWith('Challenger')) return 0.75;
+      if (category.startsWith('ITF')) return 0.6;
+      return 0.9;
+  }
+}
+
+const BASE_FATIGUE_PER_MATCH = 7;
+const MAX_FATIGUE_PER_TOURNAMENT = 55;
+
+/**
+ * Fatigue a CPU player accumulates from a single tournament, based on how many matches
+ * they played (derived from the round reached) and how demanding the category is.
+ * Deep runs in big events (e.g. a Grand Slam final) cost far more than an early exit
+ * from a small event, so those players are then less likely to enter the following weeks.
+ */
+export function calculateTournamentFatigueGain(round: string, category: string, drawSize: number): number {
+  const wins = calculateWinsFromRound(round, drawSize);
+  const matchesPlayed = wins + (round === 'Winner' ? 0 : 1);
+  if (matchesPlayed <= 0) return 0;
+  const gain = matchesPlayed * BASE_FATIGUE_PER_MATCH * getCategoryFatigueMultiplier(category);
+  return Math.min(MAX_FATIGUE_PER_TOURNAMENT, Math.round(gain));
+}
+
+/**
  * Convert a CareerPlayer to a Player object for use in the match engine and rankings.
  */
 export function careerPlayerToPlayer(cp: CareerPlayer): Player {
@@ -793,6 +831,7 @@ export function careerPlayerToPlayer(cp: CareerPlayer): Player {
     previousYearPoints: cp.previousYearPoints,
     currentYearWeeklyPoints: cp.currentYearWeeklyPoints || new Array(52).fill(0),
     weeklyDefensePoints: 0,
+    fatigue: cp.fatigue,
     injured: cp.injured,
     injuryWeeksRemaining: cp.injuryWeeksRemaining,
     surfaceAffinity: {

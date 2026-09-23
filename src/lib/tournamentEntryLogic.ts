@@ -75,6 +75,41 @@ export const getEntryProbability = (
   }
 };
 
+// How much a player's accumulated fatigue reduces their odds of entering the next tournament.
+// A player coming off a deep run (high fatigue) strongly prefers to rest for a few weeks.
+export const getFatigueEntryMultiplier = (fatigue: number): number => {
+  if (fatigue >= 85) return 0.1;
+  if (fatigue >= 70) return 0.3;
+  if (fatigue >= 55) return 0.55;
+  if (fatigue >= 40) return 0.8;
+  return 1;
+};
+
+// Players tend to defend the ranking points they earned at this same tournament/week last
+// year, so having scored points in that week last season makes them more likely to enter again.
+export const getDefendingPointsBoost = (previousYearPoints: number[] | undefined, week: number): number => {
+  const pts = previousYearPoints?.[week - 1] || 0;
+  if (pts <= 0) return 1;
+  if (pts >= 1000) return 1.5;
+  if (pts >= 400) return 1.35;
+  if (pts >= 150) return 1.2;
+  return 1.1;
+};
+
+// Combines base entry probability (ranking + category) with fatigue and points-defense adjustments.
+export const getAdjustedEntryProbability = (
+  player: Player,
+  category: TournamentCategory,
+  week: number
+): number => {
+  const base = getEntryProbability(player.officialRanking, category);
+  if (base <= 0) return 0;
+  const adjusted = base
+    * getFatigueEntryMultiplier(player.fatigue ?? 0)
+    * getDefendingPointsBoost(player.previousYearPoints, week);
+  return Math.max(0, Math.min(1, adjusted));
+};
+
 // Get number of wild cards by tournament category
 const getWildCardCount = (category: TournamentCategory): number => {
   switch (category) {
@@ -239,6 +274,7 @@ export const selectTournamentEntrants = (
   players: Player[],
   category: TournamentCategory,
   playerLimit: number,
+  week: number,
   tournamentCountry?: string,
   forceIncludePlayer?: Player // Force include a specific player (Career Mode player)
 ): TournamentEntryResult => {
@@ -265,7 +301,7 @@ export const selectTournamentEntrants = (
   for (const player of sortedPlayers) {
     if (entrants.length >= mainDrawLimit) break;
     if (forceIncludePlayer && player.id === forceIncludePlayer.id) continue; // Already added
-    const probability = getEntryProbability(player.officialRanking, category);
+    const probability = getAdjustedEntryProbability(player, category, week);
     if (Math.random() < probability) {
       entrants.push(player);
     }
