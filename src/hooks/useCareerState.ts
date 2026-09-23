@@ -119,6 +119,7 @@ const getInitialCareerState = (): CareerState => {
         if (parsed.player.officialPoints === undefined) parsed.player.officialPoints = parsed.player.livePoints || 0;
         if (!parsed.player.currentYearWeeklyPoints) parsed.player.currentYearWeeklyPoints = new Array(52).fill(0);
         if (!parsed.player.stats.titlesDetail) parsed.player.stats.titlesDetail = [];
+        if (!parsed.player.weeklyPlan) parsed.player.weeklyPlan = [];
         parsed.player.fictionalRankingScore = calculateFictionalRankingScore(parsed.player.attributes);
       }
       return parsed;
@@ -1889,6 +1890,7 @@ export const useCareerState = () => {
         if (parsed.player.officialPoints === undefined) parsed.player.officialPoints = parsed.player.livePoints || 0;
         if (!parsed.player.currentYearWeeklyPoints) parsed.player.currentYearWeeklyPoints = new Array(52).fill(0);
         if (!parsed.player.stats.titlesDetail) parsed.player.stats.titlesDetail = [];
+        if (!parsed.player.weeklyPlan) parsed.player.weeklyPlan = [];
         parsed.player.fictionalRankingScore = calculateFictionalRankingScore(parsed.player.attributes);
       }
       if (!parsed.globalH2H) parsed.globalH2H = {};

@@ -37,16 +37,18 @@ const MONTHS: { name: string; weeks: number[] }[] = [
 const TrainingRoadmap: React.FC<Props> = ({ player, currentWeek, allTournaments, onUpdatePlan }) => {
   const [editingWeek, setEditingWeek] = useState<number | null>(null);
 
+  const weeklyPlan = player.weeklyPlan ?? [];
+
   const getPlanForWeek = (week: number): WeeklyPlanEntry =>
-    player.weeklyPlan.find(p => p.week === week) || { week, type: 'unplanned' };
+    weeklyPlan.find(p => p.week === week) || { week, type: 'unplanned' };
 
   const updateWeekPlan = (week: number, type: WeeklyPlanEntry['type'], tournamentId?: string, trainingType?: string) => {
-    const existing = player.weeklyPlan.filter(p => p.week !== week);
+    const existing = weeklyPlan.filter(p => p.week !== week);
     onUpdatePlan([...existing, { week, type, tournamentId, trainingType }]);
   };
 
   const clearWeek = (week: number) => {
-    onUpdatePlan(player.weeklyPlan.filter(p => p.week !== week));
+    onUpdatePlan(weeklyPlan.filter(p => p.week !== week));
     if (editingWeek === week) setEditingWeek(null);
   };
 
@@ -54,7 +56,7 @@ const TrainingRoadmap: React.FC<Props> = ({ player, currentWeek, allTournaments,
   const editingTournaments = editingWeek !== null ? allTournaments.filter(t => t.week === editingWeek) : [];
 
   // Stats
-  const planned = player.weeklyPlan.filter(p => p.type !== 'unplanned');
+  const planned = weeklyPlan.filter(p => p.type !== 'unplanned');
   const tournamentCount = planned.filter(p => p.type === 'tournament').length;
   const trainingCount = planned.filter(p => p.type === 'training').length;
   const restCount = planned.filter(p => p.type === 'rest').length;
