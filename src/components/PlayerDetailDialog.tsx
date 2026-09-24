@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Trophy, TrendingUp, Zap, Heart, BarChart3, Flame } from "lucide-react";
+import { Trophy, TrendingUp, Zap, Heart, BarChart3, Flame, Activity } from "lucide-react";
 
 interface PlayerDetailDialogProps {
   player: Player | null;
@@ -72,6 +72,11 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
   };
   const totalMatches = stats.wins + stats.losses;
   const winPct = totalMatches > 0 ? ((stats.wins / totalMatches) * 100).toFixed(1) : "—";
+  const fatigue = Math.round(player.fatigue ?? 0);
+  const fatigueColor = fatigue >= 70 ? "bg-red-500/20 text-red-400 border-red-500/30"
+    : fatigue >= 40 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+    : "bg-green-500/20 text-green-400 border-green-500/30";
+  const fatigueLabel = fatigue >= 70 ? "Muy cansado" : fatigue >= 40 ? "Algo cansado" : "Descansado";
 
   const handleSave = () => {
     const ranking = Math.max(1, Math.min(150, editingRanking));
@@ -117,6 +122,10 @@ const PlayerDetailDialog: React.FC<PlayerDetailDialogProps> = ({
                 Injured ({player.injuryWeeksRemaining} weeks)
               </Badge>
             )}
+            <Badge className={`gap-1 ${fatigueColor}`} title="Fatiga acumulada — afecta la probabilidad de que se anote a los próximos torneos">
+              <Activity className="w-3 h-3" />
+              Fatiga {fatigue}% · {fatigueLabel}
+            </Badge>
             {stats.titles > 0 && (
               <Badge className="gap-1 bg-amber-500/20 text-amber-400 border-amber-500/30">
                 <Trophy className="w-3 h-3" />
