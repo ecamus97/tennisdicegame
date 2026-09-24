@@ -692,11 +692,19 @@ export const useCareerState = () => {
   }, []);
 
   const enterTournament = useCallback((tournamentId: string) => {
-    setState(prev => ({ ...prev, activeTournament: tournamentId, currentDraw: null }));
+    setState(prev => ({
+      ...prev,
+      activeTournament: tournamentId,
+      // Keep the saved draw if it belongs to this same tournament (resuming progress
+      // after hitting Back), otherwise start fresh for the newly entered tournament.
+      currentDraw: prev.currentDraw?.tournamentId === tournamentId ? prev.currentDraw : null,
+    }));
   }, []);
 
   const leaveTournament = useCallback(() => {
-    setState(prev => ({ ...prev, activeTournament: null, currentDraw: null }));
+    // Don't clear currentDraw here — the player may have made progress in the bracket
+    // and just wants to check something else before coming back to finish it.
+    setState(prev => ({ ...prev, activeTournament: null }));
   }, []);
 
   const saveCurrentDraw = useCallback((draw: TournamentDraw) => {
