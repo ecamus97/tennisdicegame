@@ -366,10 +366,10 @@ const extendedPlayerEntries: PlayerEntry[] = [
   // Davis Cup: second players added for countries that only had one, plus new countries.
   // Ordered by real ATP ranking (best first); anyone ranked outside the top 500 is simply
   // appended at the bottom of the pool rather than mapped to their real (much higher) number.
-  { rank: 504, name: "Daniil Glinka", country: "Estonia", countryCode: "EST" },
+  { rank: 504, name: "Kristjan Ounpuu", country: "Estonia", countryCode: "EST" },
   { rank: 505, name: "Karim Bennani", country: "Morocco", countryCode: "MAR" },
   { rank: 506, name: "Khumoyun Sultanov", country: "Uzbekistan", countryCode: "UZB" },
-  { rank: 507, name: "Maximus Jones", country: "Thailand", countryCode: "THA" },
+  { rank: 507, name: "Nattapong Sriwilai", country: "Thailand", countryCode: "THA" },
   { rank: 508, name: "Yassine Dlimi", country: "Morocco", countryCode: "MAR" },
   { rank: 509, name: "Filip Jeff Planinsek", country: "Slovenia", countryCode: "SLO" },
   { rank: 510, name: "Anton Shepp", country: "New Zealand", countryCode: "NZL" },
@@ -384,12 +384,12 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 519, name: "Lucas Catarina", country: "Monaco", countryCode: "MON" },
 
   // Davis Cup: completing the World Group II pool (13 countries) + Ecuador's 2nd player.
-  { rank: 520, name: "Franco Roncadelli", country: "Uruguay", countryCode: "URU" },
+  { rank: 520, name: "Facundo Methol", country: "Uruguay", countryCode: "URU" },
   { rank: 521, name: "Nick Hardt", country: "Dominican Republic", countryCode: "DOM" },
   { rank: 522, name: "Alvaro Guillen Meza", country: "Ecuador", countryCode: "ECU" },
   { rank: 523, name: "Joaquin Aguilar Cardozo", country: "Uruguay", countryCode: "URU" },
-  { rank: 524, name: "Robert Strombachs", country: "Latvia", countryCode: "LAT" },
-  { rank: 525, name: "Oleg Prihodko", country: "North Macedonia", countryCode: "MKD" },
+  { rank: 524, name: "Andrejs Balodis", country: "Latvia", countryCode: "LAT" },
+  { rank: 525, name: "Filip Nikoloski", country: "North Macedonia", countryCode: "MKD" },
   { rank: 526, name: "Melios Efstathiou", country: "Cyprus", countryCode: "CYP" },
   { rank: 527, name: "Karlis Ozolins", country: "Latvia", countryCode: "LAT" },
   { rank: 528, name: "Kalin Ivanovski", country: "North Macedonia", countryCode: "MKD" },
