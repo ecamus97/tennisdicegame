@@ -119,6 +119,9 @@ const CareerMode = () => {
               isCompleted={career.completedTournaments.includes(tournamentId)}
               savedDraw={career.currentDraw}
               onSaveDraw={career.saveCurrentDraw}
+              currentWeek={career.currentWeek}
+              davisCupSeason={career.davisCupSeason}
+              onDavisCupSeasonChange={career.updateDavisCupSeason}
             />
           </main>
         </div>

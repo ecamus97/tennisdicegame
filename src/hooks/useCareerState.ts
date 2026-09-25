@@ -18,6 +18,10 @@ import { playMatch } from '@/lib/matchEngine';
 import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard, getEligibleRankingRange, getCountryCodeFromCountry, getEntryProbability, getAdjustedEntryProbability } from '@/lib/tournamentEntryLogic';
 import { TournamentDraw } from '@/hooks/useGameState';
 import { processSeasonTransition } from '@/lib/retirementLogic';
+import {
+  DavisCupSeasonState, generateYear1Season, generateNextSeason,
+  generateSeptemberRounds, generateFinalEight, advanceFinalEight, autoResolveTies,
+} from '@/data/davisCupData';
 
 // Processing order for weekly tournament simulation: higher-tier events run first
 // so their entrants are locked in before lower-tier draws are generated.
@@ -95,6 +99,7 @@ const getInitialCareerState = (): CareerState => {
       if (parsed.activeTournament === undefined) parsed.activeTournament = null;
       if (!parsed.tournamentHistory) parsed.tournamentHistory = [];
       if (!parsed.currentDraw) parsed.currentDraw = null;
+      if (parsed.davisCupSeason === undefined) parsed.davisCupSeason = null;
       if (!parsed.globalH2H) parsed.globalH2H = {};
       if (!parsed.newsItems) {
         parsed.newsItems = [];
@@ -137,6 +142,7 @@ const getInitialCareerState = (): CareerState => {
     weeklyActionTaken: false,
     activeTournament: null,
     currentDraw: null,
+    davisCupSeason: null,
     globalH2H: {},
     newsItems: [],
     weeklyUsedPlayerIds: [],
@@ -709,6 +715,10 @@ export const useCareerState = () => {
 
   const saveCurrentDraw = useCallback((draw: TournamentDraw) => {
     setState(prev => ({ ...prev, currentDraw: draw }));
+  }, []);
+
+  const updateDavisCupSeason = useCallback((season: DavisCupSeasonState) => {
+    setState(prev => ({ ...prev, davisCupSeason: season }));
   }, []);
 
   // Complete a tournament played through bracket
@@ -1642,6 +1652,49 @@ export const useCareerState = () => {
       const generatedNews = generateWeeklyNews(weekSimulations, p, prev.currentWeek, prev.currentSeason, ranked);
       const updatedNewsItems = [...generatedNews, ...(prev.newsItems || [])].slice(0, 30);
 
+      // Davis Cup: auto-resolve any ties the player didn't play, then roll the season structure forward.
+      let updatedDavisCup = prev.davisCupSeason;
+      const getDCPlayer = (id: number) => ranked.find(pl => pl.id === id);
+      if (prev.currentWeek === 6) {
+        if (!updatedDavisCup) updatedDavisCup = generateYear1Season(ranked);
+        updatedDavisCup = {
+          ...updatedDavisCup,
+          qualifiersR1: autoResolveTies(updatedDavisCup.qualifiersR1, getDCPlayer),
+          worldGroupIRound1: autoResolveTies(updatedDavisCup.worldGroupIRound1, getDCPlayer),
+          worldGroupIIRound1: autoResolveTies(updatedDavisCup.worldGroupIIRound1, getDCPlayer),
+        };
+        updatedDavisCup = generateSeptemberRounds(updatedDavisCup);
+        if (!newCompleted.includes('davis-cup-feb')) newCompleted.push('davis-cup-feb');
+      }
+      if (prev.currentWeek === 38 && updatedDavisCup) {
+        updatedDavisCup = {
+          ...updatedDavisCup,
+          worldGroupIRound2: autoResolveTies(updatedDavisCup.worldGroupIRound2, getDCPlayer),
+          worldGroupIIRound2: autoResolveTies(updatedDavisCup.worldGroupIIRound2, getDCPlayer),
+          qualifiersR2: autoResolveTies(updatedDavisCup.qualifiersR2, getDCPlayer),
+        };
+        updatedDavisCup = generateFinalEight(updatedDavisCup);
+        if (!newCompleted.includes('davis-cup-sept')) newCompleted.push('davis-cup-sept');
+      }
+      if (prev.currentWeek === 48 && updatedDavisCup) {
+        for (let i = 0; i < 6; i++) {
+          updatedDavisCup = {
+            ...updatedDavisCup,
+            finalEight: {
+              ...updatedDavisCup.finalEight,
+              quarterFinals: autoResolveTies(updatedDavisCup.finalEight.quarterFinals, getDCPlayer),
+              semiFinals: autoResolveTies(updatedDavisCup.finalEight.semiFinals, getDCPlayer),
+              final: updatedDavisCup.finalEight.final ? autoResolveTies([updatedDavisCup.finalEight.final], getDCPlayer)[0] : undefined,
+            },
+          };
+          updatedDavisCup = advanceFinalEight(updatedDavisCup);
+        }
+        if (updatedDavisCup.history.champion) {
+          updatedDavisCup = generateNextSeason(updatedDavisCup, ranked);
+        }
+        if (!newCompleted.includes('davis-cup-final8')) newCompleted.push('davis-cup-final8');
+      }
+
       return {
         ...prev,
         player: p,
@@ -1653,6 +1706,7 @@ export const useCareerState = () => {
         weeklyActionTaken: false,
         activeTournament: null,
         currentDraw: null,
+        davisCupSeason: updatedDavisCup,
         seasonSummary,
         globalH2H: updatedGlobalH2H,
         newsItems: updatedNewsItems,
@@ -1875,6 +1929,7 @@ export const useCareerState = () => {
       player: null, allPlayers: [], currentWeek: 1, currentSeason: 1,
       completedTournaments: [], tournamentHistory: [], isCreated: false,
       weeklyActionTaken: false, activeTournament: null, currentDraw: null,
+      davisCupSeason: null,
       globalH2H: {}, newsItems: [], weeklyUsedPlayerIds: [],
     });
   }, []);
@@ -1921,6 +1976,7 @@ export const useCareerState = () => {
       }
       if (!parsed.globalH2H) parsed.globalH2H = {};
       if (!parsed.weeklyUsedPlayerIds) parsed.weeklyUsedPlayerIds = [];
+      if (parsed.davisCupSeason === undefined) parsed.davisCupSeason = null;
       if (!parsed.newsItems) {
         parsed.newsItems = [];
       } else {
@@ -1965,6 +2021,7 @@ export const useCareerState = () => {
     completeTournament,
     quickSimTournament,
     saveCurrentDraw,
+    updateDavisCupSeason,
     train,
     rest,
     advanceWeek,

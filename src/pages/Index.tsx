@@ -7,6 +7,7 @@ import SeasonSummaryDialog from "@/components/SeasonSummaryDialog";
 import RankingsView from "@/components/RankingsView";
 import CalendarView from "@/components/CalendarView";
 import CurrentWeekView from "@/components/CurrentWeekView";
+import { DavisCupSeasonState } from "@/components/DavisCupView";
 import PlayerDetailDialog from "@/components/PlayerDetailDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Calendar, Play, Dice1, RotateCcw, ChevronRight, Save, User, Sun, Moon } from "lucide-react";
@@ -57,6 +58,7 @@ const Index = () => {
     weekTournaments[0] || null
   );
   const [activeTab, setActiveTab] = useState("current");
+  const [davisCupSeason, setDavisCupSeason] = useState<DavisCupSeasonState | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [playerDialogOpen, setPlayerDialogOpen] = useState(false);
 
@@ -272,6 +274,9 @@ const Index = () => {
                         isCompleted={completedTournaments.includes(selectedTournament.id)}
                         savedDraw={currentDraw}
                         onSaveDraw={saveCurrentDraw}
+                        currentWeek={currentWeek}
+                        davisCupSeason={davisCupSeason}
+                        onDavisCupSeasonChange={setDavisCupSeason}
                         excludedPlayerIds={excludedPlayerIds}
                         sameWeekSameCategoryCount={
                           weekTournaments.filter(

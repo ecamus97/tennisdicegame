@@ -6,7 +6,7 @@ import { StoredMatch, TournamentDraw } from "@/hooks/useGameState";
 import TournamentBracket from "./TournamentBracket";
 import InteractiveMatchSimulator from "./InteractiveMatchSimulator";
 import ATPFinalsView, { ATPFinalsState } from "./ATPFinalsView";
-import DavisCupView, { DavisCupState, updateDavisCupMatchResult } from "./DavisCupView";
+import DavisCupView, { DavisCupSeasonState, applyDavisCupMatchResult } from "./DavisCupView";
 import LaverCupView, { LaverCupState } from "./LaverCupView";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +48,9 @@ interface CurrentWeekViewProps {
   getH2HRecord?: (opponentId: number) => { wins: number; losses: number };
   getH2HPair?: (id1: number, id2: number) => { p1Wins: number; p2Wins: number };
   onPlayersLocked?: (playerIds: number[]) => void;
+  currentWeek?: number;
+  davisCupSeason?: DavisCupSeasonState | null;
+  onDavisCupSeasonChange?: (season: DavisCupSeasonState) => void;
 }
 
 // Helper function - defined outside component to avoid hoisting issues
@@ -78,6 +81,9 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   getH2HRecord,
   getH2HPair,
   onPlayersLocked,
+  currentWeek = 0,
+  davisCupSeason = null,
+  onDavisCupSeasonChange,
 }) => {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [wildCardIds, setWildCardIds] = useState<Set<number>>(new Set());
@@ -92,7 +98,6 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
   const [atpFinalsSelectedMatch, setAtpFinalsSelectedMatch] = useState<{ match: any; context: any } | null>(null);
   const [forcedEntrants, setForcedEntrants] = useState<Player[]>(initialForcedEntrants);
   const [searchQuery, setSearchQuery] = useState("");
-  const [davisCupState, setDavisCupState] = useState<DavisCupState | null>(null);
   const [davisCupSelectedMatch, setDavisCupSelectedMatch] = useState<{
     matchPlayer1: Player;
     matchPlayer2: Player;
@@ -478,16 +483,12 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
 
   // Handle Davis Cup match completion
   const handleDavisCupMatchComplete = useCallback((result: MatchResult) => {
-    if (!davisCupSelectedMatch || !davisCupState) return;
+    if (!davisCupSelectedMatch || !davisCupSeason || !onDavisCupSeasonChange) return;
     const { matchId, seriesId, matchPlayer1 } = davisCupSelectedMatch;
     const country1Won = result.winner.id === matchPlayer1.id;
-    
-    setDavisCupState(prev => {
-      if (!prev) return prev;
-      return updateDavisCupMatchResult(prev, seriesId, matchId, country1Won, result);
-    });
+    onDavisCupSeasonChange(applyDavisCupMatchResult(davisCupSeason, seriesId, matchId, country1Won, result));
     setDavisCupSelectedMatch(null);
-  }, [davisCupSelectedMatch, davisCupState]);
+  }, [davisCupSelectedMatch, davisCupSeason, onDavisCupSeasonChange]);
 
   const handleMatchComplete = (matchId: string, result: MatchResult) => {
     setDraw(prev => {
@@ -880,19 +881,17 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
         
         <DavisCupView
           players={players}
-          state={davisCupState}
-          onStateChange={setDavisCupState}
-          onMatchClick={(p1, p2, matchId, seriesId) => 
-            setDavisCupSelectedMatch({ matchPlayer1: p1, matchPlayer2: p2, matchId, seriesId })
+          season={davisCupSeason}
+          currentWeek={currentWeek}
+          onSeasonChange={(season) => onDavisCupSeasonChange?.(season)}
+          onMatchClick={(p1, p2, matchId, tieId) =>
+            setDavisCupSelectedMatch({ matchPlayer1: p1, matchPlayer2: p2, matchId, seriesId: tieId })
           }
           onComplete={() => {
             setResultsSubmitted(true);
-            if (davisCupState?.final?.winner) {
-              const winnerCountry = davisCupState.countries.find(c => c.countryCode === davisCupState.final!.winner);
-              const runnerUpCode = davisCupState.final.winner === davisCupState.final.country1Code
-                ? davisCupState.final.country2Code
-                : davisCupState.final.country1Code;
-              const runnerUpCountry = davisCupState.countries.find(c => c.countryCode === runnerUpCode);
+            if (davisCupSeason?.history.champion) {
+              const winnerCountry = davisCupSeason.countries[davisCupSeason.history.champion];
+              const runnerUpCountry = davisCupSeason.history.runnerUp ? davisCupSeason.countries[davisCupSeason.history.runnerUp] : undefined;
               onTournamentComplete?.(
                 tournament.id,
                 [],

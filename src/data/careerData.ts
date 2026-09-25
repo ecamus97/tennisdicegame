@@ -1,4 +1,5 @@
 import { Surface, Player, initialPlayers, PlayerStats, SurfaceAffinity } from './players';
+import { DavisCupSeasonState } from './davisCupData';
 
 // ==================== CAREER TYPES ====================
 
@@ -255,6 +256,7 @@ export interface CareerState {
   globalH2H: Record<string, [number, number]>; // key: "${minId}-${maxId}", value: [wins_by_minId, wins_by_maxId]
   newsItems: NewsItem[];
   weeklyUsedPlayerIds: number[]; // IDs of players committed to a tournament this week (to prevent cross-tournament duplication)
+  davisCupSeason: DavisCupSeasonState | null;
 }
 
 // ==================== CONSTANTS ====================

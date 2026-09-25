@@ -698,10 +698,22 @@ export const tournaments: Tournament[] = [
     isRoundRobin: true,
     points: { winner: 500, finalist: 0, sf: 400, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0, groupWin: 200 },
   },
-  // Week 47: Davis Cup Finals
+  // Week 6: Davis Cup Qualifiers R1, World Group I & II Playoffs (Round 1)
   {
-    id: "davis-cup", name: "Davis Cup Finals", city: "Málaga", country: "Spain",
-    category: "Davis Cup", surface: "Hard", week: 47, playerLimit: 32, seeds: 0,
+    id: "davis-cup-feb", name: "Davis Cup Qualifiers & Play-offs", city: "Various", country: "World",
+    category: "Davis Cup", surface: "Hard", week: 6, playerLimit: 32, seeds: 0,
+    points: { winner: 0, finalist: 0, sf: 0, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0 },
+  },
+  // Week 38: Davis Cup Qualifiers R2, World Group I & II Playoffs (Round 2)
+  {
+    id: "davis-cup-sept", name: "Davis Cup Qualifiers R2 & Play-offs", city: "Various", country: "World",
+    category: "Davis Cup", surface: "Hard", week: 38, playerLimit: 32, seeds: 0,
+    points: { winner: 0, finalist: 0, sf: 0, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0 },
+  },
+  // Week 48: Davis Cup Final Eight
+  {
+    id: "davis-cup-final8", name: "Davis Cup Final Eight", city: "Bologna", country: "Italy",
+    category: "Davis Cup", surface: "Hard", week: 48, playerLimit: 32, seeds: 0,
     points: { winner: 0, finalist: 0, sf: 0, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0 },
   },
 ];
