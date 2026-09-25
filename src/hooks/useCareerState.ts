@@ -1661,7 +1661,6 @@ export const useCareerState = () => {
           ...updatedDavisCup,
           qualifiersR1: autoResolveTies(updatedDavisCup.qualifiersR1, getDCPlayer),
           worldGroupIRound1: autoResolveTies(updatedDavisCup.worldGroupIRound1, getDCPlayer),
-          worldGroupIIRound1: autoResolveTies(updatedDavisCup.worldGroupIIRound1, getDCPlayer),
         };
         updatedDavisCup = generateSeptemberRounds(updatedDavisCup);
         if (!newCompleted.includes('davis-cup-feb')) newCompleted.push('davis-cup-feb');

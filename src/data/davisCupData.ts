@@ -55,13 +55,17 @@ export interface DavisCupFinalEight {
 }
 
 export interface DavisCupSeasonHistory {
-  qualifiersR1Winners: string[];
+  qualifiersR1Winners: string[]; // -> Qualifiers R2
+  qualifiersR1Losers: string[]; // -> World Group I (Sept)
+  worldGroupIRound1Winners: string[]; // -> World Group I (Sept)
+  worldGroupIRound1Losers: string[]; // -> World Group II (Sept)
   qualifiersR2Winners: string[]; // -> Final Eight
   qualifiersR2Losers: string[]; // -> next season Qualifiers R1 (7)
-  worldGroupIRound1Winners: string[]; // -> next season Qualifiers R1 (13, direct promotion, no Sept match)
-  worldGroupIRound2Winners: string[]; // -> stay in World Group I next season
-  worldGroupIRound2Losers: string[]; // -> drop to World Group II next season
-  worldGroupIIRound1Losers: string[]; // -> stay in World Group II next season (rule: losers never drop further)
+  worldGroupIRound2Winners: string[]; // -> next season Qualifiers R1 (13)
+  worldGroupIRound2Losers: string[]; // -> next season World Group I
+  worldGroupIIRound2Winners: string[]; // countries promoted from the World Group II pool -> next season World Group I
+  worldGroupIIRound2Losers: string[]; // World Group II pool members who stay -> next season World Group II pool
+  worldGroupIIRound2ByeCodes: string[]; // World Group I (Feb) losers with no World Group II opponent available -> stay in World Group I next season
   champion?: string;
   runnerUp?: string;
   finalEightParticipants: string[];
@@ -72,15 +76,24 @@ export interface DavisCupSeasonState {
   countries: Record<string, DavisCupCountryEntry>;
   qualifiersR1: DavisCupTie[]; // Feb, 13 ties
   worldGroupIRound1: DavisCupTie[]; // Feb, 13 ties
-  worldGroupIRound2: DavisCupTie[]; // Sept, 13 ties (Feb WG1 losers vs Feb WG2 winners) - generated once Feb results are in
-  worldGroupIIRound1: DavisCupTie[]; // Feb, 13 ties
-  worldGroupIIRound2: DavisCupTie[]; // Sept, cosmetic re-draw among Feb WG2 losers, no promotion/relegation consequence
+  worldGroupIIPool: string[]; // World Group II does not play in Feb; this is the static list of countries (up to 13, only those with 2+ eligible players) it contributes to the September tie
+  worldGroupIRound2: DavisCupTie[]; // Sept: World Group I (Feb) winners vs Qualifiers R1 (Feb) losers
+  worldGroupIIRound2: DavisCupTie[]; // Sept: World Group I (Feb) losers vs the World Group II pool
   qualifiersR2: DavisCupTie[]; // Sept, 7 ties (13 QR1 winners + runner-up bye)
   finalEight: DavisCupFinalEight;
   championDefending: string; // country code with the automatic Final Eight bye this season
   runnerUpBye: string; // country code with the automatic Qualifiers R2 bye this season
   history: DavisCupSeasonHistory;
 }
+
+const EMPTY_HISTORY: DavisCupSeasonHistory = {
+  qualifiersR1Winners: [], qualifiersR1Losers: [],
+  worldGroupIRound1Winners: [], worldGroupIRound1Losers: [],
+  qualifiersR2Winners: [], qualifiersR2Losers: [],
+  worldGroupIRound2Winners: [], worldGroupIRound2Losers: [],
+  worldGroupIIRound2Winners: [], worldGroupIIRound2Losers: [], worldGroupIIRound2ByeCodes: [],
+  finalEightParticipants: [],
+};
 
 // ==================== YEAR 1 SEED DATA ====================
 // Country codes match the game's existing countryCode field where the nation already exists.
@@ -235,26 +248,31 @@ const crossPair = (
   return ties;
 };
 
-/** Redraws a single pool of countries against itself. Odd count -> last country gets a bye (no consequence). */
-const selfPair = (
+/**
+ * Pairs a (typically larger) group of countries against a smaller pool. The weakest members of the
+ * larger group play the pool (one tie each); the strongest members of the larger group, for whom no
+ * pool opponent is available, get an automatic bye (they stay where they are).
+ */
+const pairAgainstPool = (
   countries: Record<string, DavisCupCountryEntry>,
-  group: string[],
+  larger: string[],
+  pool: string[],
   tier: DavisCupTierId,
   label: string,
-): DavisCupTie[] => {
-  const shuffled = [...group];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
+): { ties: DavisCupTie[]; byeCodes: string[] } => {
+  const sortedLarger = [...larger].sort((a, b) => (countries[a]?.countryRanking ?? 9999) - (countries[b]?.countryRanking ?? 9999));
+  const sortedPool = [...pool].sort((a, b) => (countries[a]?.countryRanking ?? 9999) - (countries[b]?.countryRanking ?? 9999));
+  const n = Math.min(sortedLarger.length, sortedPool.length);
+  const toPlay = sortedLarger.slice(sortedLarger.length - n); // weakest n of the larger group
+  const byeCodes = sortedLarger.slice(0, sortedLarger.length - n); // strongest, no opponent available
   const ties: DavisCupTie[] = [];
-  for (let i = 0; i + 1 < shuffled.length; i += 2) {
-    const c1 = countries[shuffled[i]];
-    const c2 = countries[shuffled[i + 1]];
+  for (let i = 0; i < n; i++) {
+    const c1 = countries[toPlay[i]];
+    const c2 = countries[sortedPool[i]];
     if (!c1 || !c2) continue;
     ties.push(createTie(tier, label, c1, c2));
   }
-  return ties;
+  return { ties, byeCodes };
 };
 
 // ==================== SEASON GENERATION ====================
@@ -271,85 +289,77 @@ export const generateYear1Season = (allPlayers: Player[]): DavisCupSeasonState =
 
   const qualifiersR1 = pairPool(countries, QUALIFIERS_R1_YEAR1, "qualifiersR1", "Qualifiers R1");
   const worldGroupIRound1 = pairPool(countries, WORLD_GROUP_I_YEAR1, "worldGroupI", "World Group I Playoff");
-  const worldGroupIIRound1 = pairPool(countries, WORLD_GROUP_II_YEAR1, "worldGroupII", "World Group II Playoff");
+
+  // World Group II does not play in February: only the nations that currently have 2+ eligible
+  // players form the pool that will face World Group I's Feb losers in September (up to 13, best ranked first).
+  const worldGroupIICandidates = [...WORLD_GROUP_II_YEAR1.seeded, ...WORLD_GROUP_II_YEAR1.unseeded]
+    .filter(code => !countries[code]?.insufficientPlayers)
+    .sort((a, b) => (countries[a]?.countryRanking ?? 9999) - (countries[b]?.countryRanking ?? 9999))
+    .slice(0, 13);
 
   return {
     season: 1,
     countries,
     qualifiersR1,
     worldGroupIRound1,
+    worldGroupIIPool: worldGroupIICandidates,
     worldGroupIRound2: [],
-    worldGroupIIRound1,
     worldGroupIIRound2: [],
     qualifiersR2: [],
     finalEight: { quarterFinals: [], semiFinals: [] },
     championDefending: DEFENDING_CHAMPION_YEAR1,
     runnerUpBye: RUNNER_UP_YEAR1,
-    history: {
-      qualifiersR1Winners: [], qualifiersR2Winners: [], qualifiersR2Losers: [],
-      worldGroupIRound1Winners: [], worldGroupIRound2Winners: [], worldGroupIRound2Losers: [],
-      worldGroupIIRound1Losers: [], finalEightParticipants: [],
-    },
+    history: { ...EMPTY_HISTORY },
   };
 };
 
-/** Builds next season's three Feb pools from this season's results, and returns the fresh season state ready for Feb draws. */
+/** Builds next season's Feb pools (Qualifiers R1, World Group I) plus the new World Group II pool, from this season's results. */
 export const generateNextSeason = (prevSeason: DavisCupSeasonState, allPlayers: Player[]): DavisCupSeasonState => {
   const h = prevSeason.history;
 
-  // Qualifiers R1 next year = 6 non-champion/runner-up Final Eight nations + 7 Qualifiers R2 losers + 13 World Group I Round 1 winners
-  const finalEightOthers = h.finalEightParticipants.filter(
-    code => code !== h.champion && code !== h.runnerUp
-  );
-  const nextQR1Codes = [...finalEightOthers, ...h.qualifiersR2Losers, ...h.worldGroupIRound1Winners];
+  // Qualifiers R1 next year = 6 non-champion/runner-up Final Eight nations + 7 Qualifiers R2 losers + 13 World Group I (Sept) winners
+  const finalEightOthers = h.finalEightParticipants.filter(code => code !== h.champion && code !== h.runnerUp);
+  const nextQR1Codes = [...finalEightOthers, ...h.qualifiersR2Losers, ...h.worldGroupIRound2Winners];
 
-  // World Group I next year = 13 Qualifiers R1 losers (this year) + 13 World Group I Round 2 winners (this year)
-  const qr1Losers = prevSeason.qualifiersR1
-    .map(t => (t.winnerCode === t.country1Code ? t.country2Code : t.country1Code))
-    .filter(Boolean);
-  const nextWG1Codes = [...qr1Losers, ...h.worldGroupIRound2Winners];
+  // World Group I next year = World Group I (Sept) losers + World Group II (Sept) winners + World Group I Feb losers who got a bye (no WG2 opponent)
+  const nextWG1Codes = [...h.worldGroupIRound2Losers, ...h.worldGroupIIRound2Winners, ...h.worldGroupIIRound2ByeCodes];
 
-  // World Group II next year = World Group I Round 2 losers (relegated) + World Group II Round 1 losers (stayed)
-  const nextWG2Codes = [...h.worldGroupIRound2Losers, ...h.worldGroupIIRound1Losers];
+  // World Group II next year's pool = the pool members who lost their September tie (stay in World Group II)
+  const nextWG2Pool = [...h.worldGroupIIRound2Losers];
 
-  const trim = (codes: string[], n: number) => codes.slice(0, n);
   const balance = (codes: string[]) => codes.length % 2 === 0 ? codes : codes.slice(0, codes.length - 1);
-
   const seedFromCodes = (codes: string[], countries: Record<string, DavisCupCountryEntry>): PoolSeed => {
     const sorted = [...balance(codes)].sort((a, b) => (countries[a]?.countryRanking ?? 9999) - (countries[b]?.countryRanking ?? 9999));
     const half = Math.floor(sorted.length / 2);
     return { seeded: sorted.slice(0, half), unseeded: sorted.slice(half) };
   };
 
-  const allCodes = Array.from(new Set([...nextQR1Codes, ...nextWG1Codes, ...nextWG2Codes, prevSeason.history.champion || prevSeason.championDefending, prevSeason.history.runnerUp || prevSeason.runnerUpBye]));
+  const champion = h.champion || prevSeason.championDefending;
+  const runnerUp = h.runnerUp || prevSeason.runnerUpBye;
+  const allCodes = Array.from(new Set([...nextQR1Codes, ...nextWG1Codes, ...nextWG2Pool, champion, runnerUp]));
   const countries: Record<string, DavisCupCountryEntry> = {};
   allCodes.forEach(code => { countries[code] = buildCountryEntry(code, allPlayers); });
 
   const qr1Seed = seedFromCodes(nextQR1Codes, countries);
   const wg1Seed = seedFromCodes(nextWG1Codes, countries);
-  const wg2Seed = seedFromCodes(nextWG2Codes, countries);
 
   const qualifiersR1 = pairPool(countries, qr1Seed, "qualifiersR1", "Qualifiers R1");
   const worldGroupIRound1 = pairPool(countries, wg1Seed, "worldGroupI", "World Group I Playoff");
-  const worldGroupIIRound1 = pairPool(countries, wg2Seed, "worldGroupII", "World Group II Playoff");
+  const worldGroupIIPool = [...nextWG2Pool].sort((a, b) => (countries[a]?.countryRanking ?? 9999) - (countries[b]?.countryRanking ?? 9999));
 
   return {
     season: prevSeason.season + 1,
     countries,
     qualifiersR1,
     worldGroupIRound1,
+    worldGroupIIPool,
     worldGroupIRound2: [],
-    worldGroupIIRound1,
     worldGroupIIRound2: [],
     qualifiersR2: [],
     finalEight: { quarterFinals: [], semiFinals: [] },
-    championDefending: prevSeason.history.champion || prevSeason.championDefending,
-    runnerUpBye: prevSeason.history.runnerUp || prevSeason.runnerUpBye,
-    history: {
-      qualifiersR1Winners: [], qualifiersR2Winners: [], qualifiersR2Losers: [],
-      worldGroupIRound1Winners: [], worldGroupIRound2Winners: [], worldGroupIRound2Losers: [],
-      worldGroupIIRound1Losers: [], finalEightParticipants: [],
-    },
+    championDefending: champion,
+    runnerUpBye: runnerUp,
+    history: { ...EMPTY_HISTORY },
   };
 };
 
@@ -361,21 +371,26 @@ const winnerCodes = (ties: DavisCupTie[]): string[] => ties.map(t => t.winnerCod
 const loserCodes = (ties: DavisCupTie[]): string[] =>
   ties.map(t => (t.winnerCode === t.country1Code ? t.country2Code : t.country1Code)).filter(Boolean);
 
-/** Once Feb (Round 1) is complete for both World Group I and II, generate the September Round 2 ties. */
+/** Once Feb (Round 1) is complete for both Qualifiers R1 and World Group I, generate the September ties. */
 export const generateSeptemberRounds = (state: DavisCupSeasonState): DavisCupSeasonState => {
-  if (!allTiesComplete(state.worldGroupIRound1) || !allTiesComplete(state.worldGroupIIRound1)) return state;
-  if (state.worldGroupIRound2.length > 0 || state.worldGroupIIRound2.length > 0) return state; // already generated
+  if (!allTiesComplete(state.qualifiersR1) || !allTiesComplete(state.worldGroupIRound1)) return state;
+  if (state.worldGroupIRound2.length > 0 || state.qualifiersR2.length > 0) return state; // already generated
 
+  const q1Winners = winnerCodes(state.qualifiersR1);
+  const q1Losers = loserCodes(state.qualifiersR1);
+  const wg1Winners = winnerCodes(state.worldGroupIRound1);
   const wg1Losers = loserCodes(state.worldGroupIRound1);
-  const wg2Winners = winnerCodes(state.worldGroupIIRound1);
-  const wg2Losers = loserCodes(state.worldGroupIIRound1);
 
-  const worldGroupIRound2 = crossPair(state.countries, wg1Losers, wg2Winners, "worldGroupI", "World Group I Playoff - 2nd Round");
-  const worldGroupIIRound2 = selfPair(state.countries, wg2Losers, "worldGroupII", "World Group II Playoff - 2nd Round");
+  // World Group I (Sept): World Group I (Feb) winners vs Qualifiers R1 (Feb) losers.
+  const worldGroupIRound2 = crossPair(state.countries, wg1Winners, q1Losers, "worldGroupI", "World Group I Playoff - 2ª Ronda");
 
-  // Qualifiers R2: 13 Qualifiers R1 winners + runner-up bye (Spain)
-  const qr1Winners = winnerCodes(state.qualifiersR1);
-  const qr2Pool = [...qr1Winners, state.runnerUpBye];
+  // World Group II (Sept): World Group I (Feb) losers vs the World Group II pool. If the pool is
+  // smaller than 13, the strongest World Group I losers get a bye (no relegation opponent available).
+  const { ties: worldGroupIIRound2, byeCodes: worldGroupIIByeCodes } =
+    pairAgainstPool(state.countries, wg1Losers, state.worldGroupIIPool, "worldGroupII", "World Group II Playoff");
+
+  // Qualifiers R2: 13 Qualifiers R1 (Feb) winners + runner-up bye.
+  const qr2Pool = [...q1Winners, state.runnerUpBye];
   const qr2Seed: PoolSeed = (() => {
     const sorted = [...qr2Pool].sort((a, b) => (state.countries[a]?.countryRanking ?? 9999) - (state.countries[b]?.countryRanking ?? 9999));
     const half = Math.floor(sorted.length / 2);
@@ -388,11 +403,18 @@ export const generateSeptemberRounds = (state: DavisCupSeasonState): DavisCupSea
     worldGroupIRound2,
     worldGroupIIRound2,
     qualifiersR2,
-    history: { ...state.history, qualifiersR1Winners: qr1Winners },
+    history: {
+      ...state.history,
+      qualifiersR1Winners: q1Winners,
+      qualifiersR1Losers: q1Losers,
+      worldGroupIRound1Winners: wg1Winners,
+      worldGroupIRound1Losers: wg1Losers,
+      worldGroupIIRound2ByeCodes: worldGroupIIByeCodes,
+    },
   };
 };
 
-/** Once September rounds are complete, generate the Final Eight bracket. */
+/** Once September ties are complete, generate the Final Eight bracket. */
 export const generateFinalEight = (state: DavisCupSeasonState): DavisCupSeasonState => {
   if (!allTiesComplete(state.qualifiersR2)) return state;
   if (state.finalEight.quarterFinals.length > 0) return state; // already generated
@@ -411,10 +433,10 @@ export const generateFinalEight = (state: DavisCupSeasonState): DavisCupSeasonSt
     createTie("finalEight", "Final Eight - QF", get(sorted[1]), get(sorted[6])),
   ].filter(t => t.country1Code && t.country2Code);
 
-  const worldGroupIWinners = winnerCodes(state.worldGroupIRound1);
   const worldGroupIRound2Winners = winnerCodes(state.worldGroupIRound2);
   const worldGroupIRound2Losers = loserCodes(state.worldGroupIRound2);
-  const worldGroupIILosers = loserCodes(state.worldGroupIIRound1);
+  const worldGroupIIRound2Winners = winnerCodes(state.worldGroupIIRound2);
+  const worldGroupIIRound2Losers = loserCodes(state.worldGroupIIRound2);
 
   return {
     ...state,
@@ -423,10 +445,10 @@ export const generateFinalEight = (state: DavisCupSeasonState): DavisCupSeasonSt
       ...state.history,
       qualifiersR2Winners: qr2Winners,
       qualifiersR2Losers: qr2Losers,
-      worldGroupIRound1Winners: worldGroupIWinners,
       worldGroupIRound2Winners,
       worldGroupIRound2Losers,
-      worldGroupIIRound1Losers: worldGroupIILosers,
+      worldGroupIIRound2Winners,
+      worldGroupIIRound2Losers,
       finalEightParticipants: participants,
     },
   };

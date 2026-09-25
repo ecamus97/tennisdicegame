@@ -40,11 +40,10 @@ const createDoublesPlayer = (p1: Player, p2: Player): Player => ({
   officialRanking: Math.round((p1.officialRanking + p2.officialRanking) / 2),
 });
 
-const findTieCollection = (season: DavisCupSeasonState, tieId: string): "qualifiersR1" | "worldGroupIRound1" | "worldGroupIRound2" | "worldGroupIIRound1" | "worldGroupIIRound2" | "qualifiersR2" | "qf" | "sf" | "final" | null => {
+const findTieCollection = (season: DavisCupSeasonState, tieId: string): "qualifiersR1" | "worldGroupIRound1" | "worldGroupIRound2" | "worldGroupIIRound2" | "qualifiersR2" | "qf" | "sf" | "final" | null => {
   if (season.qualifiersR1.some(t => t.id === tieId)) return "qualifiersR1";
   if (season.worldGroupIRound1.some(t => t.id === tieId)) return "worldGroupIRound1";
   if (season.worldGroupIRound2.some(t => t.id === tieId)) return "worldGroupIRound2";
-  if (season.worldGroupIIRound1.some(t => t.id === tieId)) return "worldGroupIIRound1";
   if (season.worldGroupIIRound2.some(t => t.id === tieId)) return "worldGroupIIRound2";
   if (season.qualifiersR2.some(t => t.id === tieId)) return "qualifiersR2";
   if (season.finalEight.quarterFinals.some(t => t.id === tieId)) return "qf";
@@ -61,7 +60,6 @@ const replaceTie = (season: DavisCupSeasonState, tieId: string, updater: (t: Dav
     case "qualifiersR1": return { ...season, qualifiersR1: mapList(season.qualifiersR1) };
     case "worldGroupIRound1": return { ...season, worldGroupIRound1: mapList(season.worldGroupIRound1) };
     case "worldGroupIRound2": return { ...season, worldGroupIRound2: mapList(season.worldGroupIRound2) };
-    case "worldGroupIIRound1": return { ...season, worldGroupIIRound1: mapList(season.worldGroupIIRound1) };
     case "worldGroupIIRound2": return { ...season, worldGroupIIRound2: mapList(season.worldGroupIIRound2) };
     case "qualifiersR2": return { ...season, qualifiersR2: mapList(season.qualifiersR2) };
     case "qf": return { ...season, finalEight: { ...season.finalEight, quarterFinals: mapList(season.finalEight.quarterFinals) } };
@@ -77,7 +75,6 @@ const findTie = (season: DavisCupSeasonState, tieId: string): DavisCupTie | unde
     case "qualifiersR1": return season.qualifiersR1.find(t => t.id === tieId);
     case "worldGroupIRound1": return season.worldGroupIRound1.find(t => t.id === tieId);
     case "worldGroupIRound2": return season.worldGroupIRound2.find(t => t.id === tieId);
-    case "worldGroupIIRound1": return season.worldGroupIIRound1.find(t => t.id === tieId);
     case "worldGroupIIRound2": return season.worldGroupIIRound2.find(t => t.id === tieId);
     case "qualifiersR2": return season.qualifiersR2.find(t => t.id === tieId);
     case "qf": return season.finalEight.quarterFinals.find(t => t.id === tieId);
@@ -258,8 +255,8 @@ const DavisCupView: React.FC<DavisCupViewProps> = ({ players, season, currentWee
   };
 
   const weekLabel =
-    currentWeek === 6 ? "Qualifiers R1 · World Group I & II Playoff (Ronda 1) · Febrero" :
-    currentWeek === 38 ? "Qualifiers R2 · World Group I & II Playoff (Ronda 2) · Septiembre" :
+    currentWeek === 6 ? "Qualifiers R1 · World Group I Playoff · Febrero" :
+    currentWeek === 38 ? "Qualifiers R2 · World Group I & II Playoff · Septiembre" :
     currentWeek === 48 ? "Final Eight · Bologna, Italia · Noviembre" : "";
 
   return (
@@ -275,14 +272,22 @@ const DavisCupView: React.FC<DavisCupViewProps> = ({ players, season, currentWee
           <div className="space-y-6 pr-4">
             {renderTierSection("Qualifiers R1", season.qualifiersR1)}
             {renderTierSection("World Group I Playoff", season.worldGroupIRound1)}
-            {renderTierSection("World Group II Playoff", season.worldGroupIIRound1)}
+            {season.worldGroupIIPool.length > 0 && (
+              <div className="glass-card p-3">
+                <h4 className="font-display font-semibold text-sm text-muted-foreground mb-2">World Group II — no juega en febrero</h4>
+                <p className="text-xs text-muted-foreground">
+                  Estos {season.worldGroupIIPool.length} países esperan a septiembre para enfrentar a los perdedores de World Group I:{" "}
+                  {season.worldGroupIIPool.map(c => season.countries[c]?.country).filter(Boolean).join(", ")}.
+                </p>
+              </div>
+            )}
           </div>
         )}
         {currentWeek === 38 && (
           <div className="space-y-6 pr-4">
             {renderTierSection("Qualifiers R2", season.qualifiersR2)}
-            {renderTierSection("World Group I Playoff — 2ª Ronda", season.worldGroupIRound2)}
-            {renderTierSection("World Group II Playoff — 2ª Ronda (redraw)", season.worldGroupIIRound2)}
+            {renderTierSection("World Group I Playoff", season.worldGroupIRound2)}
+            {renderTierSection("World Group II Playoff", season.worldGroupIIRound2)}
           </div>
         )}
         {currentWeek === 48 && renderFinalEight()}
