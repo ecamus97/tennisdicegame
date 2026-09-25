@@ -525,6 +525,21 @@ export const INITIAL_RANKING_DATA: Record<string, InitialPlayerData> = {
   "Alex Knaff": { points: 39, age: 28 },
   "Martin Antonio Vergara Del Puerto": { points: 2, age: 22 },
   "Kai Thompson": { points: 1, age: 18 },
+  "Franco Roncadelli": { points: 212, age: 26 },
+  "Nick Hardt": { points: 200, age: 26 },
+  "Alvaro Guillen Meza": { points: 189, age: 23 },
+  "Joaquin Aguilar Cardozo": { points: 131, age: 21 },
+  "Robert Strombachs": { points: 116, age: 27 },
+  "Oleg Prihodko": { points: 99, age: 28 },
+  "Melios Efstathiou": { points: 78, age: 27 },
+  "Karlis Ozolins": { points: 48, age: 24 },
+  "Kalin Ivanovski": { points: 40, age: 22 },
+  "Conor Gannon": { points: 38, age: 24 },
+  "Michael Agwi": { points: 35, age: 23 },
+  "Peter Bertran": { points: 25, age: 30 },
+  "Andreas Timini": { points: 5, age: 20 },
+  "Petar Jovanovic": { points: 4, age: 23 },
+  "Milan Ristov": { points: 1, age: 20 },
 };
 
 // Weekly point defense data for top 150 players (Season 1)

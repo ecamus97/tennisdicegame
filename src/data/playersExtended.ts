@@ -382,6 +382,23 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 517, name: "Martin Antonio Vergara Del Puerto", country: "Paraguay", countryCode: "PAR" },
   { rank: 518, name: "Kai Thompson", country: "Hong Kong", countryCode: "HKG" },
   { rank: 519, name: "Lucas Catarina", country: "Monaco", countryCode: "MON" },
+
+  // Davis Cup: completing the World Group II pool (13 countries) + Ecuador's 2nd player.
+  { rank: 520, name: "Franco Roncadelli", country: "Uruguay", countryCode: "URU" },
+  { rank: 521, name: "Nick Hardt", country: "Dominican Republic", countryCode: "DOM" },
+  { rank: 522, name: "Alvaro Guillen Meza", country: "Ecuador", countryCode: "ECU" },
+  { rank: 523, name: "Joaquin Aguilar Cardozo", country: "Uruguay", countryCode: "URU" },
+  { rank: 524, name: "Robert Strombachs", country: "Latvia", countryCode: "LAT" },
+  { rank: 525, name: "Oleg Prihodko", country: "North Macedonia", countryCode: "MKD" },
+  { rank: 526, name: "Melios Efstathiou", country: "Cyprus", countryCode: "CYP" },
+  { rank: 527, name: "Karlis Ozolins", country: "Latvia", countryCode: "LAT" },
+  { rank: 528, name: "Kalin Ivanovski", country: "North Macedonia", countryCode: "MKD" },
+  { rank: 529, name: "Conor Gannon", country: "Ireland", countryCode: "IRL" },
+  { rank: 530, name: "Michael Agwi", country: "Ireland", countryCode: "IRL" },
+  { rank: 531, name: "Peter Bertran", country: "Dominican Republic", countryCode: "DOM" },
+  { rank: 532, name: "Andreas Timini", country: "Cyprus", countryCode: "CYP" },
+  { rank: 533, name: "Petar Jovanovic", country: "Montenegro", countryCode: "MNE" },
+  { rank: 534, name: "Milan Ristov", country: "Montenegro", countryCode: "MNE" },
 ];
 
 const defaultStats: PlayerStats = {

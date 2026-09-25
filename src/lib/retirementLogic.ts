@@ -41,6 +41,24 @@ const COUNTRIES = [
 
 let nextGeneratedId = 10000;
 
+/**
+ * A new player's official ranking always starts near the bottom (they're unproven), but their
+ * fictional ranking is their hidden true power level, which is what actually decides match outcomes
+ * (see matchEngine.ts). Most rookies are journeymen whose fictional ranking stays close to where
+ * they start, but a share of them are hidden gems with real top-level potential: their fictional
+ * ranking can land far ahead of their official one, so they climb fast and keep the future rankings
+ * varied instead of every new player being a permanent afterthought.
+ */
+function generateRookieFictionalRanking(entryRanking: number): number {
+  const roll = Math.random();
+  if (roll < 0.04) return 1 + Math.floor(Math.random() * 30); // future superstar: top 30 potential
+  if (roll < 0.14) return 31 + Math.floor(Math.random() * 70); // future top 100
+  if (roll < 0.35) return 101 + Math.floor(Math.random() * 200); // future top 300
+  // journeyman: potential hovers around their entry ranking, with some spread either way
+  const spread = Math.floor(Math.random() * 160) - 80;
+  return Math.max(301, entryRanking + spread);
+}
+
 function generateNewPlayer(ranking: number): Player {
   const first = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
   const last = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
@@ -56,7 +74,7 @@ function generateNewPlayer(ranking: number): Player {
     age,
     officialRanking: ranking,
     previousRanking: ranking,
-    fictionalRanking: ranking,
+    fictionalRanking: generateRookieFictionalRanking(ranking),
     points: Math.max(0, Math.floor(Math.random() * 50 + 30)),
     livePoints: 0,
     previousYearPoints: new Array(52).fill(0),
