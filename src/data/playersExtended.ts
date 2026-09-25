@@ -168,7 +168,7 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 305, name: "Maximus Jones", country: "USA", countryCode: "USA" },
   { rank: 306, name: "Sandro Kopp", country: "Germany", countryCode: "GER" },
   { rank: 307, name: "Abdullah Shelbayh", country: "Jordan", countryCode: "JOR" },
-  { rank: 308, name: "Petr Bar Biryukov", country: "Israel", countryCode: "ISR" },
+  { rank: 308, name: "Petr Bar Biryukov", country: "Russia", countryCode: "RUS" },
   { rank: 309, name: "Tom Paris", country: "France", countryCode: "FRA" },
   { rank: 310, name: "Harry Wendelken", country: "Great Britain", countryCode: "GBR" },
   { rank: 311, name: "Gianluca Cadenasso", country: "Italy", countryCode: "ITA" },
@@ -362,6 +362,26 @@ const extendedPlayerEntries: PlayerEntry[] = [
   { rank: 501, name: "Oleksandr Ovcharenko", country: "Ukraine", countryCode: "UKR" },
   { rank: 502, name: "Vladyslav Orlov", country: "Ukraine", countryCode: "UKR" },
   { rank: 503, name: "Henry Bernet", country: "Switzerland", countryCode: "SUI" },
+
+  // Davis Cup: second players added for countries that only had one, plus new countries.
+  // Ordered by real ATP ranking (best first); anyone ranked outside the top 500 is simply
+  // appended at the bottom of the pool rather than mapped to their real (much higher) number.
+  { rank: 504, name: "Daniil Glinka", country: "Estonia", countryCode: "EST" },
+  { rank: 505, name: "Karim Bennani", country: "Morocco", countryCode: "MAR" },
+  { rank: 506, name: "Khumoyun Sultanov", country: "Uzbekistan", countryCode: "UZB" },
+  { rank: 507, name: "Maximus Jones", country: "Thailand", countryCode: "THA" },
+  { rank: 508, name: "Yassine Dlimi", country: "Morocco", countryCode: "MAR" },
+  { rank: 509, name: "Filip Jeff Planinsek", country: "Slovenia", countryCode: "SLO" },
+  { rank: 510, name: "Anton Shepp", country: "New Zealand", countryCode: "NZL" },
+  { rank: 511, name: "Fares Zakaria", country: "Egypt", countryCode: "EGY" },
+  { rank: 512, name: "Amr Elsayed", country: "Egypt", countryCode: "EGY" },
+  { rank: 513, name: "Amit Vales", country: "Israel", countryCode: "ISR" },
+  { rank: 514, name: "Isaac Becroft", country: "New Zealand", countryCode: "NZL" },
+  { rank: 515, name: "Orel Kimhi", country: "Israel", countryCode: "ISR" },
+  { rank: 516, name: "Alex Knaff", country: "Luxembourg", countryCode: "LUX" },
+  { rank: 517, name: "Martin Antonio Vergara Del Puerto", country: "Paraguay", countryCode: "PAR" },
+  { rank: 518, name: "Kai Thompson", country: "Hong Kong", countryCode: "HKG" },
+  { rank: 519, name: "Lucas Catarina", country: "Monaco", countryCode: "MON" },
 ];
 
 const defaultStats: PlayerStats = {

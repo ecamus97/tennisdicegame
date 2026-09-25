@@ -508,6 +508,23 @@ export const INITIAL_RANKING_DATA: Record<string, InitialPlayerData> = {
   "Aristotelis Thanos": { points: 87, age: 24 },
   "Alexander Ritschard": { points: 86, age: 31 },
   "Bor Artnak": { points: 86, age: 21 },
+
+  // Davis Cup additions (real ATP/WTA points and ages as of the request)
+  "Daniil Glinka": { points: 333, age: 26 },
+  "Karim Bennani": { points: 114, age: 19 },
+  "Khumoyun Sultanov": { points: 111, age: 27 },
+  "Maximus Jones": { points: 95, age: 22 },
+  "Yassine Dlimi": { points: 92, age: 23 },
+  "Filip Jeff Planinsek": { points: 92, age: 25 },
+  "Anton Shepp": { points: 91, age: 23 },
+  "Fares Zakaria": { points: 79, age: 25 },
+  "Amr Elsayed": { points: 66, age: 27 },
+  "Amit Vales": { points: 66, age: 21 },
+  "Isaac Becroft": { points: 53, age: 25 },
+  "Orel Kimhi": { points: 45, age: 23 },
+  "Alex Knaff": { points: 39, age: 28 },
+  "Martin Antonio Vergara Del Puerto": { points: 2, age: 22 },
+  "Kai Thompson": { points: 1, age: 18 },
 };
 
 // Weekly point defense data for top 150 players (Season 1)
