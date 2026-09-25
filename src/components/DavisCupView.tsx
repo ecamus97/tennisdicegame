@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   DavisCupSeasonState, DavisCupTie, DavisCupSeriesMatch,
   generateYear1Season, updateTieMatchResult, simulateTie, advanceFinalEight,
+  DAVIS_CUP_FEB_WEEK, DAVIS_CUP_SEPT_WEEK, DAVIS_CUP_FINAL8_WEEK,
 } from "@/data/davisCupData";
 
 export type { DavisCupSeasonState, DavisCupTie } from "@/data/davisCupData";
@@ -90,7 +91,7 @@ const DavisCupView: React.FC<DavisCupViewProps> = ({ players, season, currentWee
   const getPlayer = (id: number): Player | undefined => players.find(p => p.id === id);
 
   useEffect(() => {
-    if (!season && currentWeek === 6) {
+    if (!season && currentWeek === DAVIS_CUP_FEB_WEEK) {
       onSeasonChange(generateYear1Season(players));
     }
   }, [season, currentWeek, players, onSeasonChange]);
@@ -255,9 +256,9 @@ const DavisCupView: React.FC<DavisCupViewProps> = ({ players, season, currentWee
   };
 
   const weekLabel =
-    currentWeek === 6 ? "Qualifiers R1 · World Group I Playoff · Febrero" :
-    currentWeek === 38 ? "Qualifiers R2 · World Group I & II Playoff · Septiembre" :
-    currentWeek === 48 ? "Final Eight · Bologna, Italia · Noviembre" : "";
+    currentWeek === DAVIS_CUP_FEB_WEEK ? "Qualifiers R1 · World Group I Playoff · Febrero" :
+    currentWeek === DAVIS_CUP_SEPT_WEEK ? "Qualifiers R2 · World Group I & II Playoff · Septiembre" :
+    currentWeek === DAVIS_CUP_FINAL8_WEEK ? "Final Eight · Bologna, Italia · Noviembre" : "";
 
   return (
     <div className="space-y-6">
@@ -268,7 +269,7 @@ const DavisCupView: React.FC<DavisCupViewProps> = ({ players, season, currentWee
       </div>
 
       <ScrollArea className="h-[500px]">
-        {currentWeek === 6 && (
+        {currentWeek === DAVIS_CUP_FEB_WEEK && (
           <div className="space-y-6 pr-4">
             {renderTierSection("Qualifiers R1", season.qualifiersR1)}
             {renderTierSection("World Group I Playoff", season.worldGroupIRound1)}
@@ -283,14 +284,14 @@ const DavisCupView: React.FC<DavisCupViewProps> = ({ players, season, currentWee
             )}
           </div>
         )}
-        {currentWeek === 38 && (
+        {currentWeek === DAVIS_CUP_SEPT_WEEK && (
           <div className="space-y-6 pr-4">
             {renderTierSection("Qualifiers R2", season.qualifiersR2)}
             {renderTierSection("World Group I Playoff", season.worldGroupIRound2)}
             {renderTierSection("World Group II Playoff", season.worldGroupIIRound2)}
           </div>
         )}
-        {currentWeek === 48 && renderFinalEight()}
+        {currentWeek === DAVIS_CUP_FINAL8_WEEK && renderFinalEight()}
       </ScrollArea>
     </div>
   );

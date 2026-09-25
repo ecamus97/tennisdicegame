@@ -21,6 +21,7 @@ import { processSeasonTransition } from '@/lib/retirementLogic';
 import {
   DavisCupSeasonState, generateYear1Season, generateNextSeason,
   generateSeptemberRounds, generateFinalEight, advanceFinalEight, autoResolveTies,
+  DAVIS_CUP_FEB_WEEK, DAVIS_CUP_SEPT_WEEK, DAVIS_CUP_FINAL8_WEEK,
 } from '@/data/davisCupData';
 
 // Processing order for weekly tournament simulation: higher-tier events run first
@@ -1655,7 +1656,7 @@ export const useCareerState = () => {
       // Davis Cup: auto-resolve any ties the player didn't play, then roll the season structure forward.
       let updatedDavisCup = prev.davisCupSeason;
       const getDCPlayer = (id: number) => ranked.find(pl => pl.id === id);
-      if (prev.currentWeek === 6) {
+      if (prev.currentWeek === DAVIS_CUP_FEB_WEEK) {
         if (!updatedDavisCup) updatedDavisCup = generateYear1Season(ranked);
         updatedDavisCup = {
           ...updatedDavisCup,
@@ -1665,7 +1666,7 @@ export const useCareerState = () => {
         updatedDavisCup = generateSeptemberRounds(updatedDavisCup);
         if (!newCompleted.includes('davis-cup-feb')) newCompleted.push('davis-cup-feb');
       }
-      if (prev.currentWeek === 38 && updatedDavisCup) {
+      if (prev.currentWeek === DAVIS_CUP_SEPT_WEEK && updatedDavisCup) {
         updatedDavisCup = {
           ...updatedDavisCup,
           worldGroupIRound2: autoResolveTies(updatedDavisCup.worldGroupIRound2, getDCPlayer),
@@ -1675,7 +1676,7 @@ export const useCareerState = () => {
         updatedDavisCup = generateFinalEight(updatedDavisCup);
         if (!newCompleted.includes('davis-cup-sept')) newCompleted.push('davis-cup-sept');
       }
-      if (prev.currentWeek === 48 && updatedDavisCup) {
+      if (prev.currentWeek === DAVIS_CUP_FINAL8_WEEK && updatedDavisCup) {
         for (let i = 0; i < 6; i++) {
           updatedDavisCup = {
             ...updatedDavisCup,

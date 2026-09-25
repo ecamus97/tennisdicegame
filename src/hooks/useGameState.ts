@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Player, Tournament, initialPlayers, tournaments, Surface, SurfaceAffinity } from '@/data/players';
+import { extendedPlayers } from '@/data/playersExtended';
 import { processSeasonTransition, SeasonTransitionResult } from '@/lib/retirementLogic';
+
+// Full player pool: the base 150 plus the extended bench (150-500+), same as career mode.
+const allInitialPlayers: Player[] = [...initialPlayers, ...extendedPlayers];
 import { MatchResult } from '@/lib/matchEngine';
 
 // Stored match in a draw
@@ -86,6 +90,9 @@ const getInitialState = (): GameState => {
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
+      if (!parsed.players || parsed.players.length < 200) {
+        parsed.players = allInitialPlayers.map(p => ({ ...p }));
+      }
       if (parsed.players) {
         parsed.players = parsed.players.map((p: Player) => ({
           ...p,
@@ -101,7 +108,7 @@ const getInitialState = (): GameState => {
     }
   }
   return {
-    players: initialPlayers,
+    players: allInitialPlayers.map(p => ({ ...p })),
     currentWeek: 1,
     currentSeason: 1,
     completedTournaments: [],
@@ -437,7 +444,7 @@ export const useGameState = () => {
   // Reset game state
   const resetGame = useCallback(() => {
     setState({
-      players: initialPlayers,
+      players: allInitialPlayers.map(p => ({ ...p })),
       currentWeek: 1,
       currentSeason: 1,
       completedTournaments: [],
@@ -472,6 +479,9 @@ export const useGameState = () => {
     if (!saved) return false;
     try {
       const parsed = JSON.parse(saved);
+      if (!parsed.players || parsed.players.length < 200) {
+        parsed.players = allInitialPlayers.map(p => ({ ...p }));
+      }
       if (parsed.players) {
         parsed.players = parsed.players.map((p: Player) => ({ ...p, age: p.age || 25, previousRanking: p.previousRanking || p.officialRanking, weeklyDefensePoints: p.weeklyDefensePoints || 0 }));
       }

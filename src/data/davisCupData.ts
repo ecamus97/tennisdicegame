@@ -95,6 +95,14 @@ const EMPTY_HISTORY: DavisCupSeasonHistory = {
   finalEightParticipants: [],
 };
 
+// ==================== CALENDAR WEEKS ====================
+// Chosen to fall on weeks with no other ATP tournament scheduled: week 4 is the week right after
+// the Australian Open (weeks 3-4), week 37 is a free week between the US Open swing and the Asian
+// swing, and week 48 is free after the ATP Finals (week 46).
+export const DAVIS_CUP_FEB_WEEK = 4;
+export const DAVIS_CUP_SEPT_WEEK = 37;
+export const DAVIS_CUP_FINAL8_WEEK = 48;
+
 // ==================== YEAR 1 SEED DATA ====================
 // Country codes match the game's existing countryCode field where the nation already exists.
 // Codes marked NEW are nations not yet present in the player pool; until real players are added
@@ -126,13 +134,34 @@ export const WORLD_GROUP_II_YEAR1: PoolSeed = {
   unseeded: ["DOM", "BOL", "INA", "NAM", "SYR", "BEN", "NGR", "JAM", "PUR", "MKD", "BER", "SEN", "MNE"],
 };
 
-// Human-readable names for codes that don't yet exist in the player pool (for display before real players are added).
-export const NEW_COUNTRY_NAMES: Record<string, string> = {
-  EGY: "Egypt", MAR: "Morocco", NZL: "New Zealand",
-  IRL: "Ireland", URU: "Uruguay", PAK: "Pakistan", BAR: "Barbados", LAT: "Latvia", ESA: "El Salvador", TOG: "Togo", CYP: "Cyprus",
-  DOM: "Dominican Republic", INA: "Indonesia", NAM: "Namibia", SYR: "Syria", BEN: "Benin", NGR: "Nigeria",
-  JAM: "Jamaica", PUR: "Puerto Rico", MKD: "North Macedonia", BER: "Bermuda", SEN: "Senegal", MNE: "Montenegro",
+// Full display names for every country code used anywhere in the Davis Cup pools, so a tie always
+// shows a proper name even when the country currently has fewer than 2 eligible players (walkover)
+// and there is no player record to read the name from.
+export const COUNTRY_DISPLAY_NAMES: Record<string, string> = {
+  // Qualifiers R1
+  GER: "Germany", AUS: "Australia", BEL: "Belgium", NED: "Netherlands", USA: "USA", FRA: "France",
+  CAN: "Canada", CZE: "Czech Republic", ARG: "Argentina", AUT: "Austria", GBR: "Great Britain",
+  CRO: "Croatia", SRB: "Serbia", HUN: "Hungary", BRA: "Brazil", CHI: "Chile", DEN: "Denmark",
+  SVK: "Slovakia", KOR: "South Korea", JPN: "Japan", SWE: "Sweden", NOR: "Norway", PER: "Peru",
+  IND: "India", BUL: "Bulgaria", ECU: "Ecuador",
+  // World Group I Playoff
+  FIN: "Finland", SUI: "Switzerland", POR: "Portugal", TPE: "Taiwan", BIH: "Bosnia", KAZ: "Kazakhstan",
+  ISR: "Israel", TUR: "Turkey", POL: "Poland", COL: "Colombia", GRE: "Greece", ROU: "Romania",
+  UKR: "Ukraine", EGY: "Egypt", LUX: "Luxembourg", MON: "Monaco", LTU: "Lithuania", MAR: "Morocco",
+  MEX: "Mexico", NZL: "New Zealand", LIB: "Lebanon", TUN: "Tunisia", HKG: "Hong Kong", CHN: "China",
+  SLO: "Slovenia", PAR: "Paraguay",
+  // World Group II Playoff
+  UZB: "Uzbekistan", IRL: "Ireland", URU: "Uruguay", PAK: "Pakistan", BAR: "Barbados", LAT: "Latvia",
+  GEO: "Georgia", RSA: "South Africa", ESA: "El Salvador", EST: "Estonia", TOG: "Togo", THA: "Thailand",
+  CYP: "Cyprus", DOM: "Dominican Republic", BOL: "Bolivia", INA: "Indonesia", NAM: "Namibia",
+  SYR: "Syria", BEN: "Benin", NGR: "Nigeria", JAM: "Jamaica", PUR: "Puerto Rico", MKD: "North Macedonia",
+  BER: "Bermuda", SEN: "Senegal", MNE: "Montenegro",
+  // Champion / runner-up byes
+  ITA: "Italy", ESP: "Spain",
 };
+
+/** @deprecated use COUNTRY_DISPLAY_NAMES */
+export const NEW_COUNTRY_NAMES = COUNTRY_DISPLAY_NAMES;
 
 // ==================== HELPERS ====================
 
@@ -156,7 +185,7 @@ export const buildCountryEntry = (code: string, allPlayers: Player[]): DavisCupC
 
   return {
     countryCode: code,
-    country: NEW_COUNTRY_NAMES[code] || countryPlayers[0]?.country || code,
+    country: countryPlayers[0]?.country || COUNTRY_DISPLAY_NAMES[code] || code,
     player1Id: countryPlayers[0]?.id ?? -1,
     player2Id: -1,
     countryRanking: countryPlayers[0]?.officialRanking ?? 9999,

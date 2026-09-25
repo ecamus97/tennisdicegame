@@ -698,16 +698,19 @@ export const tournaments: Tournament[] = [
     isRoundRobin: true,
     points: { winner: 500, finalist: 0, sf: 400, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0, groupWin: 200 },
   },
-  // Week 6: Davis Cup Qualifiers R1, World Group I & II Playoffs (Round 1)
+  // Week 4: Davis Cup Qualifiers R1, World Group I & II Playoffs (Round 1) - the week right after
+  // the Australian Open, with no other ATP tournament scheduled (keep in sync with DAVIS_CUP_FEB_WEEK
+  // in src/data/davisCupData.ts).
   {
     id: "davis-cup-feb", name: "Davis Cup Qualifiers & Play-offs", city: "Various", country: "World",
-    category: "Davis Cup", surface: "Hard", week: 6, playerLimit: 32, seeds: 0,
+    category: "Davis Cup", surface: "Hard", week: 4, playerLimit: 32, seeds: 0,
     points: { winner: 0, finalist: 0, sf: 0, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0 },
   },
-  // Week 38: Davis Cup Qualifiers R2, World Group I & II Playoffs (Round 2)
+  // Week 37: Davis Cup Qualifiers R2, World Group I & II Playoffs (Round 2) - a free week with no
+  // other ATP tournament (keep in sync with DAVIS_CUP_SEPT_WEEK in src/data/davisCupData.ts).
   {
     id: "davis-cup-sept", name: "Davis Cup Qualifiers R2 & Play-offs", city: "Various", country: "World",
-    category: "Davis Cup", surface: "Hard", week: 38, playerLimit: 32, seeds: 0,
+    category: "Davis Cup", surface: "Hard", week: 37, playerLimit: 32, seeds: 0,
     points: { winner: 0, finalist: 0, sf: 0, qf: 0, r16: 0, r32: 0, r64: 0, r128: 0 },
   },
   // Week 48: Davis Cup Final Eight
