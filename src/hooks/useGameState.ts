@@ -6,6 +6,7 @@ import { TOURNAMENT_TIER_ORDER } from '@/lib/tournamentTiers';
 import { autoSimulateTournamentBracket } from '@/lib/tournamentSimulation';
 import { autoResolveLaverCup } from '@/lib/laverCupSimulation';
 import { autoResolveATPFinals } from '@/lib/atpFinalsSimulation';
+import { calculateTournamentFatigueGain } from '@/data/careerData';
 import {
   DavisCupSeasonState, generateYear1Season, generateNextSeason,
   generateSeptemberRounds, generateFinalEight, advanceFinalEight, autoResolveTies, refreshFebRosters,
@@ -223,11 +224,13 @@ export const useGameState = () => {
           if (!result) return player;
           const newCurrentYear = [...player.currentYearWeeklyPoints];
           newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
+          const fatigueGain = calculateTournamentFatigueGain(result.round, t.category, t.playerLimit);
           return {
             ...player,
             livePoints: player.livePoints + result.points,
             points: player.points + result.points,
             currentYearWeeklyPoints: newCurrentYear,
+            fatigue: Math.min(100, (player.fatigue ?? 0) + fatigueGain),
           };
         });
 
@@ -272,15 +275,29 @@ export const useGameState = () => {
             if (!result) return player;
             const newCurrentYear = [...player.currentYearWeeklyPoints];
             newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
+            const fatigueGain = calculateTournamentFatigueGain(result.round, 'ATP Finals', 8);
             return {
               ...player,
               livePoints: player.livePoints + result.points,
               points: player.points + result.points,
               currentYearWeeklyPoints: newCurrentYear,
+              fatigue: Math.min(100, (player.fatigue ?? 0) + fatigueGain),
             };
           });
         }
       }
+
+      // Rest recovery: any player who didn't compete anywhere this week sheds some accumulated
+      // fatigue, making them more likely to re-enter next week — mirrors career mode's CPU
+      // fatigue recovery (useCareerState.ts) so Tour mode doesn't let players who keep entering
+      // every single week (no fatigue penalty ever applying) snowball past their real level.
+      const restedThisWeekIds = usedPlayerIds;
+      const REST_RECOVERY_PER_WEEK = 12;
+      updatedPlayers = updatedPlayers.map(player =>
+        restedThisWeekIds.has(player.id)
+          ? player
+          : { ...player, fatigue: Math.max(0, (player.fatigue ?? 0) - REST_RECOVERY_PER_WEEK) }
+      );
 
       updatedPlayers = updatedPlayers.map(player => {
         let updatedPlayer = updateInjuryRecovery(player);
