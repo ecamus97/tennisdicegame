@@ -142,15 +142,21 @@ const CalendarView: React.FC<CalendarViewProps> = ({ currentWeek, onTournamentSe
         </div>
       </div>
 
-      {/* Tournament Winners Table */}
-      {tournamentHistory.length > 0 && (
+      {/* Tournament Winners Table — ATP-level only. The Challenger/ITF calendar is simulated
+          silently every week purely so lower-ranked players earn points (see useGameState.ts's
+          advanceWeek); those results aren't in the ATP `tournaments` list at all, so `t` comes
+          back undefined for them and this filter drops them instead of showing a blank row. */}
+      {tournamentHistory.filter(result => tournaments.some(tr => tr.id === result.tournamentId)).length > 0 && (
         <div className="glass-card p-4">
           <h3 className="font-display font-semibold text-foreground mb-3 flex items-center gap-2">
             <Trophy className="w-5 h-5 text-primary" />
             Palmarés
           </h3>
           <div className="space-y-1.5 max-h-[250px] overflow-y-auto pr-1">
-            {[...tournamentHistory].reverse().map((result, idx) => {
+            {[...tournamentHistory]
+              .filter(result => tournaments.some(tr => tr.id === result.tournamentId))
+              .reverse()
+              .map((result, idx) => {
               const t = tournaments.find(tr => tr.id === result.tournamentId);
               return (
                 <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/20 hover:bg-secondary/30 transition-colors">
