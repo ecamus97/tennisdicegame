@@ -47,6 +47,10 @@ const backgroundLowerTierTournaments: Tournament[] = challengerTournaments.map(c
   },
 }));
 
+// Lookup for the retroactive tournamentHistory cleanup below — a save from before the Challenger/
+// ITF background sim stopped writing history entries can still be carrying hundreds of them.
+const backgroundTournamentIds = new Set(backgroundLowerTierTournaments.map(t => t.id));
+
 // Stored match in a draw
 export interface StoredMatch {
   id: string;
@@ -319,12 +323,26 @@ export const useGameState = () => {
       let updatedH2H = { ...(prev.globalH2H || {}) };
 
       for (const t of weekTournaments) {
+        // The Challenger/ITF calendar runs ~300 extra tournaments a season purely so lower-ranked
+        // players earn points (see backgroundLowerTierTournaments above) — it was never meant to
+        // leave a permanent trace. Recording a tournamentHistory entry (with a full per-player
+        // results array) and merging its matches into globalH2H for every one of those, every
+        // week, made the whole saved game state balloon by several hundred KB a season with data
+        // nothing reads (Palmarés already filters these out, and "vs Top 50" never needs an ITF
+        // result) — after enough seasons that blew past the browser's localStorage quota and the
+        // autosave in the effect below started throwing, which is what showed up as the game
+        // going blank on "Next Week". Points/stats/fatigue still update for these players below;
+        // only the history/H2H bookkeeping is skipped.
+        const isBackgroundTournament = t.category.startsWith('Challenger') || t.category.startsWith('ITF');
+
         const available = updatedPlayers.filter(pl => !pl.injured && !usedPlayerIds.has(pl.id));
         const sim = autoSimulateTournamentBracket(t, available);
         if (sim.results.length === 0) continue;
 
         sim.results.forEach(r => usedPlayerIds.add(r.playerId));
-        updatedH2H = mergeH2H(updatedH2H, sim.matchPairs);
+        if (!isBackgroundTournament) {
+          updatedH2H = mergeH2H(updatedH2H, sim.matchPairs);
+        }
 
         updatedPlayers = updatedPlayers.map(player => {
           const result = sim.results.find(r => r.playerId === player.id);
@@ -343,12 +361,14 @@ export const useGameState = () => {
         });
 
         newCompleted.push(t.id);
-        newHistory.push({
-          tournamentId: t.id, week: prev.currentWeek, season: prev.currentSeason,
-          winnerId: sim.winnerId, winnerName: sim.winnerName,
-          runnerUpId: sim.runnerUpId, runnerUpName: sim.runnerUpName,
-          results: sim.results,
-        });
+        if (!isBackgroundTournament) {
+          newHistory.push({
+            tournamentId: t.id, week: prev.currentWeek, season: prev.currentSeason,
+            winnerId: sim.winnerId, winnerName: sim.winnerName,
+            runnerUpId: sim.runnerUpId, runnerUpName: sim.runnerUpName,
+            results: sim.results,
+          });
+        }
       }
 
       // Laver Cup & ATP Finals: bespoke team/round-robin formats excluded from the generic loop
@@ -549,6 +569,18 @@ export const useGameState = () => {
         updatedDavisCup = refreshFebRosters(updatedDavisCup, rankedPlayers);
       }
 
+      // Safety net against the saved game growing without bound over many seasons of play: keep
+      // only the last 5 seasons of tournamentHistory (Palmarés and the season summary only ever
+      // need recent results, and every entry here carries a full per-player results array), and
+      // strip out any background Challenger/ITF entries a save from before that stopped being
+      // recorded might still be carrying. Applied every week (not just at season boundaries) so a
+      // save that already grew too large shrinks back down on the very next "Next Week" instead of
+      // waiting for a season transition it may not be able to reach.
+      const HISTORY_SEASONS_TO_KEEP = 5;
+      const trimmedHistory = newHistory.filter(h =>
+        h.season >= newSeason - HISTORY_SEASONS_TO_KEEP && !backgroundTournamentIds.has(h.tournamentId)
+      );
+
       return {
         ...prev,
         currentWeek: newWeek,
@@ -556,7 +588,7 @@ export const useGameState = () => {
         players: rankedPlayers,
         currentDraw: null,
         completedTournaments: newWeek === 1 ? [] : newCompleted,
-        tournamentHistory: newHistory,
+        tournamentHistory: trimmedHistory,
         seasonSummary,
         davisCupSeason: updatedDavisCup,
         weeklyUsedPlayerIds: [], // Reset at the start of each new week
