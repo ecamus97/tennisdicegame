@@ -241,16 +241,31 @@ export const createTie = (
   };
 };
 
+/** Fisher-Yates shuffle — used to give each new season/game a real draw instead of a fixed pairing. */
+const shuffleArray = <T,>(arr: T[]): T[] => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
 const pairPool = (
   countries: Record<string, DavisCupCountryEntry>,
   seed: PoolSeed,
   tier: DavisCupTierId,
   label: string,
 ): DavisCupTie[] => {
+  // Real draw: each seeded nation is still only paired against an unseeded one (keeping the
+  // pools' seeding integrity), but WHICH unseeded opponent it gets is randomized every time this
+  // runs, instead of always pairing seeded[i] against unseeded[i] in the same fixed order.
+  const seeded = shuffleArray(seed.seeded);
+  const unseeded = shuffleArray(seed.unseeded);
   const ties: DavisCupTie[] = [];
-  for (let i = 0; i < seed.seeded.length; i++) {
-    const c1 = countries[seed.seeded[i]];
-    const c2 = countries[seed.unseeded[i]];
+  for (let i = 0; i < seeded.length; i++) {
+    const c1 = countries[seeded[i]];
+    const c2 = countries[unseeded[i]];
     if (!c1 || !c2) continue;
     ties.push(createTie(tier, label, c1, c2));
   }
@@ -389,6 +404,30 @@ export const generateNextSeason = (prevSeason: DavisCupSeasonState, allPlayers: 
     championDefending: champion,
     runnerUpBye: runnerUp,
     history: { ...EMPTY_HISTORY },
+  };
+};
+
+/**
+ * Refreshes every country's player1Id/player2Id from the current roster, right as the Feb week
+ * begins, and rebuilds the (not-yet-played) Qualifiers R1 / World Group I ties with those refreshed
+ * entries. The season's country pairings and player assignments are decided back in November
+ * (generateNextSeason), several weeks before the end-of-season retirements at the season boundary —
+ * without this refresh, a tie can end up pointing at a player who has since retired ("?"/"undefined"
+ * in the bracket). The country-vs-country matchups themselves are preserved; only the players
+ * representing each country are brought up to date.
+ */
+export const refreshFebRosters = (state: DavisCupSeasonState, allPlayers: Player[]): DavisCupSeasonState => {
+  const countries: Record<string, DavisCupCountryEntry> = {};
+  Object.keys(state.countries).forEach(code => { countries[code] = buildCountryEntry(code, allPlayers); });
+
+  const rebuildTie = (tie: DavisCupTie): DavisCupTie =>
+    createTie(tie.tier, tie.label, countries[tie.country1Code], countries[tie.country2Code]);
+
+  return {
+    ...state,
+    countries,
+    qualifiersR1: state.qualifiersR1.map(rebuildTie),
+    worldGroupIRound1: state.worldGroupIRound1.map(rebuildTie),
   };
 };
 

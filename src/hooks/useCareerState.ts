@@ -20,7 +20,7 @@ import { TournamentDraw } from '@/hooks/useGameState';
 import { processSeasonTransition } from '@/lib/retirementLogic';
 import {
   DavisCupSeasonState, generateYear1Season, generateNextSeason,
-  generateSeptemberRounds, generateFinalEight, advanceFinalEight, autoResolveTies,
+  generateSeptemberRounds, generateFinalEight, advanceFinalEight, autoResolveTies, refreshFebRosters,
   DAVIS_CUP_FEB_WEEK, DAVIS_CUP_SEPT_WEEK, DAVIS_CUP_FINAL8_WEEK,
 } from '@/data/davisCupData';
 import { TOURNAMENT_TIER_ORDER } from '@/lib/tournamentTiers';
@@ -1625,6 +1625,13 @@ export const useCareerState = () => {
           updatedDavisCup = generateNextSeason(updatedDavisCup, ranked);
         }
         if (!newCompleted.includes('davis-cup-final8')) newCompleted.push('davis-cup-final8');
+      }
+
+      // The Feb ties' countries/players were locked in back in November (generateNextSeason),
+      // weeks before the season-boundary retirements above could run. Refresh every country's
+      // roster right as the Feb week begins so a tie never points at a since-retired player.
+      if (newWeek === DAVIS_CUP_FEB_WEEK && updatedDavisCup) {
+        updatedDavisCup = refreshFebRosters(updatedDavisCup, ranked);
       }
 
       return {
