@@ -1,4 +1,8 @@
 import { Player } from '@/data/players';
+import {
+  QUALIFIERS_R1_YEAR1, WORLD_GROUP_I_YEAR1, WORLD_GROUP_II_YEAR1,
+  DEFENDING_CHAMPION_YEAR1, RUNNER_UP_YEAR1, COUNTRY_DISPLAY_NAMES,
+} from '@/data/davisCupData';
 
 // Retirement probability based on age
 function getRetirementProbability(age: number): number {
@@ -59,18 +63,17 @@ function generateRookieFictionalRanking(entryRanking: number): number {
   return Math.max(301, entryRanking + spread);
 }
 
-function generateNewPlayer(ranking: number): Player {
+function buildGeneratedPlayer(ranking: number, country: string, countryCode: string): Player {
   const first = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
   const last = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
-  const country = COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
   const age = 17 + Math.floor(Math.random() * 4); // 17-20
   const id = nextGeneratedId++;
 
   return {
     id,
     name: `${first} ${last}`,
-    country: country.country,
-    countryCode: country.code,
+    country,
+    countryCode,
     age,
     officialRanking: ranking,
     previousRanking: ranking,
@@ -90,6 +93,30 @@ function generateNewPlayer(ranking: number): Player {
       currentStreak: 0, bestWinStreak: 0, titles: 0,
     },
   };
+}
+
+function generateNewPlayer(ranking: number): Player {
+  const country = COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
+  return buildGeneratedPlayer(ranking, country.country, country.code);
+}
+
+/** Same as generateNewPlayer, but for a specific Davis Cup country code instead of a random one —
+ * used to backfill a country whose roster dropped below 2 eligible players after retirements. */
+function generateNewPlayerForCountry(ranking: number, countryCode: string): Player {
+  const country = COUNTRY_DISPLAY_NAMES[countryCode] || countryCode;
+  return buildGeneratedPlayer(ranking, country, countryCode);
+}
+
+/** Every country code the Davis Cup pools can reference — buildCountryEntry (davisCupData.ts)
+ * needs at least 2 non-retired players per code or the country shows as "(sin roster)" and its
+ * ties are auto-walked over. */
+function getAllDavisCupCountryCodes(): Set<string> {
+  return new Set<string>([
+    ...QUALIFIERS_R1_YEAR1.seeded, ...QUALIFIERS_R1_YEAR1.unseeded,
+    ...WORLD_GROUP_I_YEAR1.seeded, ...WORLD_GROUP_I_YEAR1.unseeded,
+    ...WORLD_GROUP_II_YEAR1.seeded, ...WORLD_GROUP_II_YEAR1.unseeded,
+    DEFENDING_CHAMPION_YEAR1, RUNNER_UP_YEAR1,
+  ]);
 }
 
 export interface SeasonTransitionResult {
@@ -121,6 +148,19 @@ export function processSeasonTransition(players: Player[]): SeasonTransitionResu
     const newPlayer = generateNewPlayer(490 + i);
     updated.push(newPlayer);
     newPlayerNames.push(newPlayer.name);
+  }
+
+  // Davis Cup backfill: retirements can drop a country below the 2 eligible players a Davis Cup
+  // tie needs (see buildCountryEntry in davisCupData.ts). Instead of a random-country replacement,
+  // target the specific country that's short so its roster — and its Davis Cup tie — stay intact.
+  let backfillRanking = 490 + newPlayerNames.length;
+  for (const code of getAllDavisCupCountryCodes()) {
+    const count = updated.filter(p => p.countryCode === code && !p.retired).length;
+    for (let i = count; i < 2; i++) {
+      const newPlayer = generateNewPlayerForCountry(backfillRanking++, code);
+      updated.push(newPlayer);
+      newPlayerNames.push(newPlayer.name);
+    }
   }
 
   // Re-rank

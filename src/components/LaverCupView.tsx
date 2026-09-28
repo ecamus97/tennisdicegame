@@ -78,13 +78,13 @@ const selectTeams = (players: Player[]): { europe: Player[]; world: Player[] } =
 };
 
 // Generate a derangement of indices [0,1,2] given an existing permutation
-const derange = (perm: number[]): number[] => {
+export const derange = (perm: number[]): number[] => {
   // Shift by 1
   return perm.map((_, i) => perm[(i + 1) % perm.length]);
 };
 
 // Shuffle array
-const shuffle = <T,>(arr: T[]): T[] => {
+export const shuffle = <T,>(arr: T[]): T[] => {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -94,7 +94,7 @@ const shuffle = <T,>(arr: T[]): T[] => {
 };
 
 // Generate all 12 matches
-const generateSchedule = (europeIds: number[], worldIds: number[]): LaverCupMatch[] => {
+export const generateSchedule = (europeIds: number[], worldIds: number[]): LaverCupMatch[] => {
   // Players ranked 0-5 within each team (0=best)
   // Day 1: singles by ranks 3,4,5; doubles by (4,5)
   // Day 2: singles by ranks 0,1,2; doubles by (2,3)

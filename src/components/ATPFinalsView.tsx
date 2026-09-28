@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 
-interface GroupMatch {
+export interface GroupMatch {
   id: string;
   player1: Player;
   player2: Player;
   result?: MatchResult;
 }
 
-interface GroupStanding {
+export interface GroupStanding {
   player: Player;
   played: number;
   wins: number;
@@ -46,7 +46,7 @@ interface ATPFinalsViewProps {
 }
 
 // Generate round-robin matches for a group (3 matches per player)
-const generateGroupMatches = (players: Player[], groupName: string): GroupMatch[] => {
+export const generateGroupMatches = (players: Player[], groupName: string): GroupMatch[] => {
   const matches: GroupMatch[] = [];
   // Round robin: each player plays every other player once
   for (let i = 0; i < players.length; i++) {
@@ -62,7 +62,7 @@ const generateGroupMatches = (players: Player[], groupName: string): GroupMatch[
 };
 
 // Calculate standings from match results
-const calculateStandings = (players: Player[], matches: GroupMatch[]): GroupStanding[] => {
+export const calculateStandings = (players: Player[], matches: GroupMatch[]): GroupStanding[] => {
   const standings: GroupStanding[] = players.map(player => ({
     player,
     played: 0,

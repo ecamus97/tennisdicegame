@@ -2,6 +2,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { Player, Tournament, initialPlayers, tournaments, Surface, SurfaceAffinity } from '@/data/players';
 import { extendedPlayers } from '@/data/playersExtended';
 import { processSeasonTransition, SeasonTransitionResult } from '@/lib/retirementLogic';
+import { TOURNAMENT_TIER_ORDER } from '@/lib/tournamentTiers';
+import { autoSimulateTournamentBracket } from '@/lib/tournamentSimulation';
+import { autoResolveLaverCup } from '@/lib/laverCupSimulation';
+import { autoResolveATPFinals } from '@/lib/atpFinalsSimulation';
+import {
+  DavisCupSeasonState, generateYear1Season, generateNextSeason,
+  generateSeptemberRounds, generateFinalEight, advanceFinalEight, autoResolveTies,
+  DAVIS_CUP_FEB_WEEK, DAVIS_CUP_SEPT_WEEK, DAVIS_CUP_FINAL8_WEEK,
+} from '@/data/davisCupData';
 
 // Full player pool: the base 150 plus the extended bench (150-500+), same as career mode.
 const allInitialPlayers: Player[] = [...initialPlayers, ...extendedPlayers];
@@ -43,6 +52,10 @@ export interface GameState {
   currentDraw: TournamentDraw | null;
   saveName?: string;
   seasonSummary?: SeasonSummaryData | null;
+  davisCupSeason: DavisCupSeasonState | null;
+  /** Players committed to a tournament this week (via auto-sim, manual completion, or a locked-in
+   * Laver Cup team) — excluded from other same-week tournaments' entrant pools. Reset each week. */
+  weeklyUsedPlayerIds: number[];
 }
 
 // Named save slots
@@ -102,6 +115,8 @@ const getInitialState = (): GameState => {
           currentYearWeeklyPoints: p.currentYearWeeklyPoints || new Array(52).fill(0),
         }));
       }
+      if (parsed.davisCupSeason === undefined) parsed.davisCupSeason = null;
+      if (!parsed.weeklyUsedPlayerIds) parsed.weeklyUsedPlayerIds = [];
       return parsed;
     } catch {
       console.error('Failed to parse saved state');
@@ -114,6 +129,8 @@ const getInitialState = (): GameState => {
     completedTournaments: [],
     tournamentHistory: [],
     currentDraw: null,
+    davisCupSeason: null,
+    weeklyUsedPlayerIds: [],
   };
 };
 
@@ -177,16 +194,104 @@ export const useGameState = () => {
       const newWeek = prev.currentWeek >= 52 ? 1 : prev.currentWeek + 1;
       const newSeason = prev.currentWeek >= 52 ? prev.currentSeason + 1 : prev.currentSeason;
       const isNewSeason = newWeek === 1 && newSeason > prev.currentSeason;
-      
-      let updatedPlayers = prev.players.map(player => {
+
+      // Auto-simulate other tournaments for the week we're leaving that the player skipped
+      // (higher-tier first, so top players commit there before lower-tier draws are generated) —
+      // ported from career mode so Tour mode doesn't silently drop skipped tournaments.
+      const weekTournaments = tournaments
+        .filter(t =>
+          t.week === prev.currentWeek &&
+          !prev.completedTournaments.includes(t.id) &&
+          !['Davis Cup', 'Laver Cup', 'ATP Finals'].includes(t.category)
+        )
+        .sort((a, b) => (TOURNAMENT_TIER_ORDER[a.category] ?? 99) - (TOURNAMENT_TIER_ORDER[b.category] ?? 99));
+
+      let updatedPlayers = [...prev.players];
+      const newHistory = [...prev.tournamentHistory];
+      const newCompleted = [...prev.completedTournaments];
+      const usedPlayerIds = new Set<number>(prev.weeklyUsedPlayerIds || []);
+
+      for (const t of weekTournaments) {
+        const available = updatedPlayers.filter(pl => !pl.injured && !usedPlayerIds.has(pl.id));
+        const sim = autoSimulateTournamentBracket(t, available);
+        if (sim.results.length === 0) continue;
+
+        sim.results.forEach(r => usedPlayerIds.add(r.playerId));
+
+        updatedPlayers = updatedPlayers.map(player => {
+          const result = sim.results.find(r => r.playerId === player.id);
+          if (!result) return player;
+          const newCurrentYear = [...player.currentYearWeeklyPoints];
+          newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
+          return {
+            ...player,
+            livePoints: player.livePoints + result.points,
+            points: player.points + result.points,
+            currentYearWeeklyPoints: newCurrentYear,
+          };
+        });
+
+        newCompleted.push(t.id);
+        newHistory.push({
+          tournamentId: t.id, week: prev.currentWeek, season: prev.currentSeason,
+          winnerId: sim.winnerId, winnerName: sim.winnerName,
+          runnerUpId: sim.runnerUpId, runnerUpName: sim.runnerUpName,
+          results: sim.results,
+        });
+      }
+
+      // Laver Cup & ATP Finals: bespoke team/round-robin formats excluded from the generic loop
+      // above. Auto-resolve them too if the player skipped past their week without opening the
+      // bracket, so the calendar always ends up with a winner for them.
+      const laverCupTournament = tournaments.find(t => t.id === 'laver-cup');
+      if (laverCupTournament && prev.currentWeek === laverCupTournament.week && !newCompleted.includes('laver-cup')) {
+        const lcResult = autoResolveLaverCup(updatedPlayers);
+        if (lcResult) {
+          newCompleted.push('laver-cup');
+          newHistory.push({
+            tournamentId: 'laver-cup', week: prev.currentWeek, season: prev.currentSeason,
+            winnerId: lcResult.winnerId, winnerName: lcResult.winnerName,
+            runnerUpId: lcResult.runnerUpId, runnerUpName: lcResult.runnerUpName,
+            results: [],
+          });
+        }
+      }
+      const atpFinalsTournament = tournaments.find(t => t.id === 'atp-finals');
+      if (atpFinalsTournament && prev.currentWeek === atpFinalsTournament.week && !newCompleted.includes('atp-finals')) {
+        const afResult = autoResolveATPFinals(updatedPlayers);
+        if (afResult) {
+          newCompleted.push('atp-finals');
+          newHistory.push({
+            tournamentId: 'atp-finals', week: prev.currentWeek, season: prev.currentSeason,
+            winnerId: afResult.winnerId, winnerName: afResult.winnerName,
+            runnerUpId: afResult.runnerUpId, runnerUpName: afResult.runnerUpName,
+            results: afResult.results,
+          });
+          updatedPlayers = updatedPlayers.map(player => {
+            const result = afResult.results.find(r => r.playerId === player.id);
+            if (!result) return player;
+            const newCurrentYear = [...player.currentYearWeeklyPoints];
+            newCurrentYear[prev.currentWeek - 1] = (newCurrentYear[prev.currentWeek - 1] || 0) + result.points;
+            return {
+              ...player,
+              livePoints: player.livePoints + result.points,
+              points: player.points + result.points,
+              currentYearWeeklyPoints: newCurrentYear,
+            };
+          });
+        }
+      }
+
+      updatedPlayers = updatedPlayers.map(player => {
         let updatedPlayer = updateInjuryRecovery(player);
         updatedPlayer = generateRandomInjury(updatedPlayer);
-        
-        // Weekly point defense - deduct CURRENT week's defense before advancing
-        const weekIndex = prev.currentWeek - 1; // 0-based index for current week
-        const pointsToDeduct = updatedPlayer.previousYearPoints[weekIndex] || 0;
+
+        // Weekly point defense - deduct defense for the INCOMING week (the one we're now
+        // entering), before its tournaments are played. Matches career mode's useCareerState.ts.
+        const weekToDefend = newWeek - 1; // 0-based index: defend the week we're now entering
+        const pointsToDeduct = updatedPlayer.previousYearPoints[weekToDefend] || 0;
         const newOfficialPoints = Math.max(0, updatedPlayer.points - pointsToDeduct);
-        
+
         updatedPlayer = {
           ...updatedPlayer,
           points: newOfficialPoints,
@@ -206,7 +311,7 @@ export const useGameState = () => {
             weeklyDefensePoints: 0,
           };
         }
-        
+
         return updatedPlayer;
       });
 
@@ -235,7 +340,7 @@ export const useGameState = () => {
         const m1000 = tournaments.filter(t => t.category === 'Masters 1000');
         const prevSeason = prev.currentSeason;
         const getWinners = (tList: typeof tournaments) => tList.map(t => {
-          const hist = prev.tournamentHistory.find(h => h.tournamentId === t.id && h.season === prevSeason);
+          const hist = newHistory.find(h => h.tournamentId === t.id && h.season === prevSeason);
           return { tournament: t.name, winner: hist?.winnerName || 'N/A' };
         });
         seasonSummary = {
@@ -248,16 +353,93 @@ export const useGameState = () => {
         };
       }
 
+      // Davis Cup: auto-resolve any ties the player didn't play, then roll the season structure
+      // forward — ported from career mode's advanceWeek (useCareerState.ts) so Tour mode doesn't
+      // go blank once the calendar passes February/September/November without the player manually
+      // finishing the bracket.
+      let updatedDavisCup = prev.davisCupSeason;
+      const getDCPlayer = (id: number) => rankedPlayers.find(pl => pl.id === id);
+      if (prev.currentWeek === DAVIS_CUP_FEB_WEEK) {
+        if (!updatedDavisCup) updatedDavisCup = generateYear1Season(rankedPlayers);
+        updatedDavisCup = {
+          ...updatedDavisCup,
+          qualifiersR1: autoResolveTies(updatedDavisCup.qualifiersR1, getDCPlayer),
+          worldGroupIRound1: autoResolveTies(updatedDavisCup.worldGroupIRound1, getDCPlayer),
+        };
+        updatedDavisCup = generateSeptemberRounds(updatedDavisCup);
+        if (!newCompleted.includes('davis-cup-feb')) newCompleted.push('davis-cup-feb');
+      }
+      if (prev.currentWeek === DAVIS_CUP_SEPT_WEEK && updatedDavisCup) {
+        updatedDavisCup = {
+          ...updatedDavisCup,
+          worldGroupIRound2: autoResolveTies(updatedDavisCup.worldGroupIRound2, getDCPlayer),
+          worldGroupIIRound2: autoResolveTies(updatedDavisCup.worldGroupIIRound2, getDCPlayer),
+          qualifiersR2: autoResolveTies(updatedDavisCup.qualifiersR2, getDCPlayer),
+        };
+        updatedDavisCup = generateFinalEight(updatedDavisCup);
+        if (!newCompleted.includes('davis-cup-sept')) newCompleted.push('davis-cup-sept');
+      }
+      if (prev.currentWeek === DAVIS_CUP_FINAL8_WEEK && updatedDavisCup) {
+        for (let i = 0; i < 6; i++) {
+          updatedDavisCup = {
+            ...updatedDavisCup,
+            finalEight: {
+              ...updatedDavisCup.finalEight,
+              quarterFinals: autoResolveTies(updatedDavisCup.finalEight.quarterFinals, getDCPlayer),
+              semiFinals: autoResolveTies(updatedDavisCup.finalEight.semiFinals, getDCPlayer),
+              final: updatedDavisCup.finalEight.final ? autoResolveTies([updatedDavisCup.finalEight.final], getDCPlayer)[0] : undefined,
+            },
+          };
+          updatedDavisCup = advanceFinalEight(updatedDavisCup);
+        }
+        if (updatedDavisCup.history.champion) {
+          // Push a tournamentHistory entry with the champion's name (unless the player already
+          // finished the bracket interactively, which pushes its own entry via addTournamentResult)
+          // before generateNextSeason resets history for next season.
+          if (!newCompleted.includes('davis-cup-final8')) {
+            const championCode = updatedDavisCup.history.champion;
+            const runnerUpCode = updatedDavisCup.history.runnerUp;
+            const winnerCountry = updatedDavisCup.countries[championCode];
+            const runnerUpCountry = runnerUpCode ? updatedDavisCup.countries[runnerUpCode] : undefined;
+            newHistory.push({
+              tournamentId: 'davis-cup-final8', week: prev.currentWeek, season: prev.currentSeason,
+              winnerId: winnerCountry?.player1Id || 0, winnerName: winnerCountry?.country || 'Unknown',
+              runnerUpId: runnerUpCountry?.player1Id || 0, runnerUpName: runnerUpCountry?.country || 'Unknown',
+              results: [],
+            });
+          }
+          updatedDavisCup = generateNextSeason(updatedDavisCup, rankedPlayers);
+        }
+        if (!newCompleted.includes('davis-cup-final8')) newCompleted.push('davis-cup-final8');
+      }
+
       return {
         ...prev,
         currentWeek: newWeek,
         currentSeason: newSeason,
         players: rankedPlayers,
         currentDraw: null,
-        completedTournaments: newWeek === 1 ? [] : prev.completedTournaments,
+        completedTournaments: newWeek === 1 ? [] : newCompleted,
+        tournamentHistory: newHistory,
         seasonSummary,
+        davisCupSeason: updatedDavisCup,
+        weeklyUsedPlayerIds: [], // Reset at the start of each new week
       };
     });
+  }, []);
+
+  // Add players (e.g. a locked-in Laver Cup team) to this week's excluded pool, so other
+  // same-week tournaments' entrant selection doesn't also draw from them.
+  const addWeeklyExcludedPlayers = useCallback((playerIds: number[]) => {
+    setState(prev => ({
+      ...prev,
+      weeklyUsedPlayerIds: [...new Set([...(prev.weeklyUsedPlayerIds || []), ...playerIds])],
+    }));
+  }, []);
+
+  // Update the Davis Cup season state (interactive bracket play updates this directly).
+  const updateDavisCupSeason = useCallback((season: DavisCupSeasonState) => {
+    setState(prev => ({ ...prev, davisCupSeason: season }));
   }, []);
 
   // Helper: get wins count from round name
@@ -360,6 +542,7 @@ export const useGameState = () => {
         players: rankedPlayers,
         completedTournaments: [...prev.completedTournaments, tournamentId],
         tournamentHistory: [...prev.tournamentHistory, tournamentResult],
+        weeklyUsedPlayerIds: [...new Set([...(prev.weeklyUsedPlayerIds || []), ...results.map(r => r.playerId)])],
       };
     });
   }, []);
@@ -450,6 +633,8 @@ export const useGameState = () => {
       completedTournaments: [],
       tournamentHistory: [],
       currentDraw: null,
+      davisCupSeason: null,
+      weeklyUsedPlayerIds: [],
     });
   }, []);
 
@@ -485,6 +670,8 @@ export const useGameState = () => {
       if (parsed.players) {
         parsed.players = parsed.players.map((p: Player) => ({ ...p, age: p.age || 25, previousRanking: p.previousRanking || p.officialRanking, weeklyDefensePoints: p.weeklyDefensePoints || 0 }));
       }
+      if (parsed.davisCupSeason === undefined) parsed.davisCupSeason = null;
+      if (!parsed.weeklyUsedPlayerIds) parsed.weeklyUsedPlayerIds = [];
       setState(parsed);
       localStorage.setItem(STORAGE_KEY, saved);
       return true;
@@ -523,6 +710,8 @@ export const useGameState = () => {
     clearCurrentDraw,
     getPlayersByLiveRanking,
     getPlayersByOfficialRanking,
+    updateDavisCupSeason,
+    addWeeklyExcludedPlayers,
     injurePlayer,
     healPlayer,
     dismissSeasonSummary,

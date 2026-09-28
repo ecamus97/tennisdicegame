@@ -2,12 +2,12 @@ import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { tournaments, Tournament, Player } from "@/data/players";
 import { useGameState, listSaveSlots } from "@/hooks/useGameState";
+import { TOURNAMENT_TIER_ORDER } from "@/lib/tournamentTiers";
 import SaveLoadDialog from "@/components/SaveLoadDialog";
 import SeasonSummaryDialog from "@/components/SeasonSummaryDialog";
 import RankingsView from "@/components/RankingsView";
 import CalendarView from "@/components/CalendarView";
 import CurrentWeekView from "@/components/CurrentWeekView";
-import { DavisCupSeasonState } from "@/components/DavisCupView";
 import PlayerDetailDialog from "@/components/PlayerDetailDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Calendar, Play, Dice1, RotateCcw, ChevronRight, Save, User, Sun, Moon } from "lucide-react";
@@ -47,36 +47,51 @@ const Index = () => {
     saveCurrentDraw,
     seasonSummary,
     dismissSeasonSummary,
+    davisCupSeason,
+    updateDavisCupSeason,
+    weeklyUsedPlayerIds,
+    addWeeklyExcludedPlayers,
   } = useGameState();
-  
+
   // Get all tournaments for a given week
   const getTournamentsForWeek = (week: number) => tournaments.filter(t => t.week === week);
-  
+
   const weekTournaments = useMemo(() => getTournamentsForWeek(currentWeek), [currentWeek]);
-  
+
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(
     weekTournaments[0] || null
   );
   const [activeTab, setActiveTab] = useState("current");
-  const [davisCupSeason, setDavisCupSeason] = useState<DavisCupSeasonState | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [playerDialogOpen, setPlayerDialogOpen] = useState(false);
 
-  // Calculate excluded player IDs from completed same-week tournaments
-  const excludedPlayerIds = useMemo(() => {
-    const sameWeekTournaments = getTournamentsForWeek(currentWeek);
-    const completedThisWeek = sameWeekTournaments.filter(t => completedTournaments.includes(t.id));
-    const ids = new Set<number>();
-    completedThisWeek.forEach(t => {
-      const history = tournamentHistory.filter(
-        h => h.tournamentId === t.id && h.season === currentSeason
-      );
-      history.forEach(h => {
-        h.results.forEach(r => ids.add(r.playerId));
-      });
-    });
-    return ids;
-  }, [currentWeek, completedTournaments, tournamentHistory, currentSeason]);
+  // Players already committed to a tournament this week (auto-simulated, manually completed, or a
+  // locked-in Laver Cup team) — excluded from other same-week tournaments' entrant pools.
+  const excludedPlayerIds = useMemo(() => new Set(weeklyUsedPlayerIds), [weeklyUsedPlayerIds]);
+
+  // Same-week tournaments of a strictly higher tier than the selected one, so its draw excludes
+  // players already committed to those (mirrors CareerMode.tsx).
+  const concurrentHigherTierTournaments = useMemo(() => {
+    if (!selectedTournament) return [];
+    return weekTournaments.filter(
+      t => t.id !== selectedTournament.id &&
+           !completedTournaments.includes(t.id) &&
+           (TOURNAMENT_TIER_ORDER[t.category] ?? 99) < (TOURNAMENT_TIER_ORDER[selectedTournament.category] ?? 99)
+    );
+  }, [weekTournaments, selectedTournament, completedTournaments]);
+
+  // Same-week tournaments of the same tier as the selected one, so their entrant pools are split
+  // evenly instead of all drawing from the same top players (mirrors CareerMode.tsx).
+  const concurrentSameTierTournaments = useMemo(() => {
+    if (!selectedTournament) return [];
+    return weekTournaments
+      .filter(
+        t => t.id !== selectedTournament.id &&
+             !completedTournaments.includes(t.id) &&
+             t.category === selectedTournament.category
+      )
+      .sort((a, b) => a.id.localeCompare(b.id));
+  }, [weekTournaments, selectedTournament, completedTournaments]);
 
   const handlePlayerSelect = (player: Player) => {
     setSelectedPlayer(player);
@@ -276,8 +291,11 @@ const Index = () => {
                         onSaveDraw={saveCurrentDraw}
                         currentWeek={currentWeek}
                         davisCupSeason={davisCupSeason}
-                        onDavisCupSeasonChange={setDavisCupSeason}
+                        onDavisCupSeasonChange={updateDavisCupSeason}
+                        onPlayersLocked={addWeeklyExcludedPlayers}
                         excludedPlayerIds={excludedPlayerIds}
+                        concurrentHigherTierTournaments={concurrentHigherTierTournaments}
+                        concurrentSameTierTournaments={concurrentSameTierTournaments}
                         sameWeekSameCategoryCount={
                           weekTournaments.filter(
                             t => t.category === selectedTournament.category && !completedTournaments.includes(t.id)
