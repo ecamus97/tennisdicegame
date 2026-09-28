@@ -51,6 +51,7 @@ const Index = () => {
     updateDavisCupSeason,
     weeklyUsedPlayerIds,
     addWeeklyExcludedPlayers,
+    getH2HPair,
   } = useGameState();
 
   // Get all tournaments for a given week
@@ -62,7 +63,14 @@ const Index = () => {
     weekTournaments[0] || null
   );
   const [activeTab, setActiveTab] = useState("current");
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  // Track the selected player by id (not the whole object) and re-look it up from the live
+  // `players` array on every render, so the dialog's stats/points stay current across "Next Week"
+  // and interactive tournament results instead of freezing at whatever snapshot was open when clicked.
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
+  const selectedPlayer = useMemo(
+    () => (selectedPlayerId !== null ? players.find(p => p.id === selectedPlayerId) || null : null),
+    [selectedPlayerId, players]
+  );
   const [playerDialogOpen, setPlayerDialogOpen] = useState(false);
 
   // Players already committed to a tournament this week (auto-simulated, manually completed, or a
@@ -94,7 +102,7 @@ const Index = () => {
   }, [weekTournaments, selectedTournament, completedTournaments]);
 
   const handlePlayerSelect = (player: Player) => {
-    setSelectedPlayer(player);
+    setSelectedPlayerId(player.id);
     setPlayerDialogOpen(true);
   };
 
@@ -474,6 +482,8 @@ const Index = () => {
         onOpenChange={setPlayerDialogOpen}
         onUpdateFictionalRanking={updateFictionalRanking}
         onUpdateSurfaceAffinity={updateSurfaceAffinity}
+        getH2HPair={getH2HPair}
+        allPlayers={players}
       />
     </div>
   );

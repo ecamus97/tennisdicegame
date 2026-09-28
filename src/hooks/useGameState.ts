@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Player, Tournament, initialPlayers, tournaments, Surface, SurfaceAffinity } from '@/data/players';
 import { extendedPlayers } from '@/data/playersExtended';
+import { challengerTournaments } from '@/data/challengerTournaments';
 import { processSeasonTransition, SeasonTransitionResult } from '@/lib/retirementLogic';
 import { TOURNAMENT_TIER_ORDER } from '@/lib/tournamentTiers';
 import { autoSimulateTournamentBracket } from '@/lib/tournamentSimulation';
@@ -16,6 +17,34 @@ import {
 // Full player pool: the base 150 plus the extended bench (150-500+), same as career mode.
 const allInitialPlayers: Player[] = [...initialPlayers, ...extendedPlayers];
 import { MatchResult } from '@/lib/matchEngine';
+
+// Challenger/ITF calendar (same source Career mode uses), converted to the shared Tournament
+// shape. These never show up as a playable option in Tour mode's UI (Index.tsx's week selector
+// only reads the ATP-level `tournaments` array from players.ts) — they exist purely so the
+// weekly auto-sim loop below can quietly grow the ranking points of players outside the ATP main
+// draws (who otherwise sit frozen at 0 points forever, since no ATP 250-and-up tournament is ever
+// eligible for them).
+const backgroundLowerTierTournaments: Tournament[] = challengerTournaments.map(ct => ({
+  id: ct.id,
+  name: ct.name,
+  city: ct.city,
+  country: ct.country,
+  category: ct.category as Tournament['category'],
+  surface: ct.surface,
+  week: ct.week,
+  playerLimit: ct.playerLimit,
+  seeds: ct.seeds,
+  points: {
+    winner: ct.points.winner,
+    finalist: ct.points.finalist,
+    sf: ct.points.sf,
+    qf: ct.points.qf,
+    r16: ct.points.r16,
+    r32: ct.points.r32,
+    r64: 0,
+    r128: 0,
+  },
+}));
 
 // Stored match in a draw
 export interface StoredMatch {
@@ -57,6 +86,76 @@ export interface GameState {
   /** Players committed to a tournament this week (via auto-sim, manual completion, or a locked-in
    * Laver Cup team) — excluded from other same-week tournaments' entrant pools. Reset each week. */
   weeklyUsedPlayerIds: number[];
+  /** Head-to-head win counts between any two players, key `${minId}-${maxId}` -> [minId wins, maxId wins].
+   * Populated from every auto-simulated and manually-finished match so PlayerDetailDialog's "vs Top 50"
+   * section has real data in Tour mode too (mirrors Career mode's globalH2H). */
+  globalH2H: Record<string, [number, number]>;
+}
+
+/** Merge a batch of match results (winnerId/loserId pairs) into a running H2H table. Shared shape
+ * with Career mode's globalH2H so the same PlayerDetailDialog getH2HPair consumer works for both. */
+function mergeH2H(
+  currentH2H: Record<string, [number, number]>,
+  matchPairs: { winnerId: number; loserId: number }[]
+): Record<string, [number, number]> {
+  const updated = { ...currentH2H };
+  for (const { winnerId, loserId } of matchPairs) {
+    const minId = Math.min(winnerId, loserId);
+    const maxId = Math.max(winnerId, loserId);
+    const key = `${minId}-${maxId}`;
+    const current = updated[key] || [0, 0];
+    updated[key] = winnerId === minId ? [current[0] + 1, current[1]] : [current[0], current[1] + 1];
+  }
+  return updated;
+}
+
+/** Wins implied by the round a player was eliminated in (or "Winner" for the title) — shared by
+ * the auto-sim loop and addTournamentResult so both count wins/losses the same way. */
+function getWinsFromRound(round: string, playerLimit: number): number {
+  const roundMap: Record<string, number> = {
+    "Winner": Math.log2(playerLimit),
+    "Final": Math.log2(playerLimit) - 1,
+    "Semifinal": Math.log2(playerLimit) - 2,
+    "Quarterfinal": Math.log2(playerLimit) - 3,
+    "R16": Math.log2(playerLimit) - 4,
+    "R32": Math.log2(playerLimit) - 5,
+    "R64": Math.log2(playerLimit) - 6,
+    "R128": 0,
+  };
+  return Math.max(0, roundMap[round] ?? 0);
+}
+
+/** Fold one tournament round's worth of results into a player's win/loss stats — same rules
+ * addTournamentResult already uses for interactively-finished tournaments, shared here so
+ * auto-simulated (skipped) tournaments update stats identically. */
+function applyStatsForResult(
+  player: Player,
+  result: { points: number; round: string },
+  surface: Surface,
+  playerLimit: number,
+): Player['stats'] {
+  const wins = getWinsFromRound(result.round, playerLimit);
+  const lost = result.round !== 'Winner' ? 1 : 0;
+  const isTitle = result.round === 'Winner';
+  const stats = player.stats || { wins: 0, losses: 0, surfaceWins: { Hard: 0, Clay: 0, Grass: 0 }, surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 }, currentStreak: 0, bestWinStreak: 0, titles: 0 };
+
+  let newStreak = stats.currentStreak;
+  if (isTitle) {
+    newStreak = newStreak > 0 ? newStreak + wins : wins;
+  } else {
+    newStreak = -1;
+  }
+
+  return {
+    ...stats,
+    wins: stats.wins + wins,
+    losses: stats.losses + lost,
+    surfaceWins: { ...stats.surfaceWins, [surface]: (stats.surfaceWins[surface] || 0) + wins },
+    surfaceLosses: { ...stats.surfaceLosses, [surface]: (stats.surfaceLosses[surface] || 0) + lost },
+    currentStreak: newStreak,
+    bestWinStreak: Math.max(stats.bestWinStreak, newStreak > 0 ? newStreak : 0),
+    titles: stats.titles + (isTitle ? 1 : 0),
+  };
 }
 
 // Named save slots
@@ -118,6 +217,7 @@ const getInitialState = (): GameState => {
       }
       if (parsed.davisCupSeason === undefined) parsed.davisCupSeason = null;
       if (!parsed.weeklyUsedPlayerIds) parsed.weeklyUsedPlayerIds = [];
+      if (!parsed.globalH2H) parsed.globalH2H = {};
       return parsed;
     } catch {
       console.error('Failed to parse saved state');
@@ -132,6 +232,7 @@ const getInitialState = (): GameState => {
     currentDraw: null,
     davisCupSeason: null,
     weeklyUsedPlayerIds: [],
+    globalH2H: {},
   };
 };
 
@@ -198,8 +299,11 @@ export const useGameState = () => {
 
       // Auto-simulate other tournaments for the week we're leaving that the player skipped
       // (higher-tier first, so top players commit there before lower-tier draws are generated) —
-      // ported from career mode so Tour mode doesn't silently drop skipped tournaments.
-      const weekTournaments = tournaments
+      // ported from career mode so Tour mode doesn't silently drop skipped tournaments. Also
+      // includes the Challenger/ITF calendar (backgroundLowerTierTournaments): those never appear
+      // as a selectable tournament in Tour mode's UI, but still get simulated here so players
+      // outside the ATP main draws gradually earn points instead of sitting at 0 forever.
+      const weekTournaments = [...tournaments, ...backgroundLowerTierTournaments]
         .filter(t =>
           t.week === prev.currentWeek &&
           !prev.completedTournaments.includes(t.id) &&
@@ -211,6 +315,7 @@ export const useGameState = () => {
       const newHistory = [...prev.tournamentHistory];
       const newCompleted = [...prev.completedTournaments];
       const usedPlayerIds = new Set<number>(prev.weeklyUsedPlayerIds || []);
+      let updatedH2H = { ...(prev.globalH2H || {}) };
 
       for (const t of weekTournaments) {
         const available = updatedPlayers.filter(pl => !pl.injured && !usedPlayerIds.has(pl.id));
@@ -218,6 +323,7 @@ export const useGameState = () => {
         if (sim.results.length === 0) continue;
 
         sim.results.forEach(r => usedPlayerIds.add(r.playerId));
+        updatedH2H = mergeH2H(updatedH2H, sim.matchPairs);
 
         updatedPlayers = updatedPlayers.map(player => {
           const result = sim.results.find(r => r.playerId === player.id);
@@ -231,6 +337,7 @@ export const useGameState = () => {
             points: player.points + result.points,
             currentYearWeeklyPoints: newCurrentYear,
             fatigue: Math.min(100, (player.fatigue ?? 0) + fatigueGain),
+            stats: applyStatsForResult(player, result, t.surface, t.playerLimit),
           };
         });
 
@@ -448,6 +555,7 @@ export const useGameState = () => {
         seasonSummary,
         davisCupSeason: updatedDavisCup,
         weeklyUsedPlayerIds: [], // Reset at the start of each new week
+        globalH2H: updatedH2H,
       };
     });
   }, []);
@@ -465,21 +573,6 @@ export const useGameState = () => {
   const updateDavisCupSeason = useCallback((season: DavisCupSeasonState) => {
     setState(prev => ({ ...prev, davisCupSeason: season }));
   }, []);
-
-  // Helper: get wins count from round name
-  const getWinsFromRound = (round: string, playerLimit: number): number => {
-    const roundMap: Record<string, number> = {
-      "Winner": Math.log2(playerLimit),
-      "Final": Math.log2(playerLimit) - 1,
-      "Semifinal": Math.log2(playerLimit) - 2,
-      "Quarterfinal": Math.log2(playerLimit) - 3,
-      "R16": Math.log2(playerLimit) - 4,
-      "R32": Math.log2(playerLimit) - 5,
-      "R64": Math.log2(playerLimit) - 6,
-      "R128": 0,
-    };
-    return Math.max(0, roundMap[round] ?? 0);
-  };
 
   const addTournamentResult = useCallback((
     tournamentId: string,
@@ -504,35 +597,12 @@ export const useGameState = () => {
         const newCurrentYearPoints = [...player.currentYearWeeklyPoints];
         newCurrentYearPoints[prev.currentWeek - 1] = (newCurrentYearPoints[prev.currentWeek - 1] || 0) + result.points;
 
-        // Calculate stats
-        const wins = getWinsFromRound(result.round, playerLimit);
-        const lost = result.round !== "Winner" ? 1 : 0;
-        const isTitle = result.round === "Winner";
-        const stats = player.stats || { wins: 0, losses: 0, surfaceWins: { Hard: 0, Clay: 0, Grass: 0 }, surfaceLosses: { Hard: 0, Clay: 0, Grass: 0 }, currentStreak: 0, bestWinStreak: 0, titles: 0 };
-        
-        let newStreak = stats.currentStreak;
-        if (isTitle) {
-          newStreak = newStreak > 0 ? newStreak + wins : wins;
-        } else {
-          // Won some, then lost 1
-          newStreak = -1;
-        }
-
         return {
           ...player,
           livePoints: newLivePoints,
           points: newOfficialPoints,
           currentYearWeeklyPoints: newCurrentYearPoints,
-          stats: {
-            ...stats,
-            wins: stats.wins + wins,
-            losses: stats.losses + lost,
-            surfaceWins: { ...stats.surfaceWins, [surface]: (stats.surfaceWins[surface] || 0) + wins },
-            surfaceLosses: { ...stats.surfaceLosses, [surface]: (stats.surfaceLosses[surface] || 0) + lost },
-            currentStreak: newStreak,
-            bestWinStreak: Math.max(stats.bestWinStreak, newStreak > 0 ? newStreak : 0),
-            titles: stats.titles + (isTitle ? 1 : 0),
-          },
+          stats: applyStatsForResult(player, result, surface, playerLimit),
         };
       });
 
@@ -659,6 +729,7 @@ export const useGameState = () => {
       currentDraw: null,
       davisCupSeason: null,
       weeklyUsedPlayerIds: [],
+      globalH2H: {},
     });
   }, []);
 
@@ -719,10 +790,23 @@ export const useGameState = () => {
     return [...state.players].sort((a, b) => a.officialRanking - b.officialRanking);
   }, [state.players]);
 
+  // Head-to-head record between any two players, sourced from every auto-simulated match this
+  // season (see globalH2H / mergeH2H above) — powers PlayerDetailDialog's "vs Top 50" section.
+  const getH2HPair = useCallback((id1: number, id2: number): { p1Wins: number; p2Wins: number } => {
+    const minId = Math.min(id1, id2);
+    const maxId = Math.max(id1, id2);
+    const key = `${minId}-${maxId}`;
+    const pair = state.globalH2H?.[key] || [0, 0];
+    return id1 === minId
+      ? { p1Wins: pair[0], p2Wins: pair[1] }
+      : { p1Wins: pair[1], p2Wins: pair[0] };
+  }, [state.globalH2H]);
+
   return {
     ...state,
     advanceWeek,
     addTournamentResult,
+    getH2HPair,
     updateFictionalRanking,
     updateSurfaceAffinity,
     recordMatchResult,
