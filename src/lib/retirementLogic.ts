@@ -3,6 +3,7 @@ import {
   QUALIFIERS_R1_YEAR1, WORLD_GROUP_I_YEAR1, WORLD_GROUP_II_YEAR1,
   DEFENDING_CHAMPION_YEAR1, RUNNER_UP_YEAR1, COUNTRY_DISPLAY_NAMES,
 } from '@/data/davisCupData';
+import { getNamePool } from '@/data/nameData';
 
 // Retirement probability based on age
 function getRetirementProbability(age: number): number {
@@ -13,22 +14,6 @@ function getRetirementProbability(age: number): number {
   if (age < 40) return 0.50;
   return 0.75;
 }
-
-// Random first/last names for generated players
-const FIRST_NAMES = [
-  'Lucas', 'Mateo', 'Santiago', 'Diego', 'Marco', 'Leo', 'Nico', 'Hugo', 'Alex', 'Daniel',
-  'Pablo', 'Adrian', 'Tomás', 'Rafael', 'Victor', 'Ivan', 'Felix', 'Oscar', 'Andre', 'Max',
-  'Julian', 'Emil', 'Henrik', 'Lars', 'Erik', 'Anton', 'Liam', 'Noah', 'Kai', 'Finn',
-  'Stefan', 'Nikola', 'Petar', 'Andrei', 'Mikhail', 'Yuki', 'Kenji', 'Ravi', 'Omar', 'Carlos',
-];
-const LAST_NAMES = [
-  'Moreno', 'Silva', 'García', 'López', 'Fernández', 'Martínez', 'Rodríguez', 'González',
-  'Hernández', 'Pérez', 'Sánchez', 'Torres', 'Ramírez', 'Flores', 'Rivera', 'Gómez',
-  'Díaz', 'Cruz', 'Reyes', 'Romero', 'Müller', 'Schmidt', 'Weber', 'Fischer', 'Wagner',
-  'Becker', 'Rossi', 'Russo', 'Romano', 'Colombo', 'Ricci', 'Greco', 'Bruno', 'Gallo',
-  'Conti', 'De Luca', 'Mancini', 'Costa', 'Martin', 'Dupont', 'Lefebvre', 'Bernard',
-  'Petit', 'Morel', 'Laurent', 'Leroy', 'Blanc', 'Bonnet', 'Dubois', 'Girard',
-];
 
 const COUNTRIES = [
   { country: 'Spain', code: 'ESP' }, { country: 'Italy', code: 'ITA' },
@@ -64,8 +49,11 @@ function generateRookieFictionalRanking(entryRanking: number): number {
 }
 
 function buildGeneratedPlayer(ranking: number, country: string, countryCode: string): Player {
-  const first = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
-  const last = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
+  // Pick first/last names from the pool that actually fits this player's country, instead of a
+  // single global list — otherwise a Croatian rookie could end up named "Kenji Martínez".
+  const pool = getNamePool(countryCode);
+  const first = pool.first[Math.floor(Math.random() * pool.first.length)];
+  const last = pool.last[Math.floor(Math.random() * pool.last.length)];
   const age = 17 + Math.floor(Math.random() * 4); // 17-20
   const id = nextGeneratedId++;
 
