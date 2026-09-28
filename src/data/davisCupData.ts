@@ -46,6 +46,9 @@ export interface DavisCupTie {
   series: DavisCupSeries;
   winnerCode?: string;
   isBye?: boolean; // one country lacked 2 eligible players; the other auto-advances without playing
+  /** Country code with home advantage for this tie, drawn at random when the tie is created.
+   * Undefined for Final Eight ties, which are played on neutral ground (Bologna). */
+  homeCountryCode?: string;
 }
 
 export interface DavisCupFinalEight {
@@ -218,6 +221,9 @@ export const createTie = (
   c2: DavisCupCountryEntry,
 ): DavisCupTie => {
   const id = nextTieId(tier);
+  // Every round except the Final Eight (played on neutral ground in Bologna) is hosted by one of
+  // the two competing nations, drawn at random so no single country is always the home side.
+  const homeCountryCode = tier === "finalEight" ? undefined : (Math.random() < 0.5 ? c1.countryCode : c2.countryCode);
   if (c1.insufficientPlayers || c2.insufficientPlayers) {
     const winner = c1.insufficientPlayers ? c2 : c1;
     return {
@@ -229,6 +235,7 @@ export const createTie = (
       series: createSeries(c1, c2, id),
       winnerCode: winner.countryCode,
       isBye: true,
+      homeCountryCode,
     };
   }
   return {
@@ -238,6 +245,7 @@ export const createTie = (
     country1Code: c1.countryCode,
     country2Code: c2.countryCode,
     series: createSeries(c1, c2, id),
+    homeCountryCode,
   };
 };
 
@@ -577,6 +585,14 @@ const createDoublesPlayer = (p1: Player, p2: Player): Player => ({
   officialRanking: Math.round((p1.officialRanking + p2.officialRanking) / 2),
 });
 
+/** Applies the tie's home advantage (if any) to a player — same -8 fictional ranking bonus used for
+ * home players in regular ATP tournaments (see tournamentSimulation.ts). No-op for Final Eight ties
+ * (neutral ground) or when the player's country isn't the tie's home country. */
+export const applyDavisCupHomeAdvantage = (player: Player, tie: DavisCupTie): Player =>
+  tie.homeCountryCode && player.countryCode === tie.homeCountryCode
+    ? { ...player, fictionalRanking: Math.max(1, player.fictionalRanking - 8) }
+    : player;
+
 /** Simulates every unplayed match of a tie against the CPU engine (used by the "Sim" button and by auto-resolve on week skip). */
 export const simulateTie = (tie: DavisCupTie, getPlayer: (id: number) => Player | undefined): DavisCupTie => {
   if (tie.winnerCode || tie.isBye) return tie;
@@ -589,11 +605,13 @@ export const simulateTie = (tie: DavisCupTie, getPlayer: (id: number) => Player 
       const p1a = getPlayer(match.player1Id), p1b = getPlayer(match.player1PartnerId!);
       const p2a = getPlayer(match.player2Id), p2b = getPlayer(match.player2PartnerId!);
       if (!p1a || !p1b || !p2a || !p2b) continue;
-      p1 = createDoublesPlayer(p1a, p1b);
-      p2 = createDoublesPlayer(p2a, p2b);
+      p1 = createDoublesPlayer(applyDavisCupHomeAdvantage(p1a, tie), applyDavisCupHomeAdvantage(p1b, tie));
+      p2 = createDoublesPlayer(applyDavisCupHomeAdvantage(p2a, tie), applyDavisCupHomeAdvantage(p2b, tie));
     } else {
       p1 = getPlayer(match.player1Id);
       p2 = getPlayer(match.player2Id);
+      if (p1) p1 = applyDavisCupHomeAdvantage(p1, tie);
+      if (p2) p2 = applyDavisCupHomeAdvantage(p2, tie);
     }
     if (!p1 || !p2) continue;
     const result = playMatch(p1, p2, 3);

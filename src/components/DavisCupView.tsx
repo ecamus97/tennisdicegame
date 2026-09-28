@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
   DavisCupSeasonState, DavisCupTie, DavisCupSeriesMatch,
-  generateYear1Season, updateTieMatchResult, simulateTie, advanceFinalEight,
+  generateYear1Season, updateTieMatchResult, simulateTie, advanceFinalEight, applyDavisCupHomeAdvantage,
   DAVIS_CUP_FEB_WEEK, DAVIS_CUP_SEPT_WEEK, DAVIS_CUP_FINAL8_WEEK,
 } from "@/data/davisCupData";
 
@@ -120,11 +120,11 @@ const DavisCupView: React.FC<DavisCupViewProps> = ({ players, season, currentWee
     if (match.isDoubles) {
       const p1a = getPlayer(match.player1Id)!, p1b = getPlayer(match.player1PartnerId!)!;
       const p2a = getPlayer(match.player2Id)!, p2b = getPlayer(match.player2PartnerId!)!;
-      p1 = createDoublesPlayer(p1a, p1b);
-      p2 = createDoublesPlayer(p2a, p2b);
+      p1 = createDoublesPlayer(applyDavisCupHomeAdvantage(p1a, tie), applyDavisCupHomeAdvantage(p1b, tie));
+      p2 = createDoublesPlayer(applyDavisCupHomeAdvantage(p2a, tie), applyDavisCupHomeAdvantage(p2b, tie));
     } else {
-      p1 = getPlayer(match.player1Id)!;
-      p2 = getPlayer(match.player2Id)!;
+      p1 = applyDavisCupHomeAdvantage(getPlayer(match.player1Id)!, tie);
+      p2 = applyDavisCupHomeAdvantage(getPlayer(match.player2Id)!, tie);
     }
     onMatchClick(p1, p2, match.id, tie.id);
   };
@@ -186,11 +186,19 @@ const DavisCupView: React.FC<DavisCupViewProps> = ({ players, season, currentWee
         <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-secondary/30 transition-colors" onClick={() => setExpandedTie(isExpanded ? null : tie.id)}>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">{c1.country}{c1.insufficientPlayers && <span className="text-[10px] text-muted-foreground ml-1">(sin roster)</span>}</span>
+              <span className="font-semibold text-sm">
+                {c1.country}
+                {tie.homeCountryCode === c1.countryCode && <span title="Localía" className="ml-1">🏠</span>}
+                {c1.insufficientPlayers && <span className="text-[10px] text-muted-foreground ml-1">(sin roster)</span>}
+              </span>
               <span className={`text-lg font-bold ${tie.winnerCode === c1.countryCode ? "text-primary" : ""}`}>{tie.series.country1Wins}</span>
               <span className="text-muted-foreground">-</span>
               <span className={`text-lg font-bold ${tie.winnerCode === c2.countryCode ? "text-primary" : ""}`}>{tie.series.country2Wins}</span>
-              <span className="font-semibold text-sm">{c2.country}{c2.insufficientPlayers && <span className="text-[10px] text-muted-foreground ml-1">(sin roster)</span>}</span>
+              <span className="font-semibold text-sm">
+                {c2.country}
+                {tie.homeCountryCode === c2.countryCode && <span title="Localía" className="ml-1">🏠</span>}
+                {c2.insufficientPlayers && <span className="text-[10px] text-muted-foreground ml-1">(sin roster)</span>}
+              </span>
             </div>
             {tie.isBye && <Badge variant="outline" className="text-[10px]">Walkover</Badge>}
             {tie.winnerCode && !tie.isBye && <Badge variant="secondary" className="text-[10px]">{country(tie.winnerCode)?.country} avanza</Badge>}
