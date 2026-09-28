@@ -18,6 +18,7 @@ import { playMatch } from '@/lib/matchEngine';
 import { selectTournamentEntrants, getCareerEligibleCategories, canEnterAsWildCard, getEligibleRankingRange, getCountryCodeFromCountry, getEntryProbability, getAdjustedEntryProbability } from '@/lib/tournamentEntryLogic';
 import { TournamentDraw } from '@/hooks/useGameState';
 import { processSeasonTransition } from '@/lib/retirementLogic';
+import { applyAgingToFictionalRanking } from '@/lib/agingCurve';
 import {
   DavisCupSeasonState, generateYear1Season, generateNextSeason,
   generateSeptemberRounds, generateFinalEight, advanceFinalEight, autoResolveTies, refreshFebRosters,
@@ -1482,14 +1483,20 @@ export const useCareerState = () => {
         p.livePoints = 0;
         p.form = Math.max(-10, p.form - 3);
 
-        updatedPlayers = updatedPlayers.map(player => ({
-          ...player,
-          age: player.age + 1,
-          previousYearPoints: [...player.currentYearWeeklyPoints],
-          currentYearWeeklyPoints: new Array(52).fill(0),
-          points: player.livePoints,
-          livePoints: 0,
-        }));
+        updatedPlayers = updatedPlayers.map(player => {
+          const newAge = player.age + 1;
+          return {
+            ...player,
+            age: newAge,
+            // Fictional ranking (hidden true skill) evolves with age: improves while developing,
+            // holds steady through the 25-31 peak window, then declines — see agingCurve.ts.
+            fictionalRanking: applyAgingToFictionalRanking(player.fictionalRanking, newAge),
+            previousYearPoints: [...player.currentYearWeeklyPoints],
+            currentYearWeeklyPoints: new Array(52).fill(0),
+            points: player.livePoints,
+            livePoints: 0,
+          };
+        });
 
         // Capture end-of-season top 10 BEFORE retirement processing (to include retiring players)
         const endOfSeasonTop10 = [...updatedPlayers]

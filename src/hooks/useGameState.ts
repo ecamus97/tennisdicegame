@@ -8,6 +8,7 @@ import { autoSimulateTournamentBracket } from '@/lib/tournamentSimulation';
 import { autoResolveLaverCup } from '@/lib/laverCupSimulation';
 import { autoResolveATPFinals } from '@/lib/atpFinalsSimulation';
 import { calculateTournamentFatigueGain } from '@/data/careerData';
+import { applyAgingToFictionalRanking } from '@/lib/agingCurve';
 import {
   DavisCupSeasonState, generateYear1Season, generateNextSeason,
   generateSeptemberRounds, generateFinalEight, advanceFinalEight, autoResolveTies, refreshFebRosters,
@@ -425,9 +426,13 @@ export const useGameState = () => {
 
         // Season transition
         if (isNewSeason) {
+          const newAge = updatedPlayer.age + 1;
           return {
             ...updatedPlayer,
-            age: updatedPlayer.age + 1,
+            age: newAge,
+            // Fictional ranking (hidden true skill) evolves with age: improves while developing,
+            // holds steady through the 25-31 peak window, then declines — see agingCurve.ts.
+            fictionalRanking: applyAgingToFictionalRanking(updatedPlayer.fictionalRanking, newAge),
             previousYearPoints: [...updatedPlayer.currentYearWeeklyPoints],
             currentYearWeeklyPoints: new Array(52).fill(0),
             points: updatedPlayer.livePoints, // Reset to only earned points
