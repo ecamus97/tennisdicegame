@@ -253,10 +253,32 @@ function player1BottomForTiebreakPoint(pointNumber: number, baseline: boolean): 
   return baseline !== flipped;
 }
 
+// ---------- Serving side of the center mark ("the T") ----------
+// Real tennis: the server always serves the first point of a game from the right of the center
+// mark (the "deuce" court) and then alternates sides every point for the rest of the game,
+// regardless of score - both the first and second serve of the SAME point come from the same
+// side. A tiebreak follows the same per-point alternation across the whole breaker.
+
+export type ServeSide = "deuce" | "ad";
+
+/** Which side of the T the server serves THIS point from, given how many points have already
+ * been played in the game/tiebreak so far (0 for the very first point). */
+function serveSideForPointsPlayed(pointsPlayed: number): ServeSide {
+  return pointsPlayed % 2 === 0 ? "deuce" : "ad";
+}
+
+function serveSideX(side: ServeSide): number {
+  return side === "deuce" ? randRange(0.56, 0.74) : randRange(0.26, 0.44);
+}
+
+function oppositeServeSide(side: ServeSide): ServeSide {
+  return side === "deuce" ? "ad" : "deuce";
+}
+
 // ---------- Single point simulation ----------
 
-function buildAcePoint(server: Player): { shots: Shot[]; outcome: PointOutcome } {
-  const from: Vec2 = { x: randRange(0.3, 0.7), y: 0.02 };
+function buildAcePoint(server: Player, serveSide: ServeSide): { shots: Shot[]; outcome: PointOutcome } {
+  const from: Vec2 = { x: serveSideX(serveSide), y: 0.02 };
   const to = winnerTarget("receiver", "serve");
   const shots: Shot[] = [{
     shotNumber: 1, hitterSide: "server", style: "serve", from, to, arcHeight: 0.3, isFinal: true,
@@ -269,9 +291,9 @@ function buildAcePoint(server: Player): { shots: Shot[]; outcome: PointOutcome }
 }
 
 /** A missed first serve - the ball lands out (net/wide/long), but the point is NOT over: the
- * server gets a second serve next. Always non-final. */
-function buildFirstServeFaultShot(server: Player): Shot {
-  const from: Vec2 = { x: randRange(0.3, 0.7), y: 0.02 };
+ * server gets a second serve next, from the SAME side of the T. Always non-final. */
+function buildFirstServeFaultShot(server: Player, serveSide: ServeSide): Shot {
+  const from: Vec2 = { x: serveSideX(serveSide), y: 0.02 };
   const missType: MissType = pick<MissType>(["net", "wide", "long"]);
   const to = missTarget("receiver", missType);
   return {
@@ -280,8 +302,8 @@ function buildFirstServeFaultShot(server: Player): Shot {
   };
 }
 
-function buildDoubleFaultPoint(server: Player): { shots: Shot[]; outcome: PointOutcome } {
-  const from: Vec2 = { x: randRange(0.3, 0.7), y: 0.02 };
+function buildDoubleFaultPoint(server: Player, serveSide: ServeSide): { shots: Shot[]; outcome: PointOutcome } {
+  const from: Vec2 = { x: serveSideX(serveSide), y: 0.02 };
   const missType: MissType = pick<MissType>(["net", "wide", "long"]);
   const to = missTarget("receiver", missType);
   const shots: Shot[] = [{
@@ -304,7 +326,7 @@ function sampleShotCount(): number {
   return n;
 }
 
-function buildRallyPoint(server: Player, receiver: Player, winnerSide: Side, surface: Surface | undefined): { shots: Shot[]; outcome: PointOutcome } {
+function buildRallyPoint(server: Player, receiver: Player, winnerSide: Side, surface: Surface | undefined, serveSide: ServeSide): { shots: Shot[]; outcome: PointOutcome } {
   const narrativeType = weightedPick<"winner" | "unforcedError" | "forcedError">([
     ["winner", 0.42], ["unforcedError", 0.37], ["forcedError", 0.21],
   ]);
@@ -323,8 +345,10 @@ function buildRallyPoint(server: Player, receiver: Player, winnerSide: Side, sur
   ]);
 
   const shots: Shot[] = [];
-  let serverPos: Vec2 = { x: randRange(0.3, 0.7), y: 0.03 };
-  let receiverPos: Vec2 = { x: randRange(0.3, 0.7), y: 0.97 };
+  // The server stands on their assigned side of the T; the receiver sets up roughly diagonally
+  // opposite (a real serve crosses the center line), not mirroring the server's side.
+  let serverPos: Vec2 = { x: serveSideX(serveSide), y: 0.03 };
+  let receiverPos: Vec2 = { x: serveSideX(oppositeServeSide(serveSide)), y: 0.97 };
 
   for (let i = 1; i <= n; i++) {
     const hitterSide: Side = i % 2 === 1 ? "server" : "receiver";
@@ -389,16 +413,21 @@ function buildRallyPoint(server: Player, receiver: Player, winnerSide: Side, sur
  * whichever serve is actually being hit. */
 function simulateFromServe(
   server: Player, receiver: Player, surface: Surface | undefined,
-  aceChance: number, dfChance: number, rallyProb: number,
+  aceChance: number, dfChance: number, rallyProb: number, serveSide: ServeSide,
 ): { shots: Shot[]; outcome: PointOutcome } {
   const roll = Math.random();
-  if (roll < aceChance) return buildAcePoint(server);
-  if (roll < aceChance + dfChance) return buildDoubleFaultPoint(server);
+  if (roll < aceChance) return buildAcePoint(server, serveSide);
+  if (roll < aceChance + dfChance) return buildDoubleFaultPoint(server, serveSide);
   const winnerSide: Side = Math.random() < rallyProb ? "server" : "receiver";
-  return buildRallyPoint(server, receiver, winnerSide, surface);
+  return buildRallyPoint(server, receiver, winnerSide, surface, serveSide);
 }
 
-function simulatePoint(server: Player, receiver: Player, surface: Surface | undefined): { shots: Shot[]; outcome: PointOutcome } {
+/** `pointsPlayedInGame` is how many points have already been decided in this game (or tiebreak)
+ * before this one - it picks which side of the T the server serves from (right/"deuce" on the
+ * first point, then alternating every point after that, regardless of score). */
+function simulatePoint(
+  server: Player, receiver: Player, surface: Surface | undefined, pointsPlayedInGame: number,
+): { shots: Shot[]; outcome: PointOutcome } {
   const winProb = getServerPointWinProbability(server, receiver, surface);
   const aceChance = getAceChance(server, receiver, surface);
   const firstServeFaultChance = getFirstServeFaultChance(server, receiver, surface);
@@ -408,18 +437,19 @@ function simulatePoint(server: Player, receiver: Player, surface: Surface | unde
   const doubleFaultChance = firstServeFaultChance * secondServeFaultChance;
   const rallyProb = clamp((winProb - aceChance) / (1 - aceChance - doubleFaultChance), 0.08, 0.92);
 
+  const serveSide = serveSideForPointsPlayed(pointsPlayedInGame);
   const firstServeFaulted = Math.random() < firstServeFaultChance;
 
   if (!firstServeFaulted) {
     // First serve is in play - can end in an ace or go into a normal rally (no double fault possible).
-    return simulateFromServe(server, receiver, surface, aceChance, 0, rallyProb);
+    return simulateFromServe(server, receiver, surface, aceChance, 0, rallyProb, serveSide);
   }
 
-  // First serve missed - the point continues on the second serve. Aces are rarer off a more
-  // conservative second serve; a second miss here is a real double fault.
-  const faultShot = buildFirstServeFaultShot(server);
+  // First serve missed - the point continues on the second serve, from the SAME side of the T.
+  // Aces are rarer off a more conservative second serve; a second miss here is a real double fault.
+  const faultShot = buildFirstServeFaultShot(server, serveSide);
   const secondServeAceChance = aceChance * 0.4;
-  const rest = simulateFromServe(server, receiver, surface, secondServeAceChance, secondServeFaultChance, rallyProb);
+  const rest = simulateFromServe(server, receiver, surface, secondServeAceChance, secondServeFaultChance, rallyProb, serveSide);
 
   return {
     shots: [faultShot, ...rest.shots.map(s => ({ ...s, shotNumber: s.shotNumber + 1 }))],
@@ -479,7 +509,7 @@ function simulateGamePoints(
     const isMatchPoint = (serverGameWinNext && wouldWinMatchIfServer) || (receiverGameWinNext && wouldWinMatchIfReceiver);
 
     const preLabels = gameScoreLabels(serverPoints, receiverPoints);
-    const { shots, outcome } = simulatePoint(server, receiver, surface);
+    const { shots, outcome } = simulatePoint(server, receiver, surface, serverPoints + receiverPoints);
     if (outcome.winnerSide === "server") serverPoints++; else receiverPoints++;
 
     const labels = gameScoreLabels(serverPoints, receiverPoints);
@@ -528,7 +558,7 @@ function simulateTiebreakPoints(
     const currentReceiverSets = isPlayer1Serving ? ctx.player2Sets : ctx.player1Sets;
     const isMatchPoint = (serverTBWinNext && currentServerSets + 1 >= ctx.setsToWin) || (receiverTBWinNext && currentReceiverSets + 1 >= ctx.setsToWin);
 
-    const { shots, outcome } = simulatePoint(server, receiver, surface);
+    const { shots, outcome } = simulatePoint(server, receiver, surface, pointNumber - 1);
     const serverWonPoint = outcome.winnerSide === "server";
     if (isPlayer1Serving) {
       if (serverWonPoint) player1Points++; else player2Points++;
