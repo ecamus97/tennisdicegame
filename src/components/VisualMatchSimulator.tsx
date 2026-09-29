@@ -168,7 +168,7 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
         <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center text-center">
           <div className="flex items-center justify-center gap-1.5 min-w-0">
             {!matchComplete && serverIsPlayer1 && (
-              <span className="w-2 h-2 rounded-full bg-primary shrink-0" aria-hidden="true" />
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#3b82f6" }} aria-hidden="true" />
             )}
             <div className="min-w-0">
               <div className="text-sm truncate">{player1.name}</div>
@@ -233,7 +233,7 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
               <div className="text-xs text-muted-foreground">{player2.countryCode}</div>
             </div>
             {!matchComplete && !serverIsPlayer1 && (
-              <span className="w-2 h-2 rounded-full bg-primary shrink-0" aria-hidden="true" />
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#f97316" }} aria-hidden="true" />
             )}
           </div>
         </div>

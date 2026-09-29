@@ -70,12 +70,20 @@ const shotStyleLabel: Record<Shot["style"], string> = {
 
 // Broadcast court color theme per surface, plus a dedicated dark-grey indoor look that overrides
 // whatever the underlying (still Hard/Clay/Grass) surface is - indoor is a roof, not a bounce type.
-const SURFACE_THEME: Record<Surface, { court: string; courtIn: string; line: string; stand: string }> = {
-  Hard: { court: "#1c6ba8", courtIn: "#2f86c9", line: "#f4f8fb", stand: "#0d2338" },
-  Clay: { court: "#a2531f", courtIn: "#c1652a", line: "#f6e7d8", stand: "#3a2014" },
-  Grass: { court: "#2c7a3a", courtIn: "#3c9a4c", line: "#f4f8fb", stand: "#0f2415" },
+// The outer "court" shade is the decorative doubles alley; "courtIn" is the brighter singles/play
+// area, kept clearly lighter so the alley reads as its own lane rather than blending into it.
+const SURFACE_THEME: Record<Surface, { court: string; courtIn: string; line: string }> = {
+  Hard: { court: "#155e97", courtIn: "#3390d6", line: "#f7fafc" },
+  Clay: { court: "#8f4419", courtIn: "#cc6b2c", line: "#f8ecdf" },
+  Grass: { court: "#255f2f", courtIn: "#419e50", line: "#f7fafc" },
 };
-const INDOOR_THEME = { court: "#33383f", courtIn: "#3d434b", line: "#eef1f4", stand: "#15171b" };
+const INDOOR_THEME = { court: "#26292f", courtIn: "#454b54", line: "#f0f2f5" };
+
+// The stadium stands and ad-strip always use this fixed broadcast-neutral palette, independent of
+// court surface, so the "arena" framing stays consistent whichever surface is being played on.
+const STAND_FAR = "#0a0d12"; // edge of the stands, furthest from the court
+const STAND_NEAR = "#1a2230"; // edge closest to the court, just behind the ad-strip
+const STAND_SEAM = "#05070a"; // crisp seam separating the stand band from the ad-strip
 
 const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
   point, player1Name, player2Name, serverIsPlayer1, speedMultiplier, onComplete, onPointResolved,
@@ -213,7 +221,9 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
   const receiverColor = serverIsPlayer1 ? "#f97316" : "#3b82f6";
   // Label placement follows whichever edge of the SVG a marker is actually near, not a fixed
   // "server=bottom" assumption - once ends switch (flipped=true) the server can be the one at top.
-  const labelY = (svgY: number) => (svgY < 50 ? Math.max(svgY - 9, -12) : Math.min(svgY + 6, 108));
+  // Labels are always nudged toward the net (center) rather than toward the baseline, so they never
+  // stray into the stands/ad-strip margin that now surrounds the court.
+  const labelY = (svgY: number) => (svgY < 50 ? Math.min(svgY + 6, 46) : Math.max(svgY - 6, 54));
 
   const nameTag = (x: number, y: number, name: string, color: string, isServing: boolean, key: string) => (
     <foreignObject key={key} x={x - 16} y={y - 3.6} width="32" height="7.2" style={{ overflow: "visible", pointerEvents: "none" }}>
@@ -282,45 +292,59 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
             <stop offset="55%" stopColor="#eab308" />
             <stop offset="100%" stopColor="#854d0e" />
           </radialGradient>
-          <radialGradient id="p1Gradient" cx="35%" cy="30%" r="75%">
-            <stop offset="0%" stopColor="#93c5fd" />
-            <stop offset="100%" stopColor="#1d4ed8" />
+          <radialGradient id="p1Gradient" cx="35%" cy="30%" r="80%">
+            <stop offset="0%" stopColor="#60a5fa" />
+            <stop offset="100%" stopColor="#1e3a8a" />
           </radialGradient>
-          <radialGradient id="p2Gradient" cx="35%" cy="30%" r="75%">
-            <stop offset="0%" stopColor="#fdba74" />
-            <stop offset="100%" stopColor="#c2410c" />
+          <radialGradient id="p2Gradient" cx="35%" cy="30%" r="80%">
+            <stop offset="0%" stopColor="#fb923c" />
+            <stop offset="100%" stopColor="#9a3412" />
           </radialGradient>
+          <linearGradient id="standTop" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={STAND_FAR} />
+            <stop offset="100%" stopColor={STAND_NEAR} />
+          </linearGradient>
+          <linearGradient id="standBottom" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={STAND_NEAR} />
+            <stop offset="100%" stopColor={STAND_FAR} />
+          </linearGradient>
+          <pattern id="seatRows" width="128" height="1.6" patternUnits="userSpaceOnUse">
+            <rect width="128" height="0.8" fill="#ffffff" opacity="0.045" />
+          </pattern>
         </defs>
 
-        {/* stadium stands, filling the margin outside the doubles court */}
+        {/* stadium stands, filling the margin outside the doubles court, with faint seat-row
+            banding so they read as tiered seating instead of a flat rectangle */}
         <rect x="-14" y="-14" width="128" height="14" fill="url(#standTop)" />
+        <rect x="-14" y="-14" width="128" height="14" fill="url(#seatRows)" />
         <rect x="-14" y="100" width="128" height="14" fill="url(#standBottom)" />
-        {[-11, -8.5, -6].map((y) => (
-          <line key={`sr-t-${y}`} x1="-14" y1={y} x2="114" y2={y} stroke="#000" strokeOpacity="0.15" strokeWidth="0.4" />
-        ))}
-        {[103, 105.5, 108].map((y) => (
-          <line key={`sr-b-${y}`} x1="-14" y1={y} x2="114" y2={y} stroke="#000" strokeOpacity="0.15" strokeWidth="0.4" />
-        ))}
+        <rect x="-14" y="100" width="128" height="14" fill="url(#seatRows)" />
+        {/* crisp seam separating the stands from the ad-strip banner */}
+        <line x1="-14" y1="-3.6" x2="114" y2="-3.6" stroke={STAND_SEAM} strokeWidth="0.4" />
+        <line x1="-14" y1="103.6" x2="114" y2="103.6" stroke={STAND_SEAM} strokeWidth="0.4" />
 
-        {/* ad-strip banners ringing the court */}
+        {/* ad-strip banners ringing the court, sitting between the stands and the court itself */}
         <rect x="-14" y="-3.6" width="128" height="3.6" fill="#0b0f14" />
+        <rect x="-14" y="-3.6" width="128" height="3.6" fill="url(#seatRows)" opacity="0.5" />
         <text x="50" y="-1" textAnchor="middle" fontSize="2.1" fontWeight="700" letterSpacing="0.4"
           fill="#d7e94a" style={{ textTransform: "uppercase" }}>
           {bannerLabel}
         </text>
         <rect x="-14" y="100" width="128" height="3.6" fill="#0b0f14" />
+        <rect x="-14" y="100" width="128" height="3.6" fill="url(#seatRows)" opacity="0.5" />
         <text x="50" y="102.6" textAnchor="middle" fontSize="2.1" fontWeight="700" letterSpacing="0.4"
           fill="#d7e94a" style={{ textTransform: "uppercase" }}>
           {bannerLabel}
         </text>
 
-        {/* doubles-width court surface, with the singles/serving area in a slightly brighter shade */}
+        {/* doubles-width court surface (the decorative alley) with the brighter singles/play area
+            inset on top of it, plus a bright doubles sideline so the alley clearly reads as a lane */}
         <rect x="-8" y="0" width="116" height="100" fill={theme.court} />
         <rect x="0" y="0" width="100" height="100" fill={theme.courtIn} />
+        <rect x="-8" y="0" width="116" height="100" fill="none" stroke={theme.line} strokeWidth="0.5" opacity="0.8" />
 
         {/* court lines */}
         <g stroke={theme.line} strokeWidth="0.8" fill="none" opacity="0.95">
-          <rect x="-8" y="0" width="116" height="100" />
           <rect x="0" y="0" width="100" height="100" />
           <line x1="-8" y1="50" x2="108" y2="50" strokeWidth="1.1" opacity="0.6" />
           <line x1="0" y1="32" x2="100" y2="32" />
@@ -330,10 +354,11 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
           <line x1="50" y1="97" x2="50" y2="100" />
         </g>
 
-        {/* net: checkered mesh band across the full doubles width, with post markers */}
-        <rect x="-8" y="49.1" width="116" height="1.8" fill="url(#netMesh)" stroke={theme.line} strokeWidth="0.3" />
-        <rect x="-8.6" y="48.6" width="1.2" height="2.8" rx="0.3" fill="#20242b" />
-        <rect x="107.4" y="48.6" width="1.2" height="2.8" rx="0.3" fill="#20242b" />
+        {/* net: checkered mesh band across the full doubles width, with a bright top cord and posts */}
+        <rect x="-8" y="48.9" width="116" height="2.2" fill="url(#netMesh)" stroke={theme.line} strokeWidth="0.2" />
+        <line x1="-8" y1="48.9" x2="108" y2="48.9" stroke={theme.line} strokeWidth="0.5" opacity="0.9" />
+        <rect x="-8.7" y="48.2" width="1.4" height="3.6" rx="0.3" fill="#14171c" stroke="#000" strokeWidth="0.1" />
+        <rect x="107.3" y="48.2" width="1.4" height="3.6" rx="0.3" fill="#14171c" stroke="#000" strokeWidth="0.1" />
 
         {/* receiver */}
         <g transform={`translate(${receiverSvg.x}, ${receiverSvg.y})`} style={{ transition: `transform ${posTransitionMs}ms linear` }}>
