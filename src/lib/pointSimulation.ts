@@ -298,7 +298,12 @@ function buildRallyPoint(server: Player, receiver: Player, winnerSide: Side, sur
     // moves to intercept it (that's where their next shot will come "from").
     const recoverY = hitterSide === "server" ? 0.15 : 0.85;
     const recovered: Vec2 = { x: from.x * 0.4 + 0.5 * 0.6, y: recoverY };
-    const landing: Vec2 = { x: clamp(to.x, 0.05, 0.95), y: clamp(to.y, targetSide === "server" ? 0.05 : 0.95, targetSide === "server" ? 0.45 : 0.95) };
+    // Clamp the landing spot into the correct half of the court so the "chaser" marker always
+    // matches where the ball actually lands, rather than snapping to a fixed depth on the receiver's
+    // side (a previous bug: the y-bounds for targetSide "receiver" were both 0.95, which forced
+    // every ball heading that way to visually land dead on the baseline no matter its real target -
+    // this is what made balls look short and players look like they never reached the ball).
+    const landing: Vec2 = { x: clamp(to.x, 0.05, 0.95), y: clamp(to.y, targetSide === "server" ? 0.05 : 0.55, targetSide === "server" ? 0.45 : 0.95) };
 
     shots.push({
       shotNumber: i, hitterSide, style, from, to, arcHeight: arcHeightFor(style), isFinal,

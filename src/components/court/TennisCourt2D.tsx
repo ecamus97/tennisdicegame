@@ -17,10 +17,26 @@ const DEFAULT_RECEIVER_POS: Vec2 = { x: 0.5, y: 0.94 };
 
 const toSvg = (v: Vec2) => ({ x: v.x * 100, y: (1 - v.y) * 100 });
 
+// How fast the ball actually travels for each type of shot, relative to a neutral groundstroke.
+// >1 = faster (shorter duration), <1 = slower (longer duration) - e.g. a smash or serve should
+// whip across the court noticeably quicker than a lofted lob or a delicately touched drop shot.
+const STYLE_SPEED_FACTOR: Record<Shot["style"], number> = {
+  serve: 1.3,
+  smash: 1.55,
+  passingShot: 1.2,
+  downTheLine: 1.1,
+  return: 1.05,
+  approach: 1.05,
+  crosscourt: 1.0,
+  lob: 0.55,
+  dropShot: 0.5,
+};
+
 function durationForShot(shot: Shot, speedMultiplier: number): number {
   const dist = Math.hypot(shot.to.x - shot.from.x, shot.to.y - shot.from.y);
   const base = 260 + dist * 480 + shot.arcHeight * 200;
-  return Math.max(90, base / speedMultiplier);
+  const styleFactor = STYLE_SPEED_FACTOR[shot.style] ?? 1;
+  return Math.max(90, base / (speedMultiplier * styleFactor));
 }
 
 const shotStyleLabel: Record<Shot["style"], string> = {
