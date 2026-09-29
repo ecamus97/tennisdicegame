@@ -30,6 +30,13 @@ const COUNTRIES = [
 
 let nextGeneratedId = 10000;
 
+// Tracks every full name already handed out to a generated player this session, so a rookie
+// almost never gets a name identical to an existing/past player even when a country's pool is
+// shared by several codes. Best-effort only (not persisted in the save), but that's fine — it
+// still prevents the visible clumps of repeated names within a single long play session.
+const usedGeneratedNames = new Set<string>();
+const MAX_NAME_GEN_ATTEMPTS = 20;
+
 /**
  * A new player's official ranking always starts near the bottom (they're unproven), but their
  * fictional ranking is their hidden true power level, which is what actually decides match outcomes
@@ -52,8 +59,16 @@ function buildGeneratedPlayer(ranking: number, country: string, countryCode: str
   // Pick first/last names from the pool that actually fits this player's country, instead of a
   // single global list — otherwise a Croatian rookie could end up named "Kenji Martínez".
   const pool = getNamePool(countryCode);
-  const first = pool.first[Math.floor(Math.random() * pool.first.length)];
-  const last = pool.last[Math.floor(Math.random() * pool.last.length)];
+  let first = pool.first[Math.floor(Math.random() * pool.first.length)];
+  let last = pool.last[Math.floor(Math.random() * pool.last.length)];
+  // Retry a handful of times to dodge a name that's already in use; if the pool is small enough
+  // that we can't find a fresh combination in a reasonable number of tries, just accept the repeat
+  // rather than looping forever (happens only for tiny pools after heavy generation).
+  for (let attempt = 0; attempt < MAX_NAME_GEN_ATTEMPTS && usedGeneratedNames.has(`${first} ${last}`); attempt++) {
+    first = pool.first[Math.floor(Math.random() * pool.first.length)];
+    last = pool.last[Math.floor(Math.random() * pool.last.length)];
+  }
+  usedGeneratedNames.add(`${first} ${last}`);
   const age = 17 + Math.floor(Math.random() * 4); // 17-20
   const id = nextGeneratedId++;
 
