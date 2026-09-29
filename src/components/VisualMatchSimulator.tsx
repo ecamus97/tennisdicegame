@@ -171,7 +171,7 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#3b82f6" }} aria-hidden="true" />
             )}
             <div className="min-w-0">
-              <div className="text-sm truncate">{player1.name}</div>
+              <div className="text-sm truncate">{player1.name.split(" ").pop()}</div>
               <div className="text-xs text-muted-foreground">{player1.countryCode}</div>
             </div>
           </div>
@@ -229,7 +229,7 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
 
           <div className="flex items-center justify-center gap-1.5 min-w-0">
             <div className="min-w-0">
-              <div className="text-sm truncate">{player2.name}</div>
+              <div className="text-sm truncate">{player2.name.split(" ").pop()}</div>
               <div className="text-xs text-muted-foreground">{player2.countryCode}</div>
             </div>
             {!matchComplete && !serverIsPlayer1 && (
@@ -253,8 +253,8 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
         <TennisCourt2D
           key={`${setIdx}-${gameIdx}-${pointIdx}`}
           point={currentPoint}
-          player1Name={player1.name}
-          player2Name={player2.name}
+          player1Name={player1.name.split(" ").pop()}
+          player2Name={player2.name.split(" ").pop()}
           serverIsPlayer1={serverIsPlayer1}
           speedMultiplier={isPlaying ? speed : 0}
           onComplete={advance}
@@ -270,7 +270,7 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
         <div className="text-center animate-bounce-in">
           <div className="text-lg font-display flex items-center justify-center gap-2">
             <Trophy className="w-5 h-5 text-primary" />
-            <span className="text-primary font-bold">{matchResult.winner.name}</span> gana!
+            <span className="text-primary font-bold">{matchResult.winner.name.split(" ").pop()}</span> gana!
           </div>
           <div className="text-xl font-display font-bold mt-1">
             {matchResult.sets.map((set, i) => (
