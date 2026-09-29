@@ -102,6 +102,10 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
   const [finalCaption, setFinalCaption] = useState<string | null>(null);
   const [ballLift, setBallLift] = useState(0);
   const [showTrail, setShowTrail] = useState(false);
+  // A brief bounce mark at the last shot's actual landing spot - "in" (bright ring) for a winner,
+  // "out" (red ring) for a wide/long error, so it's visually obvious where the ball actually hit
+  // instead of only being explained by the caption text.
+  const [bounceMark, setBounceMark] = useState<{ pos: Vec2; kind: "in" | "out" } | null>(null);
 
   const timeoutsRef = useRef<number[]>([]);
   const rafRef = useRef<number>();
@@ -122,6 +126,7 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
     setBallTransitionMs(0);
     setPosTransitionMs(0);
     setShowTrail(false);
+    setBounceMark(null);
     setBallPos(shots[0].from);
     setServerPos(shots[0].hitterSide === "server" ? shots[0].from : DEFAULT_SERVER_POS);
     setReceiverPos(shots[0].hitterSide === "receiver" ? shots[0].from : DEFAULT_RECEIVER_POS);
@@ -140,6 +145,14 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
         setCaption("");
         setShowTrail(false);
         setFinalCaption(outcome.label);
+        // Net misses land just short of the net (still technically in bounds) so they don't get a
+        // bounce mark - only a genuine winner (in) or a wide/long error (out) does.
+        const lastShot = shots[shots.length - 1];
+        if (lastShot && outcome.type === "winner") {
+          setBounceMark({ pos: lastShot.to, kind: "in" });
+        } else if (lastShot && outcome.missType && outcome.missType !== "net") {
+          setBounceMark({ pos: lastShot.to, kind: "out" });
+        }
         onPointResolved?.();
         const t = window.setTimeout(() => { if (!cancelled) onComplete(); }, Math.max(500, 900 / speedMultiplier));
         timeoutsRef.current.push(t);
@@ -225,63 +238,61 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
   // stray into the stands/ad-strip margin that now surrounds the court.
   const labelY = (svgY: number) => (svgY < 50 ? Math.min(svgY + 6, 46) : Math.max(svgY - 6, 54));
 
+  // The tag is wrapped in its own <g transform="translate(...)"> using the SAME CSS transition as
+  // the player's circle group below, instead of animating the foreignObject's x/y attributes
+  // directly (those are plain SVG attributes, not CSS properties, so they can't be transitioned and
+  // would otherwise snap to the new spot instantly - which is what made the tag look like it moved
+  // ahead of the circle it's supposed to be glued to).
   const nameTag = (x: number, y: number, name: string, color: string, isServing: boolean, key: string) => (
-    <foreignObject key={key} x={x - 16} y={y - 3.6} width="32" height="7.2" style={{ overflow: "visible", pointerEvents: "none" }}>
-      <div
-        // eslint-disable-next-line react/no-unknown-property
-        xmlns="http://www.w3.org/1999/xhtml"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "1px",
-          margin: "0 auto",
-          width: "fit-content",
-          maxWidth: "32px",
-          padding: "0.6px 2.4px",
-          borderRadius: "3.2px",
-          background: "rgba(9, 12, 16, 0.72)",
-          color: "#f5f7fa",
-          fontSize: "3.4px",
-          lineHeight: 1.5,
-          fontWeight: 600,
-          fontFamily: "inherit",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          transition: `left ${posTransitionMs}ms linear, top ${posTransitionMs}ms linear`,
-        }}
-      >
-        {isServing && (
-          <span
-            style={{
-              width: "2px",
-              height: "2px",
-              borderRadius: "50%",
-              background: color,
-              display: "inline-block",
-              flexShrink: 0,
-              boxShadow: `0 0 1.5px ${color}`,
-            }}
-          />
-        )}
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
-      </div>
-    </foreignObject>
+    <g key={key} transform={`translate(${x}, ${y})`} style={{ transition: `transform ${posTransitionMs}ms ease-out` }}>
+      <foreignObject x="-16" y="-3.6" width="32" height="7.2" style={{ overflow: "visible", pointerEvents: "none" }}>
+        <div
+          // eslint-disable-next-line react/no-unknown-property
+          xmlns="http://www.w3.org/1999/xhtml"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "1px",
+            margin: "0 auto",
+            width: "fit-content",
+            maxWidth: "32px",
+            padding: "0.6px 2.4px",
+            borderRadius: "3.2px",
+            background: "rgba(9, 12, 16, 0.72)",
+            color: "#f5f7fa",
+            fontSize: "3.4px",
+            lineHeight: 1.5,
+            fontWeight: 600,
+            fontFamily: "inherit",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {isServing && (
+            <span
+              style={{
+                width: "2px",
+                height: "2px",
+                borderRadius: "50%",
+                background: color,
+                display: "inline-block",
+                flexShrink: 0,
+                boxShadow: `0 0 1.5px ${color}`,
+              }}
+            />
+          )}
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
+        </div>
+      </foreignObject>
+    </g>
   );
 
   return (
     <div className="relative w-full aspect-[3/4] max-h-[420px] mx-auto rounded-lg overflow-hidden select-none shadow-inner">
       <svg viewBox="-14 -14 128 128" className="w-full h-full" style={{ background: theme.stand }}>
         <defs>
-          <linearGradient id="standTop" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={theme.stand} stopOpacity="1" />
-            <stop offset="100%" stopColor={theme.stand} stopOpacity="0.35" />
-          </linearGradient>
-          <linearGradient id="standBottom" x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stopColor={theme.stand} stopOpacity="1" />
-            <stop offset="100%" stopColor={theme.stand} stopOpacity="0.35" />
-          </linearGradient>
           <pattern id="netMesh" width="2" height="2" patternUnits="userSpaceOnUse">
             <rect width="2" height="2" fill="#e7ebef" opacity="0.18" />
             <rect width="1" height="1" fill="#0a0e12" opacity="0.22" />
@@ -361,14 +372,14 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
         <rect x="107.3" y="48.2" width="1.4" height="3.6" rx="0.3" fill="#14171c" stroke="#000" strokeWidth="0.1" />
 
         {/* receiver */}
-        <g transform={`translate(${receiverSvg.x}, ${receiverSvg.y})`} style={{ transition: `transform ${posTransitionMs}ms linear` }}>
+        <g transform={`translate(${receiverSvg.x}, ${receiverSvg.y})`} style={{ transition: `transform ${posTransitionMs}ms ease-out` }}>
           <ellipse cx="0" cy="1.4" rx="3.1" ry="1.1" fill="#000" opacity="0.28" />
           <circle r="3.2" fill={serverIsPlayer1 ? "url(#p2Gradient)" : "url(#p1Gradient)"} stroke="white" strokeWidth="0.5" />
         </g>
         {nameTag(receiverSvg.x, labelY(receiverSvg.y), receiverName, receiverColor, false, "receiver-tag")}
 
         {/* server */}
-        <g transform={`translate(${serverSvg.x}, ${serverSvg.y})`} style={{ transition: `transform ${posTransitionMs}ms linear` }}>
+        <g transform={`translate(${serverSvg.x}, ${serverSvg.y})`} style={{ transition: `transform ${posTransitionMs}ms ease-out` }}>
           <ellipse cx="0" cy="1.4" rx="3.1" ry="1.1" fill="#000" opacity="0.28" />
           <circle r="3.2" fill={serverIsPlayer1 ? "url(#p1Gradient)" : "url(#p2Gradient)"} stroke="white" strokeWidth="0.5" />
         </g>
@@ -395,6 +406,24 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
         <g style={{ transition: `transform ${ballTransitionMs}ms ease-out` }} transform={`translate(${ballSvg.x}, ${ballSvg.y - ballLiftPx})`}>
           <circle r="1.6" fill="url(#ballGradient)" stroke="#854d0e" strokeWidth="0.3" />
         </g>
+
+        {/* bounce mark - a quick expanding ring at the actual landing spot of the final shot, so a
+            winner or a wide/long error is visibly marked instead of only explained by the caption */}
+        {bounceMark && (() => {
+          const p = toSvg(bounceMark.pos);
+          const color = bounceMark.kind === "out" ? "#ef4444" : "#f5f7fa";
+          return (
+            <g key={`${bounceMark.pos.x}-${bounceMark.pos.y}-${bounceMark.kind}`}>
+              <circle cx={p.x} cy={p.y} r="0.6" fill="none" stroke={color} strokeWidth="0.7" opacity="0.9">
+                <animate attributeName="r" from="0.6" to="4.5" dur="0.7s" fill="freeze" />
+                <animate attributeName="opacity" from="0.9" to="0" dur="0.7s" fill="freeze" />
+              </circle>
+              <circle cx={p.x} cy={p.y} r="0.5" fill={color} opacity="0.8">
+                <animate attributeName="opacity" from="0.8" to="0" dur="0.5s" fill="freeze" />
+              </circle>
+            </g>
+          );
+        })()}
       </svg>
 
       {caption && (
