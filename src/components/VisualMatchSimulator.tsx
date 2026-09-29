@@ -1,0 +1,254 @@
+import React, { useEffect, useState } from "react";
+import { Player, Surface } from "@/data/players";
+import { MatchResult } from "@/lib/matchEngine";
+import { simulateVisualMatch, VisualMatchResult, PointLog } from "@/lib/pointSimulation";
+import TennisCourt2D from "./court/TennisCourt2D";
+import { Button } from "@/components/ui/button";
+import { Play, Pause, FastForward, Gauge, Trophy } from "lucide-react";
+
+interface VisualMatchSimulatorProps {
+  player1: Player;
+  player2: Player;
+  bestOf?: 3 | 5;
+  onMatchComplete?: (result: MatchResult) => void;
+  initialServerId?: number;
+  surface?: Surface;
+  h2hRecord?: { wins: number; losses: number };
+}
+
+const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
+  player1, player2, bestOf = 3, onMatchComplete, surface, h2hRecord,
+}) => {
+  const [matchResult, setMatchResult] = useState<VisualMatchResult>(() => simulateVisualMatch(player1, player2, bestOf, surface));
+  const [setIdx, setSetIdx] = useState(0);
+  const [gameIdx, setGameIdx] = useState(0);
+  const [pointIdx, setPointIdx] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [speed, setSpeed] = useState<1 | 2>(1);
+  const [matchComplete, setMatchComplete] = useState(false);
+  const [reportedComplete, setReportedComplete] = useState(false);
+
+  // Reset whenever the actual matchup changes (new modal instance for a different match).
+  useEffect(() => {
+    setMatchResult(simulateVisualMatch(player1, player2, bestOf, surface));
+    setSetIdx(0);
+    setGameIdx(0);
+    setPointIdx(0);
+    setIsPlaying(true);
+    setMatchComplete(false);
+    setReportedComplete(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player1.id, player2.id, bestOf, surface]);
+
+  const currentSetLog = matchResult.setLogs[setIdx];
+  const currentGameLog = currentSetLog?.games[gameIdx];
+  const currentPoint: PointLog | undefined = currentGameLog?.points[pointIdx];
+
+  // Running games/sets tally derived from how far playback has progressed (not the final result),
+  // so the scoreboard fills in point by point like a real broadcast rather than showing the end state.
+  const setsWonSoFar = { player1: 0, player2: 0 };
+  for (let s = 0; s < setIdx; s++) {
+    const sc = matchResult.setLogs[s].setScore;
+    if (sc.player1Games > sc.player2Games) setsWonSoFar.player1++; else setsWonSoFar.player2++;
+  }
+  const gamesWonSoFar = { player1: 0, player2: 0 };
+  if (currentSetLog) {
+    for (let g = 0; g < gameIdx; g++) {
+      const gl = currentSetLog.games[g];
+      const serverIsPlayer1 = gl.points[0]?.serverId === player1.id;
+      const player1WonGame = gl.serverWonGame === serverIsPlayer1;
+      if (player1WonGame) gamesWonSoFar.player1++; else gamesWonSoFar.player2++;
+    }
+  }
+  const isTiebreak = currentGameLog?.isTiebreak ?? false;
+
+  const advance = () => {
+    if (!currentGameLog || !currentSetLog) return;
+
+    if (pointIdx + 1 < currentGameLog.points.length) {
+      setPointIdx(pointIdx + 1);
+      return;
+    }
+    // game finished
+    if (gameIdx + 1 < currentSetLog.games.length) {
+      setGameIdx(gameIdx + 1);
+      setPointIdx(0);
+      return;
+    }
+    // set finished
+    if (setIdx + 1 < matchResult.setLogs.length) {
+      setSetIdx(setIdx + 1);
+      setGameIdx(0);
+      setPointIdx(0);
+      return;
+    }
+    // match finished
+    setMatchComplete(true);
+  };
+
+  useEffect(() => {
+    if (matchComplete && !reportedComplete) {
+      setReportedComplete(true);
+      onMatchComplete?.(matchResult);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchComplete]);
+
+  const skipToEnd = () => {
+    setIsPlaying(false);
+    setMatchComplete(true);
+  };
+
+  const serverIsPlayer1 = currentPoint ? currentPoint.serverId === player1.id : true;
+  const currentServer = serverIsPlayer1 ? player1 : player2;
+
+  return (
+    <div className="glass-card p-6 space-y-4">
+      <div className="text-center">
+        <h2 className="font-display text-xl font-bold text-foreground">
+          {matchComplete ? "Partido terminado" : "Modo 2D en vivo"}
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Al mejor de {bestOf} sets {isTiebreak && !matchComplete && "• TIEBREAK"}
+        </p>
+      </div>
+
+      {h2hRecord && (
+        <div className="text-center text-xs text-muted-foreground bg-secondary/20 rounded px-3 py-1.5">
+          {h2hRecord.wins === 0 && h2hRecord.losses === 0
+            ? <span className="opacity-60">H2H: Sin enfrentamientos previos</span>
+            : <>
+                H2H: <span className="text-green-400 font-medium">{h2hRecord.wins}G</span> - <span className="text-red-400 font-medium">{h2hRecord.losses}P</span>
+                <span className="ml-2 opacity-60">({h2hRecord.wins + h2hRecord.losses} partidos)</span>
+              </>
+          }
+        </div>
+      )}
+
+      {/* Score display */}
+      <div className="bg-secondary/30 rounded-lg p-4">
+        <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center text-center">
+          <div className={!matchComplete && serverIsPlayer1 ? "font-bold" : ""}>
+            <div className="text-sm truncate">{player1.name}</div>
+            <div className="text-xs text-muted-foreground">{player1.countryCode}</div>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-center justify-center gap-2 text-2xl font-display font-bold">
+              <span className={matchComplete && matchResult.player1Sets > matchResult.player2Sets ? "text-primary" : ""}>
+                {matchComplete ? matchResult.player1Sets : setsWonSoFar.player1}
+              </span>
+              <span className="text-muted-foreground">-</span>
+              <span className={matchComplete && matchResult.player2Sets > matchResult.player1Sets ? "text-primary" : ""}>
+                {matchComplete ? matchResult.player2Sets : setsWonSoFar.player2}
+              </span>
+            </div>
+
+            {!matchComplete && (
+              <div className="flex items-center justify-center gap-2 text-lg">
+                <span>{gamesWonSoFar.player1}</span>
+                <span className="text-muted-foreground text-sm">games</span>
+                <span>{gamesWonSoFar.player2}</span>
+              </div>
+            )}
+
+            {!matchComplete && currentPoint && (
+              <div className="flex items-center justify-center gap-2 text-base font-display">
+                <span>{serverIsPlayer1 ? currentPoint.serverLabel : currentPoint.receiverLabel}</span>
+                <span className="text-muted-foreground text-xs">pts</span>
+                <span>{serverIsPlayer1 ? currentPoint.receiverLabel : currentPoint.serverLabel}</span>
+              </div>
+            )}
+
+            {matchComplete && (
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                {matchResult.sets.map((set, i) => (
+                  <span key={i}>
+                    {set.player1Games}-{set.player2Games}
+                    {set.tiebreak && <sup>({Math.min(set.tiebreak.player1Points, set.tiebreak.player2Points)})</sup>}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className={!matchComplete && !serverIsPlayer1 ? "font-bold" : ""}>
+            <div className="text-sm truncate">{player2.name}</div>
+            <div className="text-xs text-muted-foreground">{player2.countryCode}</div>
+          </div>
+        </div>
+
+        {!matchComplete && (
+          <div className="text-center mt-2 text-xs text-muted-foreground">
+            🎾 {currentServer.name} saca
+            {currentPoint?.isMatchPoint && <span className="ml-2 text-destructive font-semibold">MATCH POINT</span>}
+            {!currentPoint?.isMatchPoint && currentPoint?.isSetPoint && <span className="ml-2 text-primary font-semibold">SET POINT</span>}
+            {!currentPoint?.isMatchPoint && !currentPoint?.isSetPoint && currentPoint?.isBreakPoint && <span className="ml-2 text-destructive font-semibold">BREAK POINT</span>}
+            {!currentPoint?.isMatchPoint && !currentPoint?.isSetPoint && !currentPoint?.isBreakPoint && currentPoint?.isGamePoint && <span className="ml-2 text-primary font-semibold">GAME POINT</span>}
+          </div>
+        )}
+      </div>
+
+      {/* Court */}
+      {!matchComplete && currentPoint && (
+        <TennisCourt2D
+          key={`${setIdx}-${gameIdx}-${pointIdx}`}
+          point={currentPoint}
+          player1Name={player1.name}
+          player2Name={player2.name}
+          serverIsPlayer1={serverIsPlayer1}
+          speedMultiplier={isPlaying ? speed : 0}
+          onComplete={advance}
+        />
+      )}
+
+      {matchComplete && (
+        <div className="text-center animate-bounce-in">
+          <div className="text-lg font-display flex items-center justify-center gap-2">
+            <Trophy className="w-5 h-5 text-primary" />
+            <span className="text-primary font-bold">{matchResult.winner.name}</span> gana!
+          </div>
+          <div className="text-xl font-display font-bold mt-1">
+            {matchResult.sets.map((set, i) => (
+              <span key={i} className="mx-1">
+                {set.player1Games}-{set.player2Games}
+                {set.tiebreak && <sup>({Math.min(set.tiebreak.player1Points, set.tiebreak.player2Points)})</sup>}
+              </span>
+            ))}
+          </div>
+          <div className="flex justify-center gap-6 mt-3 text-xs text-muted-foreground">
+            <div>
+              <div className="font-semibold text-foreground">{player1.name.split(" ").pop()}</div>
+              <div>Aces: {matchResult.stats.player1.aces} • Winners: {matchResult.stats.player1.winners}</div>
+              <div>Dobles faltas: {matchResult.stats.player1.doubleFaults} • Errores no forz.: {matchResult.stats.player1.unforcedErrors}</div>
+            </div>
+            <div>
+              <div className="font-semibold text-foreground">{player2.name.split(" ").pop()}</div>
+              <div>Aces: {matchResult.stats.player2.aces} • Winners: {matchResult.stats.player2.winners}</div>
+              <div>Dobles faltas: {matchResult.stats.player2.doubleFaults} • Errores no forz.: {matchResult.stats.player2.unforcedErrors}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Controls */}
+      {!matchComplete && (
+        <div className="flex justify-center gap-2 flex-wrap">
+          <Button onClick={() => setIsPlaying(p => !p)} variant={isPlaying ? "outline" : "default"} className="gap-2">
+            {isPlaying ? <><Pause className="w-4 h-4" /> Pausar</> : <><Play className="w-4 h-4" /> Reanudar</>}
+          </Button>
+          <Button onClick={() => setSpeed(s => (s === 1 ? 2 : 1))} variant="outline" className="gap-2">
+            <Gauge className="w-4 h-4" />
+            {speed === 1 ? "1x" : "2x"}
+          </Button>
+          <Button onClick={skipToEnd} variant="secondary" className="gap-2">
+            <FastForward className="w-4 h-4" />
+            Saltar al resultado
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default VisualMatchSimulator;

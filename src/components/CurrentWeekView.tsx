@@ -5,6 +5,7 @@ import { selectTournamentEntrants, getFieldDescription } from "@/lib/tournamentE
 import { StoredMatch, TournamentDraw } from "@/hooks/useGameState";
 import TournamentBracket from "./TournamentBracket";
 import InteractiveMatchSimulator from "./InteractiveMatchSimulator";
+import VisualMatchSimulator from "./VisualMatchSimulator";
 import ATPFinalsView, { ATPFinalsState } from "./ATPFinalsView";
 import DavisCupView, { DavisCupSeasonState, applyDavisCupMatchResult } from "./DavisCupView";
 import LaverCupView, { LaverCupState } from "./LaverCupView";
@@ -52,6 +53,19 @@ interface CurrentWeekViewProps {
   davisCupSeason?: DavisCupSeasonState | null;
   onDavisCupSeasonChange?: (season: DavisCupSeasonState) => void;
 }
+
+// Small sticky toggle rendered above every match modal (any tournament type) so the user can pick,
+// per match, between the quick dice simulator and the 2D point-by-point court view.
+const MatchModeToggle: React.FC<{ mode: "dice" | "visual"; onChange: (mode: "dice" | "visual") => void }> = ({ mode, onChange }) => (
+  <div className="flex justify-center gap-1 mb-2">
+    <Button size="sm" variant={mode === "dice" ? "default" : "outline"} className="gap-1 text-xs h-7" onClick={() => onChange("dice")}>
+      🎲 Dados
+    </Button>
+    <Button size="sm" variant={mode === "visual" ? "default" : "outline"} className="gap-1 text-xs h-7" onClick={() => onChange("visual")}>
+      🎾 2D en vivo
+    </Button>
+  </div>
+);
 
 // Helper function - defined outside component to avoid hoisting issues
 const getRoundName = (totalPlayers: number, roundNumber: number): string => {
@@ -112,6 +126,21 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
     matchId: string;
   } | null>(null);
   
+  // How to watch/play an individual match - a per-user, sticky preference (applies to every
+  // match, in every mode) rather than something asked per-match. "dice" is the original quick
+  // dice-roll simulator; "visual" is the 2D point-by-point court view.
+  const [matchViewMode, setMatchViewMode] = useState<"dice" | "visual">(() => {
+    try {
+      return (localStorage.getItem("matchViewMode") as "dice" | "visual") || "dice";
+    } catch {
+      return "dice";
+    }
+  });
+  const setAndPersistMatchViewMode = (mode: "dice" | "visual") => {
+    setMatchViewMode(mode);
+    try { localStorage.setItem("matchViewMode", mode); } catch { /* best-effort only */ }
+  };
+
   const isATPFinals = tournament.category === "ATP Finals";
   const isDavisCup = tournament.category === "Davis Cup";
   const isLaverCup = tournament.category === "Laver Cup";
@@ -824,14 +853,25 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
         {atpFinalsSelectedMatch && !atpFinalsSelectedMatch.match.result && (
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-lg">
-              <InteractiveMatchSimulator
-                player1={atpFinalsSelectedMatch.match.player1}
-                player2={atpFinalsSelectedMatch.match.player2}
-                bestOf={3}
-                onMatchComplete={(result) => handleATPFinalsMatchComplete(atpFinalsSelectedMatch.match.id, result)}
-                surface={tournament.surface}
-              />
-              <Button 
+              <MatchModeToggle mode={matchViewMode} onChange={setAndPersistMatchViewMode} />
+              {matchViewMode === "visual" ? (
+                <VisualMatchSimulator
+                  player1={atpFinalsSelectedMatch.match.player1}
+                  player2={atpFinalsSelectedMatch.match.player2}
+                  bestOf={3}
+                  onMatchComplete={(result) => handleATPFinalsMatchComplete(atpFinalsSelectedMatch.match.id, result)}
+                  surface={tournament.surface}
+                />
+              ) : (
+                <InteractiveMatchSimulator
+                  player1={atpFinalsSelectedMatch.match.player1}
+                  player2={atpFinalsSelectedMatch.match.player2}
+                  bestOf={3}
+                  onMatchComplete={(result) => handleATPFinalsMatchComplete(atpFinalsSelectedMatch.match.id, result)}
+                  surface={tournament.surface}
+                />
+              )}
+              <Button
                 variant="ghost" 
                 className="w-full mt-2"
                 onClick={() => setAtpFinalsSelectedMatch(null)}
@@ -861,14 +901,25 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
         {davisCupSelectedMatch && (
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-lg">
-              <InteractiveMatchSimulator
-                player1={davisCupSelectedMatch.matchPlayer1}
-                player2={davisCupSelectedMatch.matchPlayer2}
-                bestOf={3}
-                onMatchComplete={handleDavisCupMatchComplete}
-                surface={tournament.surface}
-              />
-              <Button 
+              <MatchModeToggle mode={matchViewMode} onChange={setAndPersistMatchViewMode} />
+              {matchViewMode === "visual" ? (
+                <VisualMatchSimulator
+                  player1={davisCupSelectedMatch.matchPlayer1}
+                  player2={davisCupSelectedMatch.matchPlayer2}
+                  bestOf={3}
+                  onMatchComplete={handleDavisCupMatchComplete}
+                  surface={tournament.surface}
+                />
+              ) : (
+                <InteractiveMatchSimulator
+                  player1={davisCupSelectedMatch.matchPlayer1}
+                  player2={davisCupSelectedMatch.matchPlayer2}
+                  bestOf={3}
+                  onMatchComplete={handleDavisCupMatchComplete}
+                  surface={tournament.surface}
+                />
+              )}
+              <Button
                 variant="ghost" 
                 className="w-full mt-2"
                 onClick={() => setDavisCupSelectedMatch(null)}
@@ -951,13 +1002,24 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
         {laverCupSelectedMatch && (
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-lg">
-              <InteractiveMatchSimulator
-                player1={laverCupSelectedMatch.player1}
-                player2={laverCupSelectedMatch.player2}
-                bestOf={3}
-                onMatchComplete={handleLaverCupMatchComplete}
-                surface={tournament.surface}
-              />
+              <MatchModeToggle mode={matchViewMode} onChange={setAndPersistMatchViewMode} />
+              {matchViewMode === "visual" ? (
+                <VisualMatchSimulator
+                  player1={laverCupSelectedMatch.player1}
+                  player2={laverCupSelectedMatch.player2}
+                  bestOf={3}
+                  onMatchComplete={handleLaverCupMatchComplete}
+                  surface={tournament.surface}
+                />
+              ) : (
+                <InteractiveMatchSimulator
+                  player1={laverCupSelectedMatch.player1}
+                  player2={laverCupSelectedMatch.player2}
+                  bestOf={3}
+                  onMatchComplete={handleLaverCupMatchComplete}
+                  surface={tournament.surface}
+                />
+              )}
               <Button variant="ghost" className="w-full mt-2" onClick={() => setLaverCupSelectedMatch(null)}>
                 Cancel
               </Button>
@@ -1058,40 +1120,56 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
       )}
 
       {/* Match Simulator Modal */}
-      {selectedMatch && !selectedMatch.result && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg">
-            <InteractiveMatchSimulator
-              player1={selectedMatch.player1}
-              player2={selectedMatch.player2}
-              bestOf={tournament.category === "Grand Slam" ? 5 : 3}
-              onMatchComplete={(result) => handleMatchComplete(selectedMatch.id, result)}
-              surface={tournament.surface}
-              h2hRecord={selectedMatch && (() => {
-                const careerPlayerId = -1;
-                // Career player match: use per-career H2H
-                if (getH2HRecord) {
-                  if (selectedMatch.player1.id === careerPlayerId) return getH2HRecord(selectedMatch.player2.id);
-                  if (selectedMatch.player2.id === careerPlayerId) return getH2HRecord(selectedMatch.player1.id);
-                }
-                // CPU vs CPU match: use global H2H pair
-                if (getH2HPair) {
-                  const pair = getH2HPair(selectedMatch.player1.id, selectedMatch.player2.id);
-                  return { wins: pair.p1Wins, losses: pair.p2Wins };
-                }
-                return undefined;
-              })()}
-            />
-            <Button 
-              variant="ghost" 
-              className="w-full mt-2"
-              onClick={() => setSelectedMatch(null)}
-            >
-              Cancel
-            </Button>
+      {selectedMatch && !selectedMatch.result && (() => {
+        const selectedMatchH2H = (() => {
+          const careerPlayerId = -1;
+          // Career player match: use per-career H2H
+          if (getH2HRecord) {
+            if (selectedMatch.player1.id === careerPlayerId) return getH2HRecord(selectedMatch.player2.id);
+            if (selectedMatch.player2.id === careerPlayerId) return getH2HRecord(selectedMatch.player1.id);
+          }
+          // CPU vs CPU match: use global H2H pair
+          if (getH2HPair) {
+            const pair = getH2HPair(selectedMatch.player1.id, selectedMatch.player2.id);
+            return { wins: pair.p1Wins, losses: pair.p2Wins };
+          }
+          return undefined;
+        })();
+        const selectedMatchBestOf = tournament.category === "Grand Slam" ? 5 : 3;
+        return (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-lg">
+              <MatchModeToggle mode={matchViewMode} onChange={setAndPersistMatchViewMode} />
+              {matchViewMode === "visual" ? (
+                <VisualMatchSimulator
+                  player1={selectedMatch.player1}
+                  player2={selectedMatch.player2}
+                  bestOf={selectedMatchBestOf}
+                  onMatchComplete={(result) => handleMatchComplete(selectedMatch.id, result)}
+                  surface={tournament.surface}
+                  h2hRecord={selectedMatchH2H}
+                />
+              ) : (
+                <InteractiveMatchSimulator
+                  player1={selectedMatch.player1}
+                  player2={selectedMatch.player2}
+                  bestOf={selectedMatchBestOf}
+                  onMatchComplete={(result) => handleMatchComplete(selectedMatch.id, result)}
+                  surface={tournament.surface}
+                  h2hRecord={selectedMatchH2H}
+                />
+              )}
+              <Button
+                variant="ghost"
+                className="w-full mt-2"
+                onClick={() => setSelectedMatch(null)}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Simulate All button for current round */}
       {!isTournamentComplete && currentRoundMatches.length > 0 && (
