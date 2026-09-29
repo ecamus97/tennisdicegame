@@ -747,6 +747,32 @@ export const getSurfaceEmoji = (surface: "Hard" | "Clay" | "Grass"): string => {
   }
 };
 
+// Tournaments played under a roof on the real ATP calendar. "Indoor" isn't a distinct bounce
+// surface (these are still Hard courts for simulation purposes), so it's tracked separately here
+// as a purely cosmetic flag for the 2D court view rather than folded into the Surface type -
+// extending Surface would ripple into matchEngine's surface-affinity math for no gameplay benefit.
+const INDOOR_TOURNAMENT_IDS = new Set([
+  "dallas", "rotterdam", "basel", "vienna", "paris", "stockholm", "atp-finals",
+]);
+
+export const isIndoorTournament = (tournamentId: string): boolean =>
+  INDOOR_TOURNAMENT_IDS.has(tournamentId);
+
+// The short place name to show on the court's broadcast banner ("ATP WORLD TOUR · <label>").
+// Grand Slams, Masters 1000s and the season-ending events are commonly referred to by their own
+// name rather than their host city (e.g. "Roland Garros", "Indian Wells", "ATP Finals"); everything
+// else reads better as the city.
+export const getTournamentLocationLabel = (tournament: Tournament): string => {
+  if (
+    tournament.category === "Grand Slam" ||
+    tournament.category === "Masters 1000" ||
+    tournament.category === "ATP Finals"
+  ) {
+    return tournament.name;
+  }
+  return tournament.city;
+};
+
 // European country codes for Laver Cup
 export const EUROPEAN_COUNTRY_CODES = new Set([
   "ESP", "ITA", "SRB", "GER", "FRA", "GBR", "NOR", "DEN", "CZE", "NED",

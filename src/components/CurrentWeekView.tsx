@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { Player, Tournament } from "@/data/players";
+import { Player, Tournament, getTournamentLocationLabel, isIndoorTournament } from "@/data/players";
 import { playMatch, MatchResult } from "@/lib/matchEngine";
 import { selectTournamentEntrants, getFieldDescription } from "@/lib/tournamentEntryLogic";
 import { StoredMatch, TournamentDraw } from "@/hooks/useGameState";
@@ -861,6 +861,8 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
                   bestOf={3}
                   onMatchComplete={(result) => handleATPFinalsMatchComplete(atpFinalsSelectedMatch.match.id, result)}
                   surface={tournament.surface}
+                  tournamentLocation={getTournamentLocationLabel(tournament)}
+                  indoor={isIndoorTournament(tournament.id)}
                 />
               ) : (
                 <InteractiveMatchSimulator
@@ -909,6 +911,8 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
                   bestOf={3}
                   onMatchComplete={handleDavisCupMatchComplete}
                   surface={tournament.surface}
+                  tournamentLocation={getTournamentLocationLabel(tournament)}
+                  indoor={isIndoorTournament(tournament.id)}
                 />
               ) : (
                 <InteractiveMatchSimulator
@@ -1010,6 +1014,8 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
                   bestOf={3}
                   onMatchComplete={handleLaverCupMatchComplete}
                   surface={tournament.surface}
+                  tournamentLocation={getTournamentLocationLabel(tournament)}
+                  indoor={isIndoorTournament(tournament.id)}
                 />
               ) : (
                 <InteractiveMatchSimulator
@@ -1147,6 +1153,8 @@ const CurrentWeekView: React.FC<CurrentWeekViewProps> = ({
                   bestOf={selectedMatchBestOf}
                   onMatchComplete={(result) => handleMatchComplete(selectedMatch.id, result)}
                   surface={tournament.surface}
+                  tournamentLocation={getTournamentLocationLabel(tournament)}
+                  indoor={isIndoorTournament(tournament.id)}
                   h2hRecord={selectedMatchH2H}
                 />
               ) : (

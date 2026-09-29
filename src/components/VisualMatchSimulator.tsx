@@ -14,10 +14,15 @@ interface VisualMatchSimulatorProps {
   initialServerId?: number;
   surface?: Surface;
   h2hRecord?: { wins: number; losses: number };
+  /** Short place name for the court's broadcast banner, e.g. "Vienna" or "Roland Garros". */
+  tournamentLocation?: string;
+  /** True for tournaments played under a roof (Basel, Vienna, Paris Masters, ATP Finals...) - a
+   * purely cosmetic flag that tints the court dark grey regardless of its Hard/Clay/Grass surface. */
+  indoor?: boolean;
 }
 
 const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
-  player1, player2, bestOf = 3, onMatchComplete, surface, h2hRecord,
+  player1, player2, bestOf = 3, onMatchComplete, surface, h2hRecord, tournamentLocation, indoor,
 }) => {
   const [matchResult, setMatchResult] = useState<VisualMatchResult>(() => simulateVisualMatch(player1, player2, bestOf, surface));
   const [setIdx, setSetIdx] = useState(0);
@@ -110,7 +115,6 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
   };
 
   const serverIsPlayer1 = currentPoint ? currentPoint.serverId === player1.id : true;
-  const currentServer = serverIsPlayer1 ? player1 : player2;
   // The court view is always rendered server-at-bottom internally; "flipped" mirrors it vertically
   // whenever the CURRENT server's real assigned end (per the change-of-ends rule) is the top instead.
   const flipped = currentPoint ? serverIsPlayer1 !== currentPoint.player1DefendsBottomEnd : false;
@@ -157,40 +161,55 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
         </div>
       )}
 
-      {/* Score display */}
+      {/* Score display - broadcast-style: a colored dot marks the server (name itself stays plain
+          weight), the games score in the current set is the big primary number, and the in-game
+          points sit underneath as a smaller secondary line. */}
       <div className="bg-secondary/30 rounded-lg p-4">
         <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center text-center">
-          <div className={!matchComplete && serverIsPlayer1 ? "font-bold" : ""}>
-            <div className="text-sm truncate">{player1.name}</div>
-            <div className="text-xs text-muted-foreground">{player1.countryCode}</div>
+          <div className="flex items-center justify-center gap-1.5 min-w-0">
+            {!matchComplete && serverIsPlayer1 && (
+              <span className="w-2 h-2 rounded-full bg-primary shrink-0" aria-hidden="true" />
+            )}
+            <div className="min-w-0">
+              <div className="text-sm truncate">{player1.name}</div>
+              <div className="text-xs text-muted-foreground">{player1.countryCode}</div>
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <div className="flex items-center justify-center gap-2 text-2xl font-display font-bold">
-              <span className={matchComplete && matchResult.player1Sets > matchResult.player2Sets ? "text-primary" : ""}>
-                {matchComplete ? matchResult.player1Sets : setsWonSoFar.player1}
-              </span>
-              <span className="text-muted-foreground">-</span>
-              <span className={matchComplete && matchResult.player2Sets > matchResult.player1Sets ? "text-primary" : ""}>
-                {matchComplete ? matchResult.player2Sets : setsWonSoFar.player2}
-              </span>
-            </div>
-
+          <div className="space-y-0.5">
             {!matchComplete && (
-              <div className="flex items-center justify-center gap-2 text-lg">
-                <span>{gamesWonSoFar.player1}</span>
-                <span className="text-muted-foreground text-sm">games</span>
-                <span>{gamesWonSoFar.player2}</span>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Set {setIdx + 1}{isTiebreak && " · Tiebreak"} · Sets {setsWonSoFar.player1}-{setsWonSoFar.player2}
               </div>
             )}
+
+            <div className="flex items-center justify-center gap-2 text-2xl font-display font-bold">
+              {matchComplete ? (
+                <>
+                  <span className={matchResult.player1Sets > matchResult.player2Sets ? "text-primary" : ""}>
+                    {matchResult.player1Sets}
+                  </span>
+                  <span className="text-muted-foreground">-</span>
+                  <span className={matchResult.player2Sets > matchResult.player1Sets ? "text-primary" : ""}>
+                    {matchResult.player2Sets}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>{gamesWonSoFar.player1}</span>
+                  <span className="text-muted-foreground">-</span>
+                  <span>{gamesWonSoFar.player2}</span>
+                </>
+              )}
+            </div>
 
             {!matchComplete && currentPoint && (() => {
               const serverPts = pointResolved ? currentPoint.serverLabel : currentPoint.preServerLabel;
               const receiverPts = pointResolved ? currentPoint.receiverLabel : currentPoint.preReceiverLabel;
               return (
-                <div className="flex items-center justify-center gap-2 text-base font-display">
+                <div className="flex items-center justify-center gap-1.5 text-sm font-display text-muted-foreground">
                   <span>{serverIsPlayer1 ? serverPts : receiverPts}</span>
-                  <span className="text-muted-foreground text-xs">pts</span>
+                  <span>-</span>
                   <span>{serverIsPlayer1 ? receiverPts : serverPts}</span>
                 </div>
               );
@@ -208,19 +227,23 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
             )}
           </div>
 
-          <div className={!matchComplete && !serverIsPlayer1 ? "font-bold" : ""}>
-            <div className="text-sm truncate">{player2.name}</div>
-            <div className="text-xs text-muted-foreground">{player2.countryCode}</div>
+          <div className="flex items-center justify-center gap-1.5 min-w-0">
+            <div className="min-w-0">
+              <div className="text-sm truncate">{player2.name}</div>
+              <div className="text-xs text-muted-foreground">{player2.countryCode}</div>
+            </div>
+            {!matchComplete && !serverIsPlayer1 && (
+              <span className="w-2 h-2 rounded-full bg-primary shrink-0" aria-hidden="true" />
+            )}
           </div>
         </div>
 
-        {!matchComplete && (
+        {!matchComplete && (currentPoint?.isMatchPoint || currentPoint?.isSetPoint || currentPoint?.isBreakPoint || currentPoint?.isGamePoint) && (
           <div className="text-center mt-2 text-xs text-muted-foreground">
-            🎾 {currentServer.name} saca
-            {currentPoint?.isMatchPoint && <span className="ml-2 text-destructive font-semibold">MATCH POINT</span>}
-            {!currentPoint?.isMatchPoint && currentPoint?.isSetPoint && <span className="ml-2 text-primary font-semibold">SET POINT</span>}
-            {!currentPoint?.isMatchPoint && !currentPoint?.isSetPoint && currentPoint?.isBreakPoint && <span className="ml-2 text-destructive font-semibold">BREAK POINT</span>}
-            {!currentPoint?.isMatchPoint && !currentPoint?.isSetPoint && !currentPoint?.isBreakPoint && currentPoint?.isGamePoint && <span className="ml-2 text-primary font-semibold">GAME POINT</span>}
+            {currentPoint?.isMatchPoint && <span className="text-destructive font-semibold">MATCH POINT</span>}
+            {!currentPoint?.isMatchPoint && currentPoint?.isSetPoint && <span className="text-primary font-semibold">SET POINT</span>}
+            {!currentPoint?.isMatchPoint && !currentPoint?.isSetPoint && currentPoint?.isBreakPoint && <span className="text-destructive font-semibold">BREAK POINT</span>}
+            {!currentPoint?.isMatchPoint && !currentPoint?.isSetPoint && !currentPoint?.isBreakPoint && currentPoint?.isGamePoint && <span className="text-primary font-semibold">GAME POINT</span>}
           </div>
         )}
       </div>
@@ -237,6 +260,9 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
           onComplete={advance}
           onPointResolved={() => setPointResolved(true)}
           flipped={flipped}
+          surface={surface}
+          indoor={indoor}
+          bannerLabel={tournamentLocation ? `ATP World Tour · ${tournamentLocation}` : "ATP World Tour"}
         />
       )}
 
