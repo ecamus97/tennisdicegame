@@ -23,7 +23,7 @@ export interface Vec2 { x: number; y: number; }
 export type Side = "server" | "receiver";
 
 export type ShotStyle =
-  | "serve" | "return" | "crosscourt" | "downTheLine" | "lob" | "dropShot" | "approach" | "passingShot" | "smash";
+  | "serve" | "firstServeFault" | "return" | "crosscourt" | "downTheLine" | "lob" | "dropShot" | "approach" | "passingShot" | "smash";
 
 export type PointOutcomeType = "ace" | "doubleFault" | "winner" | "unforcedError" | "forcedError";
 export type MissType = "net" | "wide" | "long";
@@ -59,6 +59,11 @@ export interface PointLog {
   serverId: number;
   serverLabel: string;
   receiverLabel: string;
+  /** The game score as it stood BEFORE this point was played - what the scoreboard should show
+   * while the point is still animating (the post-point serverLabel/receiverLabel above should only
+   * appear once the point's outcome has actually been revealed). */
+  preServerLabel: string;
+  preReceiverLabel: string;
   isBreakPoint: boolean;
   isGamePoint: boolean;
   isSetPoint: boolean;
@@ -124,10 +129,20 @@ function getAceChance(server: Player, receiver: Player, surface?: Surface): numb
   return clamp(0.06 + norm * 0.05 + surfaceBonus, 0.02, 0.2);
 }
 
-function getDoubleFaultChance(server: Player, receiver: Player, surface?: Surface): number {
+/** Chance the SECOND serve is also missed, given the first serve already faulted - i.e. this is
+ * the conditional rate that actually produces a double fault, not a flat "double fault chance". */
+function getSecondServeFaultChance(server: Player, receiver: Player, surface?: Surface): number {
   const rankingDiff = getEffectiveRankingDiff(server, receiver, surface);
   const norm = clamp(rankingDiff / 200, -1, 1);
-  return clamp(0.05 - norm * 0.02, 0.015, 0.08);
+  return clamp(0.13 - norm * 0.04, 0.05, 0.22);
+}
+
+/** Chance the first serve is missed (a "falta"), sending the server to their second serve -
+ * this does NOT end the point, it just means the next shot is a second serve attempt. */
+function getFirstServeFaultChance(server: Player, receiver: Player, surface?: Surface): number {
+  const rankingDiff = getEffectiveRankingDiff(server, receiver, surface);
+  const norm = clamp(rankingDiff / 200, -1, 1);
+  return clamp(0.37 - norm * 0.05, 0.22, 0.5);
 }
 
 // ---------- Court geometry helpers ----------
@@ -138,6 +153,7 @@ const WINNER_STYLES: ShotStyle[] = ["crosscourt", "downTheLine", "passingShot", 
 
 const styleLabelEs: Record<ShotStyle, string> = {
   serve: "saque",
+  firstServeFault: "falta (1er saque)",
   return: "resto",
   crosscourt: "cruzado",
   downTheLine: "paralelo",
@@ -159,6 +175,7 @@ function arcHeightFor(style: ShotStyle): number {
     case "lob": return 0.95;
     case "dropShot": return 0.1;
     case "serve": return 0.35;
+    case "firstServeFault": return 0.3;
     case "smash": return 0.5;
     default: return randRange(0.3, 0.55);
   }
@@ -220,6 +237,18 @@ function buildAcePoint(server: Player): { shots: Shot[]; outcome: PointOutcome }
   return {
     shots,
     outcome: { type: "ace", winnerSide: "server", label: `¡ACE de ${server.name}!` },
+  };
+}
+
+/** A missed first serve - the ball lands out (net/wide/long), but the point is NOT over: the
+ * server gets a second serve next. Always non-final. */
+function buildFirstServeFaultShot(server: Player): Shot {
+  const from: Vec2 = { x: randRange(0.3, 0.7), y: 0.02 };
+  const missType: MissType = pick<MissType>(["net", "wide", "long"]);
+  const to = missTarget("receiver", missType);
+  return {
+    shotNumber: 1, hitterSide: "server", style: "firstServeFault", from, to, arcHeight: 0.3, isFinal: false,
+    hitterRestPos: from, chaserTargetPos: { x: 0.5, y: 0.85 }, // receiver doesn't chase a serve that's out
   };
 }
 
@@ -327,20 +356,47 @@ function buildRallyPoint(server: Player, receiver: Player, winnerSide: Side, sur
   };
 }
 
-function simulatePoint(server: Player, receiver: Player, surface: Surface | undefined): { shots: Shot[]; outcome: PointOutcome } {
-  const winProb = getServerPointWinProbability(server, receiver, surface);
-  const aceChance = getAceChance(server, receiver, surface);
-  const dfChance = getDoubleFaultChance(server, receiver, surface);
-
+/** Simulates one point on the SECOND serve (either the point's only serve, if the first went in,
+ * or the continuation after a first-serve fault). `aceChance` here is already the chance for
+ * whichever serve is actually being hit. */
+function simulateFromServe(
+  server: Player, receiver: Player, surface: Surface | undefined,
+  aceChance: number, dfChance: number, rallyProb: number,
+): { shots: Shot[]; outcome: PointOutcome } {
   const roll = Math.random();
   if (roll < aceChance) return buildAcePoint(server);
   if (roll < aceChance + dfChance) return buildDoubleFaultPoint(server);
-
-  // Re-derive the probability the server wins a "normal" (non-ace/DF) point so the overall
-  // per-point win rate still matches winProb once ace/double-fault mass is accounted for.
-  const rallyProb = clamp((winProb - aceChance) / (1 - aceChance - dfChance), 0.08, 0.92);
   const winnerSide: Side = Math.random() < rallyProb ? "server" : "receiver";
   return buildRallyPoint(server, receiver, winnerSide, surface);
+}
+
+function simulatePoint(server: Player, receiver: Player, surface: Surface | undefined): { shots: Shot[]; outcome: PointOutcome } {
+  const winProb = getServerPointWinProbability(server, receiver, surface);
+  const aceChance = getAceChance(server, receiver, surface);
+  const firstServeFaultChance = getFirstServeFaultChance(server, receiver, surface);
+  const secondServeFaultChance = getSecondServeFaultChance(server, receiver, surface);
+  // Overall chance of an outright double fault (both serves missed) - used to keep the per-point
+  // server win rate calibrated to winProb once ace/double-fault mass is accounted for.
+  const doubleFaultChance = firstServeFaultChance * secondServeFaultChance;
+  const rallyProb = clamp((winProb - aceChance) / (1 - aceChance - doubleFaultChance), 0.08, 0.92);
+
+  const firstServeFaulted = Math.random() < firstServeFaultChance;
+
+  if (!firstServeFaulted) {
+    // First serve is in play - can end in an ace or go into a normal rally (no double fault possible).
+    return simulateFromServe(server, receiver, surface, aceChance, 0, rallyProb);
+  }
+
+  // First serve missed - the point continues on the second serve. Aces are rarer off a more
+  // conservative second serve; a second miss here is a real double fault.
+  const faultShot = buildFirstServeFaultShot(server);
+  const secondServeAceChance = aceChance * 0.4;
+  const rest = simulateFromServe(server, receiver, surface, secondServeAceChance, secondServeFaultChance, rallyProb);
+
+  return {
+    shots: [faultShot, ...rest.shots.map(s => ({ ...s, shotNumber: s.shotNumber + 1 }))],
+    outcome: rest.outcome,
+  };
 }
 
 // ---------- Score labels ----------
@@ -393,12 +449,14 @@ function simulateGamePoints(
     const isSetPoint = (serverGameWinNext && wouldWinSetIfServer) || (receiverGameWinNext && wouldWinSetIfReceiver);
     const isMatchPoint = (serverGameWinNext && wouldWinMatchIfServer) || (receiverGameWinNext && wouldWinMatchIfReceiver);
 
+    const preLabels = gameScoreLabels(serverPoints, receiverPoints);
     const { shots, outcome } = simulatePoint(server, receiver, surface);
     if (outcome.winnerSide === "server") serverPoints++; else receiverPoints++;
 
     const labels = gameScoreLabels(serverPoints, receiverPoints);
     points.push({
       shots, outcome, serverId: server.id, serverLabel: labels.server, receiverLabel: labels.receiver,
+      preServerLabel: preLabels.server, preReceiverLabel: preLabels.receiver,
       isBreakPoint: isBreakPoint && isDecidingPoint, isGamePoint: isGamePoint && isDecidingPoint,
       isSetPoint: isSetPoint && isDecidingPoint, isMatchPoint: isMatchPoint && isDecidingPoint,
     });
@@ -451,6 +509,7 @@ function simulateTiebreakPoints(
       shots, outcome, serverId: server.id,
       serverLabel: String(isPlayer1Serving ? player1Points : player2Points),
       receiverLabel: String(isPlayer1Serving ? player2Points : player1Points),
+      preServerLabel: String(serverPts), preReceiverLabel: String(receiverPts),
       isBreakPoint: false,
       isGamePoint: (serverTBWinNext || receiverTBWinNext) && isDecidingPoint,
       isSetPoint: (serverTBWinNext || receiverTBWinNext) && isDecidingPoint,

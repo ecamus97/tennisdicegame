@@ -10,6 +10,11 @@ interface TennisCourt2DProps {
   /** 1 = normal speed, 2 = fast, Infinity (or <=0) = skip straight to onComplete with no animation. */
   speedMultiplier: number;
   onComplete: () => void;
+  /** Fired the instant the point's outcome is decided (when the final caption appears) - BEFORE
+   * the completion delay that leads to onComplete. Lets the parent flip the scoreboard from the
+   * pre-point score to the post-point score in sync with the outcome being revealed, instead of
+   * jumping the number the moment the point starts playing. */
+  onPointResolved?: () => void;
 }
 
 const DEFAULT_SERVER_POS: Vec2 = { x: 0.5, y: 0.06 };
@@ -22,6 +27,7 @@ const toSvg = (v: Vec2) => ({ x: v.x * 100, y: (1 - v.y) * 100 });
 // whip across the court noticeably quicker than a lofted lob or a delicately touched drop shot.
 const STYLE_SPEED_FACTOR: Record<Shot["style"], number> = {
   serve: 1.3,
+  firstServeFault: 1.3,
   smash: 1.55,
   passingShot: 1.2,
   downTheLine: 1.1,
@@ -41,6 +47,7 @@ function durationForShot(shot: Shot, speedMultiplier: number): number {
 
 const shotStyleLabel: Record<Shot["style"], string> = {
   serve: "Saque",
+  firstServeFault: "Falta (1er saque)",
   return: "Resto",
   crosscourt: "Cruzado",
   downTheLine: "Paralelo",
@@ -52,7 +59,7 @@ const shotStyleLabel: Record<Shot["style"], string> = {
 };
 
 const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
-  point, player1Name, player2Name, serverIsPlayer1, speedMultiplier, onComplete,
+  point, player1Name, player2Name, serverIsPlayer1, speedMultiplier, onComplete, onPointResolved,
 }) => {
   const { shots, outcome } = point;
 
@@ -100,6 +107,7 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
       if (idx >= shots.length) {
         setCaption("");
         setFinalCaption(outcome.label);
+        onPointResolved?.();
         const t = window.setTimeout(() => { if (!cancelled) onComplete(); }, Math.max(500, 900 / speedMultiplier));
         timeoutsRef.current.push(t);
         return;
@@ -124,11 +132,14 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
         }
       });
 
+      // A missed first serve gets a beat of extra pause before the second serve starts, so the
+      // "Falta (1er saque)" caption actually registers instead of blending into the next toss.
+      const extraPause = shot.style === "firstServeFault" ? 280 / speedMultiplier : 0;
       const t = window.setTimeout(() => {
         if (cancelled) return;
         setBallLift(0);
         playShot(idx + 1);
-      }, duration + 30);
+      }, duration + 30 + extraPause);
       timeoutsRef.current.push(t);
     };
 

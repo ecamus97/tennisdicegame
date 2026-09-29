@@ -27,6 +27,10 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
   const [speed, setSpeed] = useState<1 | 2>(1);
   const [matchComplete, setMatchComplete] = useState(false);
   const [reportedComplete, setReportedComplete] = useState(false);
+  // Whether the CURRENT point's outcome has actually been revealed on court yet. Until it has,
+  // the scoreboard should keep showing the score from BEFORE this point (not jump straight to the
+  // result the instant the point starts playing) - see currentPoint.preServerLabel/preReceiverLabel.
+  const [pointResolved, setPointResolved] = useState(false);
 
   // Reset whenever the actual matchup changes (new modal instance for a different match).
   useEffect(() => {
@@ -37,8 +41,14 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
     setIsPlaying(true);
     setMatchComplete(false);
     setReportedComplete(false);
+    setPointResolved(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [player1.id, player2.id, bestOf, surface]);
+
+  // A new point is loading - the scoreboard should start each one showing the pre-point score again.
+  useEffect(() => {
+    setPointResolved(false);
+  }, [setIdx, gameIdx, pointIdx]);
 
   const currentSetLog = matchResult.setLogs[setIdx];
   const currentGameLog = currentSetLog?.games[gameIdx];
@@ -152,13 +162,17 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
               </div>
             )}
 
-            {!matchComplete && currentPoint && (
-              <div className="flex items-center justify-center gap-2 text-base font-display">
-                <span>{serverIsPlayer1 ? currentPoint.serverLabel : currentPoint.receiverLabel}</span>
-                <span className="text-muted-foreground text-xs">pts</span>
-                <span>{serverIsPlayer1 ? currentPoint.receiverLabel : currentPoint.serverLabel}</span>
-              </div>
-            )}
+            {!matchComplete && currentPoint && (() => {
+              const serverPts = pointResolved ? currentPoint.serverLabel : currentPoint.preServerLabel;
+              const receiverPts = pointResolved ? currentPoint.receiverLabel : currentPoint.preReceiverLabel;
+              return (
+                <div className="flex items-center justify-center gap-2 text-base font-display">
+                  <span>{serverIsPlayer1 ? serverPts : receiverPts}</span>
+                  <span className="text-muted-foreground text-xs">pts</span>
+                  <span>{serverIsPlayer1 ? receiverPts : serverPts}</span>
+                </div>
+              );
+            })()}
 
             {matchComplete && (
               <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
@@ -199,6 +213,7 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
           serverIsPlayer1={serverIsPlayer1}
           speedMultiplier={isPlaying ? speed : 0}
           onComplete={advance}
+          onPointResolved={() => setPointResolved(true)}
         />
       )}
 
