@@ -64,6 +64,11 @@ export interface PointLog {
    * appear once the point's outcome has actually been revealed). */
   preServerLabel: string;
   preReceiverLabel: string;
+  /** Which physical end (top/bottom of the rendered court) player1 is currently defending, per the
+   * real "change ends after game 1, then every 2 games" rule (every 6 points inside a tiebreak).
+   * The court view stays server-at-bottom internally, so the renderer flips vertically whenever the
+   * CURRENT server's assigned end doesn't match that default. */
+  player1DefendsBottomEnd: boolean;
   isBreakPoint: boolean;
   isGamePoint: boolean;
   isSetPoint: boolean;
@@ -223,6 +228,29 @@ function missTarget(headingToSide: Side, missType: MissType): Vec2 {
 
 function opposite(side: Side): Side {
   return side === "server" ? "receiver" : "server";
+}
+
+// ---------- Changing ends ----------
+// Real tennis: players change ends after the 1st game of a set, then every 2 games after that
+// (1-2-2-2...), which resets at the start of every set. Inside a tiebreak they instead change
+// ends every 6 points (cumulative), continuing whatever pattern the set was already on.
+
+/** Whether player1 is on the "bottom" end for the game numbered `gameNumber` (1-indexed within
+ * the set, counting the tiebreak as its own game). `player1StartsBottom` is player1's end for
+ * game 1 of the set. */
+function player1BottomForGame(gameNumber: number, player1StartsBottom: boolean): boolean {
+  const swapsBeforeThisGame = Math.ceil((gameNumber - 1) / 2);
+  const flipped = swapsBeforeThisGame % 2 === 1;
+  return player1StartsBottom !== flipped;
+}
+
+/** Same idea, but for one point inside a tiebreak, which changes ends every 6 points instead of
+ * every 2 games. `baseline` is the end assignment the tiebreak itself started on (i.e. whatever
+ * player1BottomForGame gives for the tiebreak's own game number). */
+function player1BottomForTiebreakPoint(pointNumber: number, baseline: boolean): boolean {
+  const swapsSoFar = Math.floor((pointNumber - 1) / 6);
+  const flipped = swapsSoFar % 2 === 1;
+  return baseline !== flipped;
 }
 
 // ---------- Single point simulation ----------
@@ -428,6 +456,7 @@ function simulateGamePoints(
   receiver: Player,
   surface: Surface | undefined,
   ctx: MatchContext,
+  player1DefendsBottomEnd: boolean,
 ): { points: PointLog[]; serverWonGame: boolean } {
   const points: PointLog[] = [];
   let serverPoints = 0;
@@ -457,6 +486,7 @@ function simulateGamePoints(
     points.push({
       shots, outcome, serverId: server.id, serverLabel: labels.server, receiverLabel: labels.receiver,
       preServerLabel: preLabels.server, preReceiverLabel: preLabels.receiver,
+      player1DefendsBottomEnd,
       isBreakPoint: isBreakPoint && isDecidingPoint, isGamePoint: isGamePoint && isDecidingPoint,
       isSetPoint: isSetPoint && isDecidingPoint, isMatchPoint: isMatchPoint && isDecidingPoint,
     });
@@ -474,6 +504,7 @@ interface TiebreakContext {
 
 function simulateTiebreakPoints(
   player1: Player, player2: Player, player1ServesFirst: boolean, surface: Surface | undefined, ctx: TiebreakContext,
+  baselineP1DefendsBottomEnd: boolean,
 ): { points: PointLog[]; player1Points: number; player2Points: number; player1WonTiebreak: boolean } {
   const points: PointLog[] = [];
   let player1Points = 0;
@@ -510,6 +541,7 @@ function simulateTiebreakPoints(
       serverLabel: String(isPlayer1Serving ? player1Points : player2Points),
       receiverLabel: String(isPlayer1Serving ? player2Points : player1Points),
       preServerLabel: String(serverPts), preReceiverLabel: String(receiverPts),
+      player1DefendsBottomEnd: player1BottomForTiebreakPoint(pointNumber, baselineP1DefendsBottomEnd),
       isBreakPoint: false,
       isGamePoint: (serverTBWinNext || receiverTBWinNext) && isDecidingPoint,
       isSetPoint: (serverTBWinNext || receiverTBWinNext) && isDecidingPoint,
@@ -533,12 +565,17 @@ function simulateSet(
   let player1Games = 0;
   let player2Games = 0;
   let isPlayer1Serving = player1ServesFirst;
+  // 1-indexed game number within THIS set (the tiebreak, if any, counts as its own game) - drives
+  // the "change ends after game 1, then every 2 games" rule. Resets fresh for every new set.
+  let gameNumber = 1;
+  const PLAYER1_STARTS_BOTTOM_THIS_SET = true;
 
   while (true) {
     if (player1Games === 6 && player2Games === 6) {
+      const tbBaseline = player1BottomForGame(gameNumber, PLAYER1_STARTS_BOTTOM_THIS_SET);
       const tb = simulateTiebreakPoints(player1, player2, isPlayer1Serving, surface, {
         setsToWin, player1Sets: player1SetsWon, player2Sets: player2SetsWon,
-      });
+      }, tbBaseline);
       gameLogs.push({
         points: tb.points, serverWonGame: tb.player1WonTiebreak === isPlayer1Serving,
         wasBreak: false, isTiebreak: true, serverPlayerId: (isPlayer1Serving ? player1 : player2).id,
@@ -558,12 +595,13 @@ function simulateSet(
 
     const server = isPlayer1Serving ? player1 : player2;
     const receiver = isPlayer1Serving ? player2 : player1;
+    const player1BottomThisGame = player1BottomForGame(gameNumber, PLAYER1_STARTS_BOTTOM_THIS_SET);
     const { points, serverWonGame } = simulateGamePoints(server, receiver, surface, {
       bestOf, setsToWin, serverPlayerSets: isPlayer1Serving ? player1SetsWon : player2SetsWon,
       receiverPlayerSets: isPlayer1Serving ? player2SetsWon : player1SetsWon,
       serverPlayerGamesInSet: isPlayer1Serving ? player1Games : player2Games,
       receiverPlayerGamesInSet: isPlayer1Serving ? player2Games : player1Games,
-    });
+    }, player1BottomThisGame);
 
     gameLogs.push({ points, serverWonGame, wasBreak: !serverWonGame, isTiebreak: false, serverPlayerId: server.id });
 
@@ -573,6 +611,7 @@ function simulateSet(
       if (serverWonGame) player2Games++; else player1Games++;
     }
     isPlayer1Serving = !isPlayer1Serving;
+    gameNumber++;
   }
 }
 

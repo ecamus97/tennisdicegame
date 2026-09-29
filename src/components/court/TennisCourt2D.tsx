@@ -15,12 +15,14 @@ interface TennisCourt2DProps {
    * pre-point score to the post-point score in sync with the outcome being revealed, instead of
    * jumping the number the moment the point starts playing. */
   onPointResolved?: () => void;
+  /** True when the current server's assigned end (per the real "change ends" rule) is the top of
+   * the court instead of the bottom. All shot geometry is computed server-at-bottom internally, so
+   * this just mirrors the rendering vertically - it never changes the simulation itself. */
+  flipped?: boolean;
 }
 
 const DEFAULT_SERVER_POS: Vec2 = { x: 0.5, y: 0.06 };
 const DEFAULT_RECEIVER_POS: Vec2 = { x: 0.5, y: 0.94 };
-
-const toSvg = (v: Vec2) => ({ x: v.x * 100, y: (1 - v.y) * 100 });
 
 // How fast the ball actually travels for each type of shot, relative to a neutral groundstroke.
 // >1 = faster (shorter duration), <1 = slower (longer duration) - e.g. a smash or serve should
@@ -59,8 +61,9 @@ const shotStyleLabel: Record<Shot["style"], string> = {
 };
 
 const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
-  point, player1Name, player2Name, serverIsPlayer1, speedMultiplier, onComplete, onPointResolved,
+  point, player1Name, player2Name, serverIsPlayer1, speedMultiplier, onComplete, onPointResolved, flipped = false,
 }) => {
+  const toSvg = (v: Vec2) => ({ x: v.x * 100, y: flipped ? v.y * 100 : (1 - v.y) * 100 });
   const { shots, outcome } = point;
 
   const [ballPos, setBallPos] = useState<Vec2>(shots[0]?.from ?? DEFAULT_SERVER_POS);
@@ -132,14 +135,30 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
         }
       });
 
-      // A missed first serve gets a beat of extra pause before the second serve starts, so the
-      // "Falta (1er saque)" caption actually registers instead of blending into the next toss.
-      const extraPause = shot.style === "firstServeFault" ? 280 / speedMultiplier : 0;
       const t = window.setTimeout(() => {
         if (cancelled) return;
         setBallLift(0);
+
+        // A missed first serve does NOT end the point - the server gets a second serve from
+        // (roughly) the same spot. Snap the ball and server back there instantly, hold on a
+        // "Segundo saque" caption for a beat, THEN play the next shot. Without this the ball would
+        // otherwise animate straight from wherever the fault landed (out of bounds) into the next
+        // serve's target, which reads as the players starting to rally out of nowhere.
+        if (shot.style === "firstServeFault" && idx + 1 < shots.length) {
+          const nextFrom = shots[idx + 1].from;
+          setBallTransitionMs(0);
+          setPosTransitionMs(0);
+          setBallPos(nextFrom);
+          setServerPos(nextFrom);
+          setCaption("Segundo saque");
+          const pauseMs = Math.max(260, 380 / speedMultiplier);
+          const t2 = window.setTimeout(() => { if (!cancelled) playShot(idx + 1); }, pauseMs);
+          timeoutsRef.current.push(t2);
+          return;
+        }
+
         playShot(idx + 1);
-      }, duration + 30 + extraPause);
+      }, duration + 30);
       timeoutsRef.current.push(t);
     };
 
@@ -161,6 +180,9 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
 
   const serverName = serverIsPlayer1 ? player1Name : player2Name;
   const receiverName = serverIsPlayer1 ? player2Name : player1Name;
+  // Label placement follows whichever edge of the SVG a marker is actually near, not a fixed
+  // "server=bottom" assumption - once ends switch (flipped=true) the server can be the one at top.
+  const labelY = (svgY: number) => (svgY < 50 ? Math.max(svgY - 5, -10) : Math.min(svgY + 8, 112));
 
   return (
     <div className="relative w-full aspect-[3/4] max-h-[420px] mx-auto rounded-lg overflow-hidden select-none">
@@ -187,19 +209,19 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
         {/* net */}
         <line x1="0" y1="50" x2="100" y2="50" stroke="#e5e7eb" strokeWidth="0.6" strokeDasharray="1.5,1" />
 
-        {/* receiver (top) */}
+        {/* receiver */}
         <g transform={`translate(${receiverSvg.x}, ${receiverSvg.y})`} style={{ transition: `transform ${posTransitionMs}ms linear` }}>
           <circle r="3.2" fill={serverIsPlayer1 ? "#f97316" : "#3b82f6"} stroke="white" strokeWidth="0.5" />
         </g>
-        <text x={receiverSvg.x} y={Math.max(receiverSvg.y - 5, -10)} textAnchor="middle" fontSize="4" fill="white" style={{ transition: `x ${posTransitionMs}ms linear` }}>
+        <text x={receiverSvg.x} y={labelY(receiverSvg.y)} textAnchor="middle" fontSize="4" fill="white" style={{ transition: `x ${posTransitionMs}ms linear` }}>
           {receiverName}
         </text>
 
-        {/* server (bottom) */}
+        {/* server */}
         <g transform={`translate(${serverSvg.x}, ${serverSvg.y})`} style={{ transition: `transform ${posTransitionMs}ms linear` }}>
           <circle r="3.2" fill={serverIsPlayer1 ? "#3b82f6" : "#f97316"} stroke="white" strokeWidth="0.5" />
         </g>
-        <text x={serverSvg.x} y={Math.min(serverSvg.y + 8, 112)} textAnchor="middle" fontSize="4" fill="white" style={{ transition: `x ${posTransitionMs}ms linear` }}>
+        <text x={serverSvg.x} y={labelY(serverSvg.y)} textAnchor="middle" fontSize="4" fill="white" style={{ transition: `x ${posTransitionMs}ms linear` }}>
           {serverName}
         </text>
 

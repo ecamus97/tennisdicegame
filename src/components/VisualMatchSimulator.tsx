@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Player, Surface } from "@/data/players";
 import { MatchResult } from "@/lib/matchEngine";
 import { simulateVisualMatch, VisualMatchResult, PointLog } from "@/lib/pointSimulation";
@@ -111,6 +111,25 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
 
   const serverIsPlayer1 = currentPoint ? currentPoint.serverId === player1.id : true;
   const currentServer = serverIsPlayer1 ? player1 : player2;
+  // The court view is always rendered server-at-bottom internally; "flipped" mirrors it vertically
+  // whenever the CURRENT server's real assigned end (per the change-of-ends rule) is the top instead.
+  const flipped = currentPoint ? serverIsPlayer1 !== currentPoint.player1DefendsBottomEnd : false;
+
+  // Briefly flag when the players have just switched ends, so the change is noticeable rather than
+  // just quietly happening in the background.
+  const [showSideSwitch, setShowSideSwitch] = useState(false);
+  const lastFlipRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!currentPoint) return;
+    if (lastFlipRef.current !== null && lastFlipRef.current !== flipped) {
+      setShowSideSwitch(true);
+      const t = window.setTimeout(() => setShowSideSwitch(false), 2200);
+      lastFlipRef.current = flipped;
+      return () => window.clearTimeout(t);
+    }
+    lastFlipRef.current = flipped;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setIdx, gameIdx, flipped]);
 
   return (
     <div className="glass-card p-6 space-y-4">
@@ -121,6 +140,9 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
         <p className="text-sm text-muted-foreground mt-1">
           Al mejor de {bestOf} sets {isTiebreak && !matchComplete && "• TIEBREAK"}
         </p>
+        {showSideSwitch && !matchComplete && (
+          <p className="text-xs text-primary font-medium mt-1 animate-slide-up">🔄 Cambio de lado</p>
+        )}
       </div>
 
       {h2hRecord && (
@@ -214,6 +236,7 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
           speedMultiplier={isPlaying ? speed : 0}
           onComplete={advance}
           onPointResolved={() => setPointResolved(true)}
+          flipped={flipped}
         />
       )}
 
