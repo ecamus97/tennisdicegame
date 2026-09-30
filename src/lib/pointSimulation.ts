@@ -186,12 +186,45 @@ function arcHeightFor(style: ShotStyle): number {
   }
 }
 
-/** A landing spot that is legitimately in play on `side`'s half of the court. */
-function inPlayTarget(side: Side): Vec2 {
-  if (side === "server") {
-    return { x: randRange(0.08, 0.92), y: randRange(0.06, 0.46) };
+/** x for a shot that should travel diagonally ("crosscourt"/"passingShot" - lands on the opposite
+ * horizontal side of the court from where it was struck) or parallel ("downTheLine" - stays on the
+ * same side, closer to the line the hitter is standing near) - moderate, mid-rally version. */
+function directionalX(fromX: number, style: ShotStyle): number {
+  const hitFromRight = fromX >= 0.5;
+  if (style === "crosscourt" || style === "passingShot") {
+    return hitFromRight ? randRange(0.08, 0.46) : randRange(0.54, 0.92);
   }
-  return { x: randRange(0.08, 0.92), y: randRange(0.54, 0.94) };
+  if (style === "downTheLine") {
+    return hitFromRight ? randRange(0.6, 0.92) : randRange(0.08, 0.4);
+  }
+  return randRange(0.08, 0.92);
+}
+
+/** Same idea but hugging the sideline, for a clean winner the opponent has no chance to reach. */
+function directionalEdgeX(fromX: number, style: ShotStyle): number {
+  const hitFromRight = fromX >= 0.5;
+  if (style === "downTheLine") {
+    return hitFromRight ? randRange(0.82, 0.96) : randRange(0.04, 0.18);
+  }
+  // crosscourt / passingShot
+  return hitFromRight ? randRange(0.04, 0.18) : randRange(0.82, 0.96);
+}
+
+/** A landing spot that is legitimately in play on `side`'s half of the court. Real tennis rallies
+ * are mostly played from the back of the court, so shots stay deep by default - only an "approach"
+ * or a genuine "dropShot" legitimately pulls the ball (and the players) forward toward the net. */
+function inPlayTarget(side: Side, style: ShotStyle, fromX: number): Vec2 {
+  const x = directionalX(fromX, style);
+  if (style === "approach") {
+    return { x, y: side === "server" ? randRange(0.22, 0.34) : randRange(0.66, 0.78) };
+  }
+  if (style === "dropShot") {
+    return { x, y: side === "server" ? randRange(0.4, 0.48) : randRange(0.52, 0.6) };
+  }
+  if (style === "lob") {
+    return { x, y: side === "server" ? randRange(0.04, 0.16) : randRange(0.84, 0.96) };
+  }
+  return { x, y: side === "server" ? randRange(0.08, 0.32) : randRange(0.68, 0.92) };
 }
 
 function serveTarget(): Vec2 {
@@ -199,16 +232,21 @@ function serveTarget(): Vec2 {
   return { x: randRange(0.15, 0.85), y: randRange(0.52, 0.66) };
 }
 
-/** A near-the-line/corner spot on `side`'s half - used for a winner the opponent can't reach. */
-function winnerTarget(side: Side, style: ShotStyle): Vec2 {
-  const xEdge = Math.random() < 0.5 ? randRange(0.02, 0.12) : randRange(0.88, 0.98);
+/** A near-the-line/corner spot on `side`'s half - used for a winner the opponent can't reach.
+ * `fromX` (where the winner was struck from) is what makes "downTheLine" genuinely parallel and
+ * "crosscourt"/"passingShot" genuinely diagonal, instead of picking an unrelated random side. */
+function winnerTarget(side: Side, style: ShotStyle, fromX: number): Vec2 {
   if (style === "dropShot") {
-    return { x: randRange(0.2, 0.8), y: side === "server" ? randRange(0.06, 0.16) : randRange(0.84, 0.94) };
+    // A real drop-shot winner lands just over the net - the opposite of deep in the corner.
+    return { x: randRange(0.2, 0.8), y: side === "server" ? randRange(0.4, 0.49) : randRange(0.51, 0.6) };
   }
   if (style === "lob") {
     return { x: randRange(0.2, 0.8), y: side === "server" ? randRange(0.02, 0.08) : randRange(0.92, 0.98) };
   }
-  return { x: xEdge, y: side === "server" ? randRange(0.1, 0.4) : randRange(0.6, 0.9) };
+  const x = (style === "crosscourt" || style === "downTheLine" || style === "passingShot")
+    ? directionalEdgeX(fromX, style)
+    : (Math.random() < 0.5 ? randRange(0.02, 0.12) : randRange(0.88, 0.98)); // smash / generic
+  return { x, y: side === "server" ? randRange(0.1, 0.4) : randRange(0.6, 0.9) };
 }
 
 /** Where a missed shot ends up, given the type of miss and which side it was heading toward. */
@@ -279,7 +317,7 @@ function oppositeServeSide(side: ServeSide): ServeSide {
 
 function buildAcePoint(server: Player, serveSide: ServeSide): { shots: Shot[]; outcome: PointOutcome } {
   const from: Vec2 = { x: serveSideX(serveSide), y: 0.02 };
-  const to = winnerTarget("receiver", "serve");
+  const to = winnerTarget("receiver", "serve", from.x);
   const shots: Shot[] = [{
     shotNumber: 1, hitterSide: "server", style: "serve", from, to, arcHeight: 0.3, isFinal: true,
     hitterRestPos: from, chaserTargetPos: { x: clamp(to.x, 0.05, 0.95), y: clamp(to.y, 0.55, 0.95) },
@@ -365,19 +403,22 @@ function buildRallyPoint(server: Player, receiver: Player, winnerSide: Side, sur
     } else if (i === 2) {
       style = "return";
       to = isFinal
-        ? (narrativeType === "winner" ? winnerTarget(targetSide, finalStyle) : missTarget(targetSide, missType!))
-        : inPlayTarget(targetSide);
+        ? (narrativeType === "winner" ? winnerTarget(targetSide, finalStyle, from.x) : missTarget(targetSide, missType!))
+        : inPlayTarget(targetSide, style, from.x);
     } else if (isFinal) {
       style = finalStyle;
-      to = narrativeType === "winner" ? winnerTarget(targetSide, finalStyle) : missTarget(targetSide, missType!);
+      to = narrativeType === "winner" ? winnerTarget(targetSide, finalStyle, from.x) : missTarget(targetSide, missType!);
     } else {
       style = pick(RALLY_STYLES);
-      to = inPlayTarget(targetSide);
+      to = inPlayTarget(targetSide, style, from.x);
     }
 
-    // The player who just hit recovers a little toward center; the side the ball is heading to
-    // moves to intercept it (that's where their next shot will come "from").
-    const recoverY = hitterSide === "server" ? 0.15 : 0.85;
+    // The player who just hit recovers toward their usual deep court position - unless the shot
+    // they just hit was itself a forward-moving one (an approach shot, or a smash struck close to
+    // net after a lob), in which case they stay forward rather than snapping back to the baseline.
+    let recoverY = hitterSide === "server" ? 0.15 : 0.85;
+    if (style === "approach") recoverY = hitterSide === "server" ? 0.34 : 0.66;
+    else if (style === "smash") recoverY = hitterSide === "server" ? 0.28 : 0.72;
     const recovered: Vec2 = { x: from.x * 0.4 + 0.5 * 0.6, y: recoverY };
     // Clamp the landing spot into the correct half of the court so the "chaser" marker always
     // matches where the ball actually lands, rather than snapping to a fixed depth on the receiver's

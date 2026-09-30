@@ -128,8 +128,17 @@ const TennisCourt2D: React.FC<TennisCourt2DProps> = ({
     setShowTrail(false);
     setBounceMark(null);
     setBallPos(shots[0].from);
+    // shots[0] is always the serve, so its "from" is the server's real, correctly-diagonal starting
+    // spot for this point (deuce/ad side of the T). The receiver's ready position should mirror that
+    // diagonally too (a real returner stands roughly opposite the server, not dead-center) - snapping
+    // to a fixed DEFAULT_RECEIVER_POS here was the bug that made the whole setup look "not diagonal"
+    // even though the server's own position was already correct.
     setServerPos(shots[0].hitterSide === "server" ? shots[0].from : DEFAULT_SERVER_POS);
-    setReceiverPos(shots[0].hitterSide === "receiver" ? shots[0].from : DEFAULT_RECEIVER_POS);
+    setReceiverPos(
+      shots[0].hitterSide === "receiver"
+        ? shots[0].from
+        : { x: 1 - shots[0].from.x, y: DEFAULT_RECEIVER_POS.y }
+    );
 
     // Paused - stay frozen on the point's opening frame; no timers, no onComplete, until resumed
     // (a positive, finite speedMultiplier) re-runs this effect and plays the point from the top.
