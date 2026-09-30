@@ -29,7 +29,7 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
   const [gameIdx, setGameIdx] = useState(0);
   const [pointIdx, setPointIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [speed, setSpeed] = useState<1 | 2>(1);
+  const [speed, setSpeed] = useState<0.5 | 1 | 2>(1);
   const [matchComplete, setMatchComplete] = useState(false);
   const [reportedComplete, setReportedComplete] = useState(false);
   // Whether the CURRENT point's outcome has actually been revealed on court yet. Until it has,
@@ -301,9 +301,13 @@ const VisualMatchSimulator: React.FC<VisualMatchSimulatorProps> = ({
           <Button onClick={() => setIsPlaying(p => !p)} variant={isPlaying ? "outline" : "default"} className="gap-2">
             {isPlaying ? <><Pause className="w-4 h-4" /> Pausar</> : <><Play className="w-4 h-4" /> Reanudar</>}
           </Button>
-          <Button onClick={() => setSpeed(s => (s === 1 ? 2 : 1))} variant="outline" className="gap-2">
+          <Button
+            onClick={() => setSpeed(s => (s === 0.5 ? 1 : s === 1 ? 2 : 0.5))}
+            variant="outline"
+            className="gap-2"
+          >
             <Gauge className="w-4 h-4" />
-            {speed === 1 ? "1x" : "2x"}
+            {speed === 0.5 ? "0.5x" : speed === 1 ? "1x" : "2x"}
           </Button>
           <Button onClick={skipToEnd} variant="secondary" className="gap-2">
             <FastForward className="w-4 h-4" />
